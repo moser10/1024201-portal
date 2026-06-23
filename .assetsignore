@@ -1,0 +1,6 @@
+functions/**
+worker.js
+schema.sql
+wrangler.toml
+.git/**
+.gitignore
