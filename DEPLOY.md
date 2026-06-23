@@ -13,8 +13,16 @@
 | 域名 | Worker | 行为 |
 |------|--------|------|
 | `www.1024201.com` | **one-sentence-novel** | 门户首页 `/` |
-| `1024201.com` | **one-sentence-novel** | 301 → www |
+| `1024201.com` | **one-sentence-novel** | 门户首页 `/`（与 www 相同） |
 | `game.1024201.com` | **one-sentence-novel** | `/` → 301 → `/game/` 游戏大厅 |
+
+### DNS 与 SSL（子域名打不开时必查）
+
+1. **DNS 记录必须是橙色云（Proxied）**，灰云（DNS only）会导致 `www` / `game` SSL 握手失败。
+2. `www`、`game` 建议：`CNAME` → `1024201.com`，Proxy 开启。
+3. **SSL/TLS → Edge Certificates**：确认 Universal SSL 为 Active；新增子域名后证书可能要等 15 分钟～几小时。
+4. 本机若曾解析失败，清 DNS 缓存：`sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder`
+5. 验证：`dig www.1024201.com @8.8.8.8` 应有 IP；`curl https://1024201.com/api/health` 应返回 JSON（不依赖 www）。
 
 路由写在 **`wrangler.toml` 的 `[[routes]]`** 中，部署时才会保留；仅控制台配置会被 `wrangler deploy` 覆盖清空。
 

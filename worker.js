@@ -13,12 +13,6 @@ const API_ROUTES = {
 
 export default {
   async fetch(request, env, ctx) {
-    const apexRedirect = maybeRedirectApex(request);
-    if (apexRedirect) return apexRedirect;
-
-    const gameRedirect = maybeGameSubdomain(request);
-    if (gameRedirect) return gameRedirect;
-
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -36,6 +30,9 @@ export default {
         { headers: { "Content-Type": "application/json" } }
       );
     }
+
+    const gameRedirect = maybeGameSubdomain(request);
+    if (gameRedirect) return gameRedirect;
 
     const handler = API_ROUTES[pathname];
     if (handler) {
@@ -67,16 +64,6 @@ async function serveStatic(request, env) {
   }
 
   return response;
-}
-
-function maybeRedirectApex(request) {
-  const url = new URL(request.url);
-  const host = url.hostname.toLowerCase();
-  if (host === "1024201.com") {
-    url.hostname = "www.1024201.com";
-    return Response.redirect(url.toString(), 301);
-  }
-  return null;
 }
 
 /** game.1024201.com 根路径 → 游戏大厅，不走门户 */
