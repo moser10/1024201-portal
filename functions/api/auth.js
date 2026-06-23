@@ -315,7 +315,7 @@ export async function onRequest(context) {
     const msg = err.message || "";
     if (msg.includes("no such column") && msg.includes("password")) {
       return json(
-        { error: "数据库未升级：请在 D1 Console 执行 schema-migrate-v4.sql 中的 ALTER TABLE users 语句" },
+        { error: "数据库未升级：请在 D1 Console 执行 schema-migrate.sql，或重试请求以触发自动迁移" },
         503
       );
     }

@@ -4,6 +4,19 @@ main = "worker.js"
 compatibility_date = "2024-09-23"
 workers_dev = false
 
+# 域名路由须写进本文件，否则 wrangler deploy 会清空控制台里的 Routes（站点 404）
+[[routes]]
+pattern = "1024201.com/*"
+zone_name = "1024201.com"
+
+[[routes]]
+pattern = "www.1024201.com/*"
+zone_name = "1024201.com"
+
+[[routes]]
+pattern = "game.1024201.com/*"
+zone_name = "1024201.com"
+
 [assets]
 directory = "."
 binding = "ASSETS"

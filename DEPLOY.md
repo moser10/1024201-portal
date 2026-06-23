@@ -8,7 +8,7 @@
 - **删除**多余的 `onesentencenovel` Worker（见下方）
 - Cloudflare **Workers Builds** 必须连接 **`one-sentence-novel`**
 
-## 域名与 Worker 绑定（控制台手动配置）
+## 域名与 Worker 绑定
 
 | 域名 | Worker | 行为 |
 |------|--------|------|
@@ -16,8 +16,7 @@
 | `1024201.com` | **one-sentence-novel** | 301 → www |
 | `game.1024201.com` | **one-sentence-novel** | `/` → 301 → `/game/` 游戏大厅 |
 
-**Workers → one-sentence-novel → Settings → Domains & Routes** 中添加上述三个域名。  
-若 `game.1024201.com` 仍绑在 `onesentencenovel` 上，请改绑到 `one-sentence-novel` 后再删旧 Worker。
+路由写在 **`wrangler.toml` 的 `[[routes]]`** 中，部署时才会保留；仅控制台配置会被 `wrangler deploy` 覆盖清空。
 
 ### 删除 onesentencenovel
 
@@ -58,6 +57,12 @@ npx wrangler secret put RESEND_API_KEY
 npx wrangler deploy
 ```
 
-**注意：** 域名绑定只在控制台维护时，`wrangler deploy` 可能会把远程 Routes 清空（日志出现 `No targets deployed`）。若站点无法访问，请到 **Domains & Routes** 重新添加 `www.1024201.com`、`1024201.com`、`game.1024201.com`。
-
 部署后请用 **Cmd+Shift+R** 强刷 `www.1024201.com`，确认 `/api/health` 中 `"worker":"one-sentence-novel"`。
+
+## 本地 wrangler 日志与密钥
+
+Wrangler 在对比本地/远程配置时，可能把**明文 Variable** 的值写进本地日志（路径见下）。**绝不要把 API 密钥配成普通 Variable**，只用 Secret。
+
+- macOS 日志目录：`~/Library/Preferences/.wrangler/logs/`
+- 含密钥的日志应手动删除；若密钥曾出现在日志或 deploy 输出中，请在 Resend 控制台**轮换**该 API Key
+- Wrangler **没有**对本地日志做自动脱敏；避免泄露的做法是：Secret 存 `wrangler secret put`、不写进 `wrangler.toml`、定期清空上述 logs 目录
