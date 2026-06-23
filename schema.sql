@@ -23,7 +23,15 @@ CREATE TABLE IF NOT EXISTS stories (
   title TEXT NOT NULL UNIQUE,
   owner_id INTEGER NOT NULL,
   invite_code TEXT NOT NULL,
+  chapters_json TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS room_presence (
+  story_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (story_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS story_members (

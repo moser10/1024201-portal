@@ -31,7 +31,15 @@ export const roomApi = {
     api("/api/room?action=create_room", { method: "POST", body: JSON.stringify({ title, owner_id }) }),
   updateTitle: (story_id, user_id, title) =>
     api("/api/room?action=update_title", { method: "POST", body: JSON.stringify({ story_id, user_id, title }) }),
-  search: (q) => api(`/api/room?action=search&q=${encodeURIComponent(q)}`),
+  search: (q, user_id) =>
+    api(`/api/room?action=search&q=${encodeURIComponent(q)}&user_id=${user_id}`),
+  todos: (user_id) => api(`/api/room?action=todos&user_id=${user_id}`),
+  heartbeat: (story_id, user_id) =>
+    api("/api/room?action=heartbeat", { method: "POST", body: JSON.stringify({ story_id, user_id }) }),
+  leaveRoom: (story_id, user_id) =>
+    api("/api/room?action=leave_room", { method: "POST", body: JSON.stringify({ story_id, user_id }) }),
+  generateChapters: (story_id, user_id) =>
+    api("/api/room?action=generate_chapters", { method: "POST", body: JSON.stringify({ story_id, user_id }) }),
   joinByCode: (invite_code, user_id) =>
     api("/api/room?action=join_by_code", { method: "POST", body: JSON.stringify({ invite_code, user_id }) }),
   requestJoin: (story_id, user_id) =>

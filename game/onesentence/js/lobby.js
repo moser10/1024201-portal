@@ -1,16 +1,25 @@
 import { authApi, roomApi } from "./api.js";
 import { bindNameCheck } from "./nameCheck.js";
-import { getUser, setRoom } from "./store.js";
+import { getUser, setRoom, clearUser, clearRoom } from "./store.js";
 
 export function renderLobby(app, onEnterRoom) {
   const user = getUser();
+  let todoTimer = null;
 
   app.innerHTML = `
     <div class="card">
       <div class="header-row">
         <h1>大厅</h1>
-        <span class="badge">@${user.username}</span>
+        <div class="row" style="margin:0;">
+          <span class="badge">@${user.username}</span>
+          <button id="leaveLobbyBtn" class="btn-secondary btn-small">离开大厅</button>
+        </div>
       </div>
+
+      <section class="section todo-section">
+        <h2>待办事项</h2>
+        <div id="todoBox"><p class="sub">加载中...</p></div>
+      </section>
 
       <section class="section">
         <h2>创建房间</h2>
@@ -39,9 +48,7 @@ export function renderLobby(app, onEnterRoom) {
       </section>
 
       <section class="section" id="ownerPanel" hidden>
-        <h2>房主管理</h2>
-        <div id="pendingList"></div>
-        <h3>拉人进群（搜昵称）</h3>
+        <h2>房主管理 · 拉人进群</h2>
         <div class="row">
           <input type="text" id="pullSearch" placeholder="搜索用户昵称">
           <button id="pullSearchBtn" class="btn-secondary">搜索</button>
@@ -54,6 +61,13 @@ export function renderLobby(app, onEnterRoom) {
         <div id="myRooms"></div>
       </section>
     </div>`;
+
+  document.getElementById("leaveLobbyBtn").onclick = () => {
+    clearInterval(todoTimer);
+    clearRoom();
+    clearUser();
+    onEnterRoom();
+  };
 
   bindNameCheck({
     input: document.getElementById("createTitle"),
@@ -92,19 +106,31 @@ export function renderLobby(app, onEnterRoom) {
     }
   };
 
+  function joinStatusLabel(r) {
+    if (r.my_status === "active") return '<em class="hint ok">已加入</em>';
+    if (r.my_status === "pending") return '<em class="hint warn">已提交申请</em>';
+    return "";
+  }
+
+  function joinActionHtml(r) {
+    if (r.my_status === "active") return `<span class="hint ok">已加入</span>`;
+    if (r.my_status === "pending") return `<span class="hint warn">待通过</span>`;
+    return `<button data-id="${r.id}" class="btn-small apply-btn">申请加入</button>`;
+  }
+
   document.getElementById("searchBtn").onclick = async () => {
     const q = document.getElementById("searchTitle").value.trim();
     const box = document.getElementById("searchResults");
     if (!q) return (box.innerHTML = "");
     try {
-      const data = await roomApi.search(q);
+      const data = await roomApi.search(q, user.id);
       box.innerHTML = data.rooms.length
         ? data.rooms
             .map(
               (r) => `
           <div class="list-item">
-            <div><strong>${r.title}</strong> · 房主 ${r.owner_name}</div>
-            <button data-id="${r.id}" class="btn-small apply-btn">申请加入</button>
+            <div><strong>${r.title}</strong> · 房主 ${r.owner_name} ${joinStatusLabel(r)}</div>
+            ${joinActionHtml(r)}
           </div>`
             )
             .join("")
@@ -112,8 +138,9 @@ export function renderLobby(app, onEnterRoom) {
       box.querySelectorAll(".apply-btn").forEach((btn) => {
         btn.onclick = async () => {
           try {
-            const res = await roomApi.requestJoin(Number(btn.dataset.id), user.id);
-            alert(res.message || "已提交申请");
+            await roomApi.requestJoin(Number(btn.dataset.id), user.id);
+            btn.replaceWith(Object.assign(document.createElement("span"), { className: "hint warn", textContent: "已提交申请" }));
+            loadTodos();
           } catch (e) {
             alert(e.message);
           }
@@ -127,14 +154,12 @@ export function renderLobby(app, onEnterRoom) {
   document.getElementById("pullSearchBtn").onclick = async () => {
     const q = document.getElementById("pullSearch").value.trim();
     const box = document.getElementById("pullResults");
-    const room = getCurrentOwnerRoom();
-    if (!room) return alert("请先创建或进入一个你拥有的房间");
+    if (!ownerRoom) return alert("你暂无房主房间");
     if (!q) return (box.innerHTML = "");
     try {
       const data = await authApi.searchUsers(q);
-      const members = ownerRoom ? (await roomApi.members(ownerRoom.id)).members : [];
+      const members = (await roomApi.members(ownerRoom.id)).members;
       const memberIds = new Set(members.map((m) => m.user_id));
-
       box.innerHTML = data.users
         .filter((u) => u.id !== user.id)
         .map((u) => {
@@ -149,9 +174,9 @@ export function renderLobby(app, onEnterRoom) {
       box.querySelectorAll(".pull-btn").forEach((btn) => {
         btn.onclick = async () => {
           try {
-            await roomApi.pullUser(room.id, user.id, Number(btn.dataset.uid));
+            await roomApi.pullUser(ownerRoom.id, user.id, Number(btn.dataset.uid));
             alert("已拉入群组");
-            loadPending(room);
+            loadTodos();
           } catch (e) {
             alert(e.message);
           }
@@ -163,34 +188,75 @@ export function renderLobby(app, onEnterRoom) {
   };
 
   function enterRoom(room) {
+    clearInterval(todoTimer);
     setRoom(room);
     onEnterRoom(room);
   }
 
   let ownerRoom = null;
-  function getCurrentOwnerRoom() {
-    return ownerRoom;
+
+  async function loadTodos() {
+    const box = document.getElementById("todoBox");
+    try {
+      const data = await roomApi.todos(user.id);
+      const approveHtml = data.to_approve.length
+        ? `<h3>待审批</h3>${data.to_approve
+            .map(
+              (g) => `
+          <div class="todo-group">
+            <strong>《${g.title}》</strong>
+            ${g.requests
+              .map(
+                (r) => `
+              <div class="list-item">
+                <span>@${r.username}</span>
+                <button class="btn-small approve-btn" data-sid="${g.story_id}" data-uid="${r.user_id}">同意</button>
+              </div>`
+              )
+              .join("")}
+          </div>`
+            )
+            .join("")}`
+        : `<p class="sub">暂无待审批</p>`;
+
+      const waitingHtml = data.waiting.length
+        ? `<h3>待通过</h3>${data.waiting
+            .map((w) => `<div class="list-item"><span>《${w.title}》</span><em class="hint warn">等待房主同意</em></div>`)
+            .join("")}`
+        : `<p class="sub">暂无待通过申请</p>`;
+
+      box.innerHTML = approveHtml + waitingHtml;
+
+      box.querySelectorAll(".approve-btn").forEach((btn) => {
+        btn.onclick = async () => {
+          await roomApi.approve(Number(btn.dataset.sid), user.id, Number(btn.dataset.uid));
+          loadTodos();
+          loadMyRooms();
+        };
+      });
+    } catch (e) {
+      box.innerHTML = `<p class="hint err">${e.message}</p>`;
+    }
   }
 
   async function loadMyRooms() {
     const box = document.getElementById("myRooms");
     try {
       const data = await roomApi.myRooms(user.id);
+      ownerRoom = data.rooms.find((r) => r.role === "owner") || null;
+      document.getElementById("ownerPanel").hidden = !ownerRoom;
+
       if (!data.rooms.length) {
         box.innerHTML = `<p class="sub">暂无房间，请创建或加入</p>`;
         return;
       }
-      ownerRoom = data.rooms.find((r) => r.role === "owner") || null;
-      if (ownerRoom) {
-        document.getElementById("ownerPanel").hidden = false;
-        loadPending(ownerRoom);
-      }
+
       box.innerHTML = data.rooms
         .map(
           (r) => `
         <div class="list-item">
           <div><strong>${r.title}</strong> ${r.role === "owner" ? "（房主）" : ""}</div>
-          <button data-id="${r.id}" data-title="${r.title}" data-role="${r.role}" class="btn-small enter-btn">进入</button>
+          <button data-id="${r.id}" data-title="${r.title}" data-role="${r.role}" class="btn-small enter-btn">进入房间</button>
         </div>`
         )
         .join("");
@@ -207,34 +273,10 @@ export function renderLobby(app, onEnterRoom) {
     }
   }
 
-  async function loadPending(room) {
-    const box = document.getElementById("pendingList");
-    try {
-      const data = await roomApi.pending(room.id, user.id);
-      if (!data.pending.length) {
-        box.innerHTML = `<p class="sub">暂无待审批申请</p>`;
-        return;
-      }
-      box.innerHTML = `<h3>待审批</h3>` + data.pending
-        .map(
-          (p) => `
-        <div class="list-item">
-          <span>@${p.username}</span>
-          <button data-uid="${p.user_id}" class="btn-small approve-btn">同意</button>
-        </div>`
-        )
-        .join("");
-      box.querySelectorAll(".approve-btn").forEach((btn) => {
-        btn.onclick = async () => {
-          await roomApi.approve(room.id, user.id, Number(btn.dataset.uid));
-          loadPending(room);
-          loadMyRooms();
-        };
-      });
-    } catch (e) {
-      box.innerHTML = `<p class="hint err">${e.message}</p>`;
-    }
-  }
-
+  loadTodos();
   loadMyRooms();
+  todoTimer = setInterval(() => {
+    loadTodos();
+    loadMyRooms();
+  }, 10000);
 }

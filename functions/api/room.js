@@ -1,4 +1,15 @@
-import { corsHeaders, json, requireDb, generateUniqueName, isMember, hasActiveOwner } from "./_shared.js";
+import {
+  corsHeaders,
+  json,
+  requireDb,
+  generateUniqueName,
+  isMember,
+  hasActiveOwner,
+  touchPresence,
+  leavePresence,
+  cleanupInactiveChat,
+  buildChaptersFromBook,
+} from "./_shared.js";
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -93,17 +104,59 @@ export async function onRequest(context) {
       return json({ success: true, title: name });
     }
 
+    if (request.method === "GET" && action === "todos") {
+      const userId = url.searchParams.get("user_id");
+      if (!userId) return json({ error: "缺少 user_id" }, 400);
+
+      const { results: waiting } = await db
+        .prepare(
+          `SELECT s.id AS story_id, s.title
+           FROM story_members sm JOIN stories s ON sm.story_id = s.id
+           WHERE sm.user_id = ? AND sm.status = 'pending'`
+        )
+        .bind(userId)
+        .all();
+
+      const { results: approveRows } = await db
+        .prepare(
+          `SELECT s.id AS story_id, s.title, sm.user_id, u.username
+           FROM stories s
+           JOIN story_members sm ON sm.story_id = s.id AND sm.status = 'pending'
+           JOIN users u ON sm.user_id = u.id
+           WHERE s.owner_id = ?`
+        )
+        .bind(userId)
+        .all();
+
+      const approveMap = {};
+      for (const row of approveRows) {
+        if (!approveMap[row.story_id]) {
+          approveMap[row.story_id] = { story_id: row.story_id, title: row.title, requests: [] };
+        }
+        approveMap[row.story_id].requests.push({ user_id: row.user_id, username: row.username });
+      }
+
+      return json({
+        waiting,
+        to_approve: Object.values(approveMap),
+      });
+    }
+
     if (request.method === "GET" && action === "search") {
       const q = url.searchParams.get("q")?.trim();
+      const userId = url.searchParams.get("user_id");
       if (!q) return json({ rooms: [] });
 
       const { results } = await db
         .prepare(
-          `SELECT s.id, s.title, s.invite_code, u.username AS owner_name
-           FROM stories s JOIN users u ON s.owner_id = u.id
+          `SELECT s.id, s.title, s.invite_code, u.username AS owner_name,
+                  sm.status AS my_status, sm.role AS my_role
+           FROM stories s
+           JOIN users u ON s.owner_id = u.id
+           LEFT JOIN story_members sm ON sm.story_id = s.id AND sm.user_id = ?
            WHERE s.title LIKE ? LIMIT 20`
         )
-        .bind(`%${q}%`)
+        .bind(userId || null, `%${q}%`)
         .all();
       return json({ rooms: results });
     }
@@ -193,6 +246,44 @@ export async function onRequest(context) {
       return json({ success: true });
     }
 
+    if (request.method === "POST" && action === "heartbeat") {
+      const { story_id, user_id } = await request.json();
+      const member = await isMember(db, story_id, user_id);
+      if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
+      await touchPresence(db, story_id, user_id);
+      return json({ success: true });
+    }
+
+    if (request.method === "POST" && action === "leave_room") {
+      const { story_id, user_id } = await request.json();
+      await leavePresence(db, story_id, user_id);
+      await cleanupInactiveChat(db, story_id);
+      return json({ success: true });
+    }
+
+    if (request.method === "POST" && action === "generate_chapters") {
+      const { story_id, user_id } = await request.json();
+      const member = await isMember(db, story_id, user_id);
+      if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
+
+      const { results } = await db
+        .prepare(
+          `SELECT c.id, c.text FROM content_stream c
+           WHERE c.story_id = ? AND c.type = 'book' AND c.status = 'active'
+           ORDER BY c.id ASC`
+        )
+        .bind(story_id)
+        .all();
+
+      const chapters = buildChaptersFromBook(results);
+      await db
+        .prepare("UPDATE stories SET chapters_json = ? WHERE id = ?")
+        .bind(JSON.stringify(chapters), story_id)
+        .run();
+
+      return json({ success: true, chapters });
+    }
+
     if (request.method === "GET" && action === "members") {
       const storyId = url.searchParams.get("story_id");
       const { results } = await db
@@ -225,6 +316,11 @@ export async function onRequest(context) {
       const member = await isMember(db, storyId, userId);
       if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
 
+      await touchPresence(db, storyId, userId);
+      await cleanupInactiveChat(db, storyId);
+
+      const story = await db.prepare("SELECT title, chapters_json FROM stories WHERE id = ?").bind(storyId).first();
+
       const { results } = await db
         .prepare(
           `SELECT c.id, c.type, c.text, c.status, c.user_id,
@@ -239,7 +335,12 @@ export async function onRequest(context) {
 
       const book = results.filter((r) => r.type === "book");
       const chat = results.filter((r) => r.type === "chat");
-      return json({ book, chat });
+      let chapters = [];
+      try {
+        chapters = story?.chapters_json ? JSON.parse(story.chapters_json) : [];
+      } catch (_) {}
+
+      return json({ title: story?.title, book, chat, chapters });
     }
 
     if (request.method === "POST" && action === "publish") {

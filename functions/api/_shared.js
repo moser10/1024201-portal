@@ -47,3 +47,62 @@ export async function hasActiveOwner(db, storyId, ownerId) {
     .bind(storyId, ownerId)
     .first();
 }
+
+export async function touchPresence(db, storyId, userId) {
+  await db
+    .prepare(
+      `INSERT INTO room_presence (story_id, user_id, last_seen) VALUES (?, ?, datetime('now'))
+       ON CONFLICT(story_id, user_id) DO UPDATE SET last_seen = datetime('now')`
+    )
+    .bind(storyId, userId)
+    .run();
+}
+
+export async function leavePresence(db, storyId, userId) {
+  await db.prepare("DELETE FROM room_presence WHERE story_id = ? AND user_id = ?").bind(storyId, userId).run();
+}
+
+export async function cleanupInactiveChat(db, storyId) {
+  const active = await db
+    .prepare(
+      `SELECT 1 AS ok FROM room_presence
+       WHERE story_id = ? AND last_seen > datetime('now', '-2 minutes')`
+    )
+    .bind(storyId)
+    .first();
+  if (!active) {
+    await db.prepare("DELETE FROM content_stream WHERE story_id = ? AND type = 'chat'").bind(storyId).run();
+    await db.prepare("DELETE FROM room_presence WHERE story_id = ?").bind(storyId).run();
+  }
+}
+
+const CHAPTER_CHARS = 3000;
+
+export function buildChaptersFromBook(bookItems) {
+  const chapters = [];
+  let bucket = [];
+  let chars = 0;
+
+  const flush = () => {
+    if (!bucket.length) return;
+    const no = chapters.length + 1;
+    const snippet = bucket[0].text.slice(0, 10);
+    chapters.push({
+      no,
+      title: `第${no}章 ${snippet}${bucket[0].text.length > 10 ? "…" : ""}`,
+      content_ids: bucket.map((b) => b.id),
+      text: bucket.map((b) => b.text).join(""),
+    });
+    bucket = [];
+    chars = 0;
+  };
+
+  for (const item of bookItems) {
+    const len = item.text.length;
+    if (chars + len > CHAPTER_CHARS && bucket.length) flush();
+    bucket.push(item);
+    chars += len;
+  }
+  flush();
+  return chapters;
+}

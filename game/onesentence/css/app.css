@@ -87,4 +87,12 @@ hr { border: none; border-top: 1px solid #eee; margin: 20px 0; }
 .chat-author { font-weight: 600; color: #007aff; margin-right: 8px; }
 .chat-time { font-size: 11px; color: #8e8e93; }
 .compose textarea { margin-bottom: 10px; }
+.todo-section { background: #f8f9ff; margin: -8px -8px 0; padding: 16px; border-radius: 10px; }
+.todo-group { margin-bottom: 12px; }
+.book-title { text-align: center; margin-bottom: 16px; font-size: 20px; }
+.toc-box { background: #f8f8f8; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+.toc-box ol { margin: 8px 0 0 20px; }
+.chapter-block { margin-bottom: 20px; }
+.chapter-title { font-size: 16px; margin-bottom: 8px; color: #333; }
+.chapter-text { line-height: 2; text-indent: 2em; }
 .compose .row .btn-primary, .compose .row .btn-secondary { flex: 1; width: auto; margin-top: 0; }
