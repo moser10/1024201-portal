@@ -1,5 +1,6 @@
 -- OneSentenceNovel D1 schema
--- Apply: npx wrangler d1 execute onesentencenovel --remote --file=schema.sql
+-- 新库：整文件执行一次即可
+-- 已有库：只需执行底部 migration 段
 
 CREATE TABLE IF NOT EXISTS story_lines (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,6 +24,16 @@ CREATE TABLE IF NOT EXISTS stories (
   owner_id INTEGER NOT NULL,
   invite_code TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS story_members (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  story_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
+  status TEXT NOT NULL DEFAULT 'active',
+  joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(story_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS content_stream (
