@@ -174,6 +174,13 @@ export async function onRequest(context) {
 
     return json({ error: "未知操作" }, 404);
   } catch (err) {
+    const msg = err.message || "";
+    if (msg.includes("no such column") && msg.includes("password")) {
+      return json(
+        { error: "数据库未升级：请在 D1 Console 执行 schema-migrate-v4.sql 中的 ALTER TABLE users 语句" },
+        503
+      );
+    }
     return json({ error: err.message }, 500);
   }
 }
