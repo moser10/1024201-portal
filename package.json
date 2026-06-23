@@ -1,0 +1,7 @@
+{
+  "name": "onesentencenovel",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler pages deploy public --commit-dirty=true"
+  }
+}
