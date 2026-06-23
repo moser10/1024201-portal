@@ -34,7 +34,16 @@ export async function generateUniqueName(db, baseName, table, column) {
 
 export async function isMember(db, storyId, userId) {
   return db
-    .prepare("SELECT id, status, role FROM story_members WHERE story_id = ? AND user_id = ?")
+    .prepare("SELECT status, role FROM story_members WHERE story_id = ? AND user_id = ?")
     .bind(storyId, userId)
+    .first();
+}
+
+export async function hasActiveOwner(db, storyId, ownerId) {
+  return db
+    .prepare(
+      "SELECT 1 AS ok FROM story_members WHERE story_id = ? AND user_id = ? AND role = 'owner' AND status = 'active'"
+    )
+    .bind(storyId, ownerId)
     .first();
 }

@@ -31,7 +31,7 @@ export function renderPlay(app, onLeave) {
 
       <section class="section book-section">
         <div class="section-head">
-          <h2>📖 写书</h2>
+          <h2>📖 共享写书</h2>
           <button id="pdfBtn" class="btn-secondary btn-small">一键下载 PDF</button>
         </div>
         <div id="bookWindow" class="book-window">等待第一句...</div>
@@ -43,10 +43,10 @@ export function renderPlay(app, onLeave) {
       </section>
 
       <section class="section compose">
-        <textarea id="composeInput" placeholder="输入内容（写书限50字）" maxlength="200"></textarea>
+        <textarea id="composeInput" placeholder="输入内容（共享写书限50字）" maxlength="200"></textarea>
         <div class="row">
-          <button id="chatBtn" class="btn-secondary">发言</button>
-          <button id="bookBtn" class="btn-primary">写书</button>
+          <button id="chatBtn" class="btn-secondary">聊天</button>
+          <button id="bookBtn" class="btn-primary">共享写书</button>
         </div>
       </section>
     </div>`;
@@ -86,7 +86,7 @@ export function renderPlay(app, onLeave) {
   async function publish(type) {
     const text = document.getElementById("composeInput").value.trim();
     if (!text) return alert("写点什么吧");
-    if (type === "book" && text.length > 50) return alert("写书限50字");
+    if (type === "book" && text.length > 50) return alert("共享写书限50字");
     try {
       await roomApi.publish(room.id, user.id, type, text);
       document.getElementById("composeInput").value = "";

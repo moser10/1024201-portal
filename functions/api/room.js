@@ -1,4 +1,4 @@
-import { corsHeaders, json, requireDb, generateUniqueName, isMember } from "./_shared.js";
+import { corsHeaders, json, requireDb, generateUniqueName, isMember, hasActiveOwner } from "./_shared.js";
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -28,23 +28,51 @@ export async function onRequest(context) {
       const name = title?.trim();
       if (!name || !owner_id) return json({ error: "书名和房主不能为空" }, 400);
 
-      const exist = await db.prepare("SELECT id FROM stories WHERE title = ?").bind(name).first();
+      const exist = await db.prepare("SELECT id, owner_id, invite_code, title FROM stories WHERE title = ?").bind(name).first();
       if (exist) {
-        const recommend = await generateUniqueName(db, name, "stories", "title");
-        return json({ error: "书名已被占用", recommend }, 400);
+        const owned = await hasActiveOwner(db, exist.id, exist.owner_id);
+        if (!owned && exist.owner_id === owner_id) {
+          await db
+            .prepare(
+              "INSERT INTO story_members (story_id, user_id, role, status) VALUES (?, ?, 'owner', 'active') ON CONFLICT(story_id, user_id) DO UPDATE SET role = 'owner', status = 'active'"
+            )
+            .bind(exist.id, owner_id)
+            .run();
+          return json({
+            success: true,
+            story_id: exist.id,
+            invite_code: exist.invite_code,
+            title: exist.title,
+            repaired: true,
+          });
+        }
+        if (!owned) {
+          await db.prepare("DELETE FROM stories WHERE id = ?").bind(exist.id).run();
+        } else {
+          const recommend = await generateUniqueName(db, name, "stories", "title");
+          return json({ error: "书名已被占用", recommend }, 400);
+        }
       }
 
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const result = await db
-        .prepare("INSERT INTO stories (title, owner_id, invite_code) VALUES (?, ?, ?)")
-        .bind(name, owner_id, inviteCode)
-        .run();
-      const storyId = result.meta.last_row_id;
+      let storyId;
+      try {
+        const result = await db
+          .prepare("INSERT INTO stories (title, owner_id, invite_code) VALUES (?, ?, ?)")
+          .bind(name, owner_id, inviteCode)
+          .run();
+        storyId = result.meta.last_row_id;
 
-      await db
-        .prepare("INSERT INTO story_members (story_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')")
-        .bind(storyId, owner_id)
-        .run();
+        await db
+          .prepare(
+            "INSERT INTO story_members (story_id, user_id, role, status) VALUES (?, ?, 'owner', 'active')"
+          )
+          .bind(storyId, owner_id)
+          .run();
+      } catch (err) {
+        if (storyId) await db.prepare("DELETE FROM stories WHERE id = ?").bind(storyId).run();
+        throw err;
+      }
 
       return json({ success: true, story_id: storyId, invite_code: inviteCode, title: name });
     }
@@ -226,7 +254,7 @@ export async function onRequest(context) {
       if (type === "book") {
         const penalty = await db
           .prepare(
-            `SELECT COUNT(id) AS count FROM recall_logs
+            `SELECT COUNT(*) AS count FROM recall_logs
              WHERE user_id = ? AND recalled_at > datetime('now', '-30 minutes')`
           )
           .bind(user_id)
