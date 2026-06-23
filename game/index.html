@@ -106,6 +106,64 @@
         
         // 每 8 秒自动在后台刷新一次小说内容，保证群友们能同步看到最新的句子
         setInterval(loadStory, 8000);
+            // 1. 用户名字输入框防抖动查重与“反灰色”控制
+        let timer = null;
+        const nameInput = document.getElementById('authorInput');
+        const randBtn = document.getElementById('randSuggestBtn'); // 假设的推荐按钮
+
+        nameInput.addEventListener('input', () => {
+            // 只要用户修改、删除了任何字符，推荐随机数按钮立刻变灰禁用
+            randBtn.disabled = true;
+            randBtn.style.opacity = "0.4";
+
+            clearTimeout(timer);
+            timer = setTimeout(async () => {
+                const username = nameInput.value.trim();
+                if(!username) return;
+
+                const res = await fetch('/api/auth?action=check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                if(!data.available) {
+                    // 提示占用，并将计算好的、且确保不重复的随机数挂载到按钮上
+                    randBtn.innerText = `推荐可用: ${data.recommend}`;
+                    randBtn.disabled = false;
+                    randBtn.style.opacity = "1";
+                    randBtn.dataset.v = data.recommend; // 暂存
+                }
+            }, 500); // 500ms防抖，避免高频请求后端
+        });
+
+        // 点击推荐数自动填缺补齐
+        randBtn.addEventListener('click', () => {
+            nameInput.value = randBtn.dataset.v;
+            randBtn.disabled = true;
+            randBtn.style.opacity = "0.4";
+        });
+
+
+        // 2. 一键无损下载写书内容为 PDF (采用最稳健的 html2pdf 框架流)
+        function downloadBookPDF() {
+            // 动态引入前端业界公认最优的 PDF 转换引擎，免去后端算力开销
+            const script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+            document.head.appendChild(script);
+
+            script.onload = () => {
+                const element = document.getElementById('bookWindow'); // 只抓取写书干净页面的盒子
+                const opt = {
+                    margin:       1,
+                    filename:     'OneSentenceNovel.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2 },
+                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+                html2pdf().set(opt).from(element).save();
+            };
+        }
     </script>
 </body>
 </html>
