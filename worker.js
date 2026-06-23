@@ -16,6 +16,9 @@ export default {
     const apexRedirect = maybeRedirectApex(request);
     if (apexRedirect) return apexRedirect;
 
+    const gameRedirect = maybeGameSubdomain(request);
+    if (gameRedirect) return gameRedirect;
+
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -27,6 +30,7 @@ export default {
           hasResendKey: !!env?.RESEND_API_KEY,
           registerFlow: "pending_v2",
           worker: "one-sentence-novel",
+          host: new URL(request.url).hostname,
           bindings: Object.keys(env || {}).filter((k) => !/TOKEN|KEY|SECRET/i.test(k)),
         }),
         { headers: { "Content-Type": "application/json" } }
@@ -70,6 +74,20 @@ function maybeRedirectApex(request) {
   const host = url.hostname.toLowerCase();
   if (host === "1024201.com") {
     url.hostname = "www.1024201.com";
+    return Response.redirect(url.toString(), 301);
+  }
+  return null;
+}
+
+/** game.1024201.com 根路径 → 游戏大厅，不走门户 */
+function maybeGameSubdomain(request) {
+  const url = new URL(request.url);
+  const host = url.hostname.toLowerCase();
+  if (host !== "game.1024201.com") return null;
+
+  const path = url.pathname;
+  if (path === "/" || path === "/index.html") {
+    url.pathname = "/game/";
     return Response.redirect(url.toString(), 301);
   }
   return null;

@@ -2,54 +2,55 @@
 
 ## Worker 名称（唯一）
 
-生产环境只使用 **`one-sentence-novel`**（带连字符）。
+生产环境**只使用** **`one-sentence-novel`**（带连字符）。
 
 - `wrangler.toml` 的 `name` 必须是 `one-sentence-novel`
-- Cloudflare **Workers Builds** 请连接同一个 Worker，不要连接 `onesentencenovel`
-- 若控制台里有多余的 `onesentencenovel` Worker，可在确认域名已绑在 `one-sentence-novel` 后删除
+- **删除**多余的 `onesentencenovel` Worker（见下方）
+- Cloudflare **Workers Builds** 必须连接 **`one-sentence-novel`**
+
+## 域名与 Worker 绑定（控制台手动配置）
+
+| 域名 | Worker | 行为 |
+|------|--------|------|
+| `www.1024201.com` | **one-sentence-novel** | 门户首页 `/` |
+| `1024201.com` | **one-sentence-novel** | 301 → www |
+| `game.1024201.com` | **one-sentence-novel** | `/` → 301 → `/game/` 游戏大厅 |
+
+**Workers → one-sentence-novel → Settings → Domains & Routes** 中添加上述三个域名。  
+若 `game.1024201.com` 仍绑在 `onesentencenovel` 上，请改绑到 `one-sentence-novel` 后再删旧 Worker。
+
+### 删除 onesentencenovel
+
+确认域名已全部迁到 `one-sentence-novel` 后：
+
+```bash
+npx wrangler delete onesentencenovel
+```
+
+或在控制台：Workers → `onesentencenovel` → Settings → Delete。
 
 ## 分支
 
 | 分支 | 用途 |
 |------|------|
-| `main` | 主开发线，Worker 名 `one-sentence-novel` |
-| `production` | 当前生产可用版本快照，便于回滚 |
+| `main` | 主开发线 |
+| `production` | 生产快照，便于回滚 |
 
-## 邮件密钥 RESEND_API_KEY（必做，且只需做一次）
+## 邮件密钥 RESEND_API_KEY
 
-**必须用 Secret，不要用普通 Variable。**  
-普通 Variable 在 `npx wrangler deploy` 或 Git Builds 部署时会被清掉，导致注册报「邮件服务未配置」。
-
-### 方式一：命令行（推荐）
+**必须用 Secret**，不要用普通 Variable。
 
 ```bash
-cd /Users/moser/CodeProjects/OneSentenceNovel
 npx wrangler secret put RESEND_API_KEY
 ```
 
-粘贴 Resend 的 `re_...` 密钥后回车。Secret 会持久保存，后续 deploy 不会删除。
+验证：`https://www.1024201.com/api/health` → `"hasResendKey": true`
 
-### 方式二：控制台
+## 部署时切勿删除密钥
 
-Workers → **one-sentence-novel** → Settings → **Variables and Secrets** → Add → 类型选 **Secret**（加密）→ 名称 `RESEND_API_KEY`
-
-### 验证
-
-打开 `https://www.1024201.com/api/health`，应看到：
-
-```json
-"hasResendKey": true,
-"worker": "one-sentence-novel",
-"registerFlow": "pending_v2"
-```
-
-`hasResendKey` 为 `false` 时注册无法发验证邮件。
-
-```bash
-npx wrangler secret list
-```
-
-应列出 `RESEND_API_KEY`。
+- **禁止**在 `wrangler.toml` 添加 `[vars]` 或明文 `RESEND_API_KEY`
+- **Worker Secret** 不会被 `wrangler deploy` 删除
+- 删除密钥**只能**由站主在控制台手动操作
 
 ## 部署
 
@@ -57,12 +58,6 @@ npx wrangler secret list
 npx wrangler deploy
 ```
 
-自定义域名：Workers → one-sentence-novel → Domains & Routes。
+**注意：** 域名绑定只在控制台维护时，`wrangler deploy` 可能会把远程 Routes 清空（日志出现 `No targets deployed`）。若站点无法访问，请到 **Domains & Routes** 重新添加 `www.1024201.com`、`1024201.com`、`game.1024201.com`。
 
-**不要把 API 密钥写进 `wrangler.toml` 或提交到 Git。**
-
-## 部署时切勿删除密钥（给维护者）
-
-- **禁止**在 `wrangler.toml` 添加 `[vars]` 或 `RESEND_API_KEY` 明文项；`wrangler deploy` 会按本地配置同步 Variable，可能覆盖/清掉控制台里的明文变量。
-- **Worker Secret**（`wrangler secret put` 或控制台 Secret 类型）部署时**不会**被删除；后续改动也不要尝试用 deploy 去「重置」密钥。
-- 若必须删除密钥，**仅由站主在 Cloudflare 控制台手动操作**；自动化脚本与 CI 不得删除或覆盖 `RESEND_API_KEY`。
+部署后请用 **Cmd+Shift+R** 强刷 `www.1024201.com`，确认 `/api/health` 中 `"worker":"one-sentence-novel"`。

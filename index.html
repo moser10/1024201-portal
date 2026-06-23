@@ -68,8 +68,19 @@
         .modal-text { font-size: 13px; color: #000; line-height: 1.4; }
         .modal-action { border-top: 0.5px solid rgba(0,0,0,0.15); color: var(--ios-blue); font-size: 17px; font-weight: 600; padding: 12px 0; text-align: center; cursor: pointer; }
         .modal-action:active { background: rgba(0,0,0,0.05); border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
+
+        /* 门户右上角登录 icon：与 .ios-btn 同高，排在「关于」之后 */
+        #userBarSlot { display: flex; align-items: center; }
+        #userBarSlot .user-bar { align-items: center; }
+        #userBarSlot .user-bar-guest {
+            padding: 8px 14px;
+            min-height: 0;
+            line-height: 1;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        #userBarSlot .user-bar-guest svg { width: 14px; height: 14px; }
     </style>
-    <link rel="stylesheet" href="/game/css/userBar.css?v=3">
+    <link rel="stylesheet" href="/game/css/userBar.css?v=4">
 </head>
 <body>
 
@@ -170,7 +181,7 @@
             document.getElementById('mdl-close').innerText = i18n[lang].mClose;
             
             localStorage.setItem('portal_lang', lang);
-            import('/game/js/userBar.js?v=3').then(({ mountUserBar }) => {
+            import('/game/js/userBar.js?v=4').then(({ mountUserBar }) => {
                 mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '' });
             });
         }
