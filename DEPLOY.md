@@ -60,3 +60,9 @@ npx wrangler deploy
 自定义域名：Workers → one-sentence-novel → Domains & Routes。
 
 **不要把 API 密钥写进 `wrangler.toml` 或提交到 Git。**
+
+## 部署时切勿删除密钥（给维护者）
+
+- **禁止**在 `wrangler.toml` 添加 `[vars]` 或 `RESEND_API_KEY` 明文项；`wrangler deploy` 会按本地配置同步 Variable，可能覆盖/清掉控制台里的明文变量。
+- **Worker Secret**（`wrangler secret put` 或控制台 Secret 类型）部署时**不会**被删除；后续改动也不要尝试用 deploy 去「重置」密钥。
+- 若必须删除密钥，**仅由站主在 Cloudflare 控制台手动操作**；自动化脚本与 CI 不得删除或覆盖 `RESEND_API_KEY`。

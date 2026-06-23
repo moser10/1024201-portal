@@ -1,9 +1,10 @@
 .user-bar { display: flex; flex-direction: column; align-items: flex-end; position: relative; }
+.user-bar--ios { align-items: center; }
 .user-bar--ios .user-bar-guest,
 .user-bar--ios .user-bar-name {
   background: #fff;
   border: none;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 500;
@@ -14,11 +15,16 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  line-height: 1;
+  line-height: 1.2;
+  min-height: 0;
+  box-sizing: border-box;
 }
-.user-bar--ios .user-bar-guest svg,
-.user-bar--ios .user-bar-name { min-height: 32px; }
-.user-bar--ios .user-bar-guest svg { width: 18px; height: 18px; fill: #007aff; }
+.user-bar--ios .user-bar-guest svg {
+  width: 15px;
+  height: 15px;
+  fill: #007aff;
+  display: block;
+}
 .user-bar-handle {
   display: inline-flex;
   align-items: baseline;

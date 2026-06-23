@@ -15,5 +15,6 @@ database_name = "one-sentence-novel"
 database_id = "1c4cce8e-c510-450d-8277-80b29d415c4b"
 
 # 自定义域名在控制台配置：Workers → one-sentence-novel → Domains & Routes
-# RESEND_API_KEY 也配在这个 Worker 的 Variables (Secret) 里
-# Git Builds 请连接同一个 Worker 名称 one-sentence-novel，不要用 onesentencenovel
+# RESEND_API_KEY 用 Secret 配置（wrangler secret put），不要写进本文件
+# 禁止在本文件添加 [vars] 段——deploy 会同步并清掉控制台里未声明的明文 Variable
+# Worker Secret 不会被 wrangler deploy 删除；勿用 deploy 覆盖用户手动配置的密钥
