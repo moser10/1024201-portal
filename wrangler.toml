@@ -1,4 +1,4 @@
-name = "onesentencenovel"
+name = "one-sentence-novel"
 main = "worker.js"
 compatibility_date = "2024-09-23"
 
@@ -11,4 +11,4 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "onesentencenovel"
-database_id = "PASTE_YOUR_D1_DATABASE_ID"
+database_id = "1c4cce8e-c510-450d-8277-80b29d415c4b"
