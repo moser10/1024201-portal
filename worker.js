@@ -11,6 +11,19 @@ const API_ROUTES = {
 export default {
   async fetch(request, env, ctx) {
     const { pathname } = new URL(request.url);
+
+    if (pathname === "/api/health") {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          hasDb: !!(env?.DB && typeof env.DB.prepare === "function"),
+          worker: "onesentencenovel",
+          bindings: Object.keys(env || {}).filter((k) => !/TOKEN|KEY|SECRET/i.test(k)),
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const handler = API_ROUTES[pathname];
     if (handler) {
       return handler.onRequest({ request, env, ctx });

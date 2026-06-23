@@ -12,8 +12,11 @@ export function json(data, status = 200) {
 }
 
 export function requireDb(env) {
-  if (!env.DB) {
-    throw new Error("D1 未绑定：请在 Worker Settings → Bindings 添加 D1，变量名 DB");
+  if (!env?.DB || typeof env.DB.prepare !== "function") {
+    const keys = Object.keys(env || {}).filter((k) => !/TOKEN|KEY|SECRET/i.test(k));
+    throw new Error(
+      `D1 未生效。请确认：① wrangler.toml 中 database_id 已填写；② Worker 名称与 wrangler.toml 的 name 一致；③ 重新部署。当前 env 键：${keys.join(", ") || "无"}`
+    );
   }
   return env.DB;
 }
