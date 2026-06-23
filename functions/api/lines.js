@@ -42,6 +42,6 @@ export async function onRequest(context) {
 
     return json({ error: "Method Not Allowed" }, 405);
   } catch (err) {
-    return json({ error: err.message }, err.message.includes("D1 未绑定") ? 503 : 500);
+    return json({ error: err.message }, err.message.includes("D1 未") ? 503 : 500);
   }
 }

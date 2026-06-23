@@ -51,3 +51,5 @@ CREATE TABLE IF NOT EXISTS recall_logs (
   user_id INTEGER NOT NULL,
   recalled_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ========== 已有旧库时，请在 D1 Console 执行 schema-migrate.sql ==========
