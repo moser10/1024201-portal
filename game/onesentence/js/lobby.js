@@ -1,6 +1,7 @@
 import { authApi, roomApi } from "./api.js";
 import { bindNameCheck } from "./nameCheck.js";
-import { getUser, setUser, setRoom, clearRoom, clearUser } from "../../js/store.js";
+import { getUser, setUser, setRoom, clearRoom } from "../../js/store.js";
+import { mountUserBar } from "../../js/userBar.js";
 
 export function renderLobby(app, onEnterRoom, game) {
   const user = getUser();
@@ -13,13 +14,8 @@ export function renderLobby(app, onEnterRoom, game) {
           <p class="game-brand">${game.nameEn}</p>
           <h1>${game.lobbyTitle}</h1>
         </div>
-        <div class="row" style="margin:0;flex-wrap:wrap;justify-content:flex-end;">
-          <div class="user-menu-wrap">
-            <button type="button" id="userMenuBtn" class="badge user-menu-btn">@${user.username}</button>
-            <div id="userMenu" class="user-menu" hidden>
-              <button type="button" id="logoutBtn">退出登录</button>
-            </div>
-          </div>
+        <div class="row" style="margin:0;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;">
+          <div id="lobbyUserBar"></div>
           <button type="button" id="leaveLobbyBtn" class="btn-secondary btn-small">返回游戏中心</button>
         </div>
       </div>
@@ -70,23 +66,13 @@ export function renderLobby(app, onEnterRoom, game) {
       </section>
     </div>`;
 
-  const userMenuBtn = document.getElementById("userMenuBtn");
-  const userMenu = document.getElementById("userMenu");
-  userMenuBtn.onclick = (e) => {
-    e.stopPropagation();
-    userMenu.hidden = !userMenu.hidden;
-  };
-  document.addEventListener("click", (e) => {
-    if (!userMenu.contains(e.target) && e.target !== userMenuBtn) {
-      userMenu.hidden = true;
-    }
+  mountUserBar(document.getElementById("lobbyUserBar"), {
+    variant: "game",
+    returnPath: "onesentence/",
+    onLogout: () => {
+      window.location.href = "/game/register/";
+    },
   });
-  document.getElementById("logoutBtn").onclick = () => {
-    clearInterval(todoTimer);
-    clearRoom();
-    clearUser();
-    window.location.href = "/game/register/";
-  };
 
   document.getElementById("leaveLobbyBtn").onclick = () => {
     clearInterval(todoTimer);

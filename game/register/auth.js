@@ -1,5 +1,6 @@
 import { setUser } from "../js/store.js";
 import { bindNameCheck } from "../onesentence/js/nameCheck.js";
+import { mountUserBar } from "../js/userBar.js";
 
 const API = "";
 
@@ -33,22 +34,16 @@ const params = new URLSearchParams(location.search);
 const returnTo = params.get("return") || "/game/";
 const verifyStatus = params.get("verify");
 
-// #region agent log
-function clientLog(message, data, hypothesisId) {
-  fetch("http://127.0.0.1:7725/ingest/bcf84f0a-61b7-4397-82c3-0d4511165217", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "484ab6" },
-    body: JSON.stringify({ sessionId: "484ab6", location: "register/auth.js", message, data, hypothesisId, timestamp: Date.now(), runId: "register-debug" }),
-  }).catch(() => {});
-}
-// #endregion
-
 const app = document.getElementById("app");
 
 function renderShell() {
   app.innerHTML = `
+  <div class="auth-page">
+    <div class="auth-top">
+      <a href="/game/" class="back">← 返回游戏中心</a>
+      <div id="registerUserBar"></div>
+    </div>
   <div class="card">
-    <a href="/game/" class="back">← 返回游戏中心</a>
     <h1>注册游戏账户 · 一票通</h1>
     <p class="sub">一个账号，畅玩所有游戏</p>
     <div id="verifyBanner"></div>
@@ -81,7 +76,9 @@ function renderShell() {
       <button id="loginBtn" class="btn-primary">登录</button>
       <button id="forgotBtn" class="btn-link">忘记密码？获取临时密码</button>
     </div>
+  </div>
   </div>`;
+  mountUserBar(document.getElementById("registerUserBar"), { variant: "game", returnPath: returnTo.replace(/^\//, "") });
 }
 
 function showVerifyBanner() {
@@ -205,31 +202,18 @@ function goNext(user) {
 
 document.getElementById("regBtn").onclick = async () => {
   if (!emailOk || !nameOk || !passOk) return;
-  let health = {};
-  try {
-    health = await fetch("/api/health").then((r) => r.json());
-    // #region agent log
-    clientLog("health before register", { hasResendKey: health.hasResendKey, registerFlow: health.registerFlow, worker: health.worker }, "A");
-    // #endregion
-  } catch (_) {}
   try {
     const data = await authApi.register(
       regEmail.value.trim(),
       document.getElementById("regName").value.trim(),
       document.getElementById("regPass").value
     );
-    // #region agent log
-    clientLog("register success", { verify_sent: !!data.verify_sent }, "E");
-    // #endregion
     document.getElementById("panelRegister").innerHTML = `
       <p class="hint ok">${data.message || "验证邮件已发送，请查收。"}</p>
       <p class="sub">验证完成后请切换到「登录」标签登录游戏。</p>
       <button type="button" class="btn-primary" id="gotoLoginBtn">去登录</button>`;
     document.getElementById("gotoLoginBtn").onclick = () => switchTab("login");
   } catch (e) {
-    // #region agent log
-    clientLog("register error", { error: e.message, healthHasResend: health.hasResendKey, healthFlow: health.registerFlow }, "B");
-    // #endregion
     alert(e.message);
   }
 };

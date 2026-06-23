@@ -63,6 +63,14 @@ body {
   color: #8e8e93;
   text-align: center;
 }
+.hub-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.hub-top .back { margin-bottom: 0; }
 .back {
   display: inline-block;
   margin-bottom: 20px;

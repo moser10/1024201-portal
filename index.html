@@ -28,7 +28,7 @@
         .zone-time { font-size: 14px; color: var(--ios-text); font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
 
         /* 右上角：控制区 */
-        .controls { display: flex; gap: 10px; align-items: center; }
+        .controls { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; justify-content: flex-end; }
         .ios-btn { background: var(--ios-card); border: none; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--ios-blue); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.04); transition: all 0.2s; }
         .ios-btn:active { transform: scale(0.95); background: #e5e5ea; }
         select.ios-btn { appearance: none; padding-right: 24px; background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23007aff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: calc(100% - 8px) center; }
@@ -69,6 +69,7 @@
         .modal-action { border-top: 0.5px solid rgba(0,0,0,0.15); color: var(--ios-blue); font-size: 17px; font-weight: 600; padding: 12px 0; text-align: center; cursor: pointer; }
         .modal-action:active { background: rgba(0,0,0,0.05); border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
     </style>
+    <link rel="stylesheet" href="/game/css/userBar.css">
 </head>
 <body>
 
@@ -81,6 +82,7 @@
         </div>
 
         <div class="controls">
+            <div id="userBarSlot"></div>
             <select class="ios-btn" id="langSelect" onchange="changeLang(this.value)">
                 <option value="zh">简体中文</option>
                 <option value="en">English</option>
@@ -131,21 +133,25 @@
             zh: {
                 bj: "北京", sk: "圣何塞", db: "大阪", jdm: "加德满都",
                 about: "关于", mail: "邮箱", game: "小游戏",
+                userHint: "点击用户名退出登录", logout: "退出登录",
                 mTitle: "关于 1042", mText: "2026年6月，回文开始了。。。", mClose: "好"
             },
             en: {
                 bj: "Beijing", sk: "San Jose", db: "Osaka", jdm: "Kathmandu",
                 about: "About", mail: "Mail", game: "Games",
+                userHint: "Tap username to sign out", logout: "Sign out",
                 mTitle: "About 1042", mText: "June 2026, the palindrome begins...", mClose: "OK"
             },
             ja: {
                 bj: "北京", sk: "サンノゼ", db: "大阪", jdm: "カトマンズ",
                 about: "情報", mail: "メール", game: "一文執筆",
+                userHint: "ユーザー名をタップしてログアウト", logout: "ログアウト",
                 mTitle: "1042 について", mText: "2026年6月、回文が始まった...", mClose: "了解"
             },
             bo: {
                 bj: "པེ་ཅིང།", sk: "སན་ཧོ་སེ།", db: "ཨོ་སཱ་ཀཱ།", jdm: "ཀཐ་མན་གྲུ།",
                 about: "སྐོར།", mail: "ཡིག་ཟམ།", game: "ཚིག་གཅིག་དེབ་འབྲི།",
+                userHint: "སྤྱོད་མཁན་མིང་ལ་བརྡབས་ནས་ཕྱིར་འཐེན།", logout: "ཕྱིར་འཐེན།",
                 mTitle: "1042 སྐོར།", mText: "༢༠༢༦ ལོའི་ཟླ་ ༦ པར། ལྡོག་ཚིག་འགོ་བཙུགས་སོ།།", mClose: "ཡིན།"
             }
         };
@@ -164,6 +170,9 @@
             document.getElementById('mdl-close').innerText = i18n[lang].mClose;
             
             localStorage.setItem('portal_lang', lang);
+            import('/game/js/userBar.js').then(({ mountUserBar }) => {
+                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '' });
+            });
         }
 
         // 弹窗控制

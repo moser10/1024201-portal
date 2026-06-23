@@ -19,6 +19,7 @@ h3 { font-size: 15px; margin: 12px 0 8px; }
 .section { margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .badge { background: #e8f4fd; color: #007aff; padding: 4px 10px; border-radius: 8px; font-size: 13px; white-space: nowrap; }
 label { display: block; font-size: 13px; color: #666; margin: 10px 0 6px; }
 input, textarea {

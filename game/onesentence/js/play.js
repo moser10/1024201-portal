@@ -1,6 +1,7 @@
 import { roomApi } from "./api.js";
 import { bindNameCheck } from "./nameCheck.js";
 import { getUser, getRoom } from "../../js/store.js";
+import { mountUserBar } from "../../js/userBar.js";
 
 let pollTimer = null;
 let heartbeatTimer = null;
@@ -23,7 +24,10 @@ export function renderPlay(app, onLeave, game) {
           <h1 id="roomTitle">${room.title}</h1>
           <p class="sub" id="roomMeta"></p>
         </div>
-        <button id="leaveBtn" class="btn-secondary btn-small">离开房间</button>
+        <div class="header-actions">
+          <div id="playUserBar"></div>
+          <button id="leaveBtn" class="btn-secondary btn-small">离开房间</button>
+        </div>
       </div>
 
       <section id="ownerRename" class="section" hidden>
@@ -62,6 +66,8 @@ export function renderPlay(app, onLeave, game) {
         </div>
       </section>
     </div>`;
+
+  mountUserBar(document.getElementById("playUserBar"), { variant: "game", returnPath: "onesentence/" });
 
   const renameInput = document.getElementById("renameInput");
   const renameBtn = document.getElementById("renameBtn");

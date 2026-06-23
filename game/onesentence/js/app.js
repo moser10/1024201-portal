@@ -1,5 +1,5 @@
 import { getUser, getRoom, clearRoom } from "../../js/store.js";
-import { GAMES } from "../../js/games.js";
+import { getGame } from "../../js/games.js";
 import { renderLobby } from "./lobby.js";
 import { renderPlay } from "./play.js";
 
@@ -7,7 +7,7 @@ if (!getUser()) {
   window.location.href = `/game/register/?return=${encodeURIComponent("onesentence/")}`;
 }
 
-const game = GAMES.osn;
+const game = getGame("osn");
 const app = document.getElementById("app");
 
 function route() {

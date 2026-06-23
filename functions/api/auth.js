@@ -3,18 +3,6 @@ import { hashPassword, verifyPassword, randomPassword } from "./_crypto.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// #region agent log
-function agentLog(location, message, data, hypothesisId) {
-  const payload = { sessionId: "484ab6", location, message, data, hypothesisId, timestamp: Date.now(), runId: "register-debug" };
-  console.log("[agent]", JSON.stringify(payload));
-  fetch("http://127.0.0.1:7725/ingest/bcf84f0a-61b7-4397-82c3-0d4511165217", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "484ab6" },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
-}
-// #endregion
-
 async function sendMail(env, to, subject, html) {
   if (!env.RESEND_API_KEY) {
     throw new Error("邮件服务未配置（RESEND_API_KEY）。请在 Cloudflare → Workers → one-sentence-novel → Settings → Variables 添加 Secret。");
@@ -164,24 +152,11 @@ export async function onRequest(context) {
       const mail = email?.trim();
       const name = username?.trim();
       const pass = password?.trim();
-      // #region agent log
-      agentLog("auth.js:register:entry", "register started", {
-        hasResendKey: !!env.RESEND_API_KEY,
-        mailDomain: mail?.split("@")[1] || null,
-      }, "B");
-      // #endregion
       if (!mail || !name || !pass) return json({ error: "邮箱、昵称和密码不能为空" }, 400);
       if (!isValidEmail(mail)) return json({ error: "邮箱格式不正确" }, 400);
       if (pass.length < 6) return json({ error: "密码至少 6 位" }, 400);
 
       const inUsers = await db.prepare("SELECT id FROM users WHERE email = ?").bind(mail).first();
-      const inPending = await db
-        .prepare("SELECT id FROM pending_registrations WHERE email = ? AND expires_at > datetime('now')")
-        .bind(mail)
-        .first();
-      // #region agent log
-      agentLog("auth.js:register:dup-check", "duplicate check", { inUsers: !!inUsers, inPending: !!inPending }, "C");
-      // #endregion
 
       if (inUsers) {
         return json({ error: "该邮箱已被注册" }, 400);
@@ -211,9 +186,6 @@ export async function onRequest(context) {
         )
         .bind(mail, name, passHash, verifyToken)
         .run();
-      // #region agent log
-      agentLog("auth.js:register:pending-inserted", "pending row created", { tokenLen: verifyToken.length }, "D");
-      // #endregion
 
       const today = new Date().toLocaleDateString("zh-CN");
       const verifyUrl = `${siteOrigin(request)}/api/auth?action=verify&token=${verifyToken}`;
@@ -227,14 +199,8 @@ export async function onRequest(context) {
            <p>祝玩儿的开心。</p>
            <br><p>落款 1024201<br>${today}</p>`
         );
-        // #region agent log
-        agentLog("auth.js:register:mail-ok", "sendMail succeeded", {}, "B");
-        // #endregion
       } catch (err) {
         await db.prepare("DELETE FROM pending_registrations WHERE verify_token = ?").bind(verifyToken).run();
-        // #region agent log
-        agentLog("auth.js:register:mail-fail", "sendMail failed, pending rolled back", { err: err.message?.slice(0, 80) }, "D");
-        // #endregion
         throw err;
       }
 
