@@ -5,7 +5,7 @@ import { setUser } from "./store.js";
 export function renderRegister(app, onDone) {
   app.innerHTML = `
     <div class="card">
-      <h1>📝 OneSentenceNovel</h1>
+      <h1>【一人一句，一句成书】</h1>
       <p class="sub">注册后即可创建或加入房间</p>
       <label>邮箱</label>
       <input type="email" id="regEmail" placeholder="your@email.com" maxlength="80">
