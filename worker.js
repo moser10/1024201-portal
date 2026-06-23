@@ -24,7 +24,7 @@ export default {
         JSON.stringify({
           ok: true,
           hasDb: !!(env?.DB && typeof env.DB.prepare === "function"),
-          worker: "one-sentence-novel",
+          worker: "onesentencenovel",
           bindings: Object.keys(env || {}).filter((k) => !/TOKEN|KEY|SECRET/i.test(k)),
         }),
         { headers: { "Content-Type": "application/json" } }
