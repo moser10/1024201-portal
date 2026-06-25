@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>王昊文 — 職務経歴書</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 14mm 14mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif;
+    color: #222;
+    font-size: 10.2px;
+    line-height: 1.55;
+  }
+  .name {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #1a3a5c;
+    margin: 0;
+  }
+  .title {
+    font-size: 10.8px;
+    font-weight: 600;
+    color: #2f6b9e;
+    margin: 3px 0 6px 0;
+  }
+  .contact { font-size: 9.6px; color: #444; margin-bottom: 10px; }
+  .sep { color: #bbb; margin: 0 6px; }
+  h2 {
+    font-size: 11.5px;
+    letter-spacing: 1px;
+    color: #1a3a5c;
+    border-bottom: 1.5px solid #2f6b9e;
+    padding-bottom: 2px;
+    margin: 14px 0 7px 0;
+  }
+  p.summary { margin: 0; text-align: justify; }
+  .skills { margin: 0; }
+  .skills .row { margin-bottom: 3px; display: flex; }
+  .skills .k { flex: 0 0 150px; font-weight: 700; color: #1a3a5c; }
+  .skills .v { flex: 1; }
+  .job { margin-bottom: 9px; page-break-inside: avoid; }
+  .job-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .job-role { font-weight: 700; color: #173a57; font-size: 10.8px; }
+  .job-org { font-weight: 600; color: #444; }
+  .job-meta { font-size: 9.3px; color: #666; white-space: nowrap; }
+  ul { margin: 3px 0 0 0; padding-left: 15px; }
+  li { margin-bottom: 2.5px; text-align: justify; }
+  .tag { color: #2f6b9e; font-weight: 600; }
+  .flag { background: #eef4fa; border-left: 3px solid #2f6b9e; padding: 5px 8px; margin-top: 4px; border-radius: 2px; }
+  .two-col { display: flex; gap: 24px; }
+  .two-col > div { flex: 1; }
+  .compact li { margin-bottom: 1.5px; }
+  code { font-family: "SF Mono", Consolas, monospace; }
+</style>
+</head>
+<body>
+
+  <p class="name">王 昊文（ワン・ハオウェン）</p>
+  <p class="title">シニアテストエンジニア ／ 自動化フレームワーク構築 ／ AIエージェント・ワークフロー ／ スクラムマスター</p>
+  <div class="contact">
+    <span>中国・北京</span><span class="sep">|</span>
+    <span>+86 185 1851 8060</span><span class="sep">|</span>
+    <span>moser10@gmail.com</span>
+  </div>
+
+  <h2>職務要約</h2>
+  <p class="summary">
+    自動車・IoT・スマートハードウェア領域で、自動化フレームワークの設計と複雑なシステムの検証に10年以上従事してきたシニア機能・自動化テストエンジニアです。
+    私の強みは、現場の具体的なテスト課題を「チーム全体が日常的に使える自動化ツール」へと作り上げる点にあります。あらかじめ用意されたスクリプトを実行するだけでなく、
+    ドメイン知識・徹底した調査・近年はAIエージェント技術を組み合わせ、組織全体が依存する実用的なフレームワークを自ら構築してきました。
+    スクラムマスターおよび部門横断のコーディネーターとして、<strong>スウェーデン</strong>のオフショアチームや、エンジニアリング・アルゴリズム・プロダクト・ハードウェア各部門と連携し、
+    不具合トリアージとリリース調整を主導した実績があります。英語を主とする分散型チーム環境に慣れており、現在はAI支援によるソフトウェア開発とCloudflareベースのデプロイへ領域を拡大しています。
+  </p>
+
+  <h2>主要な技術スキル</h2>
+  <div class="skills">
+    <div class="row"><div class="k">テスト自動化</div><div class="v">Python自動化フレームワーク（10年以上）、モジュール化・再利用可能な設計、API／UI／デバイスレベル自動化、独自プロトコルデコーダ、可視化レポート</div></div>
+    <div class="row"><div class="k">フレームワーク構築</div><div class="v">Flaskベースのネットワークテストツール、辞書駆動のプロトコルモデリング、CI連携、データ駆動・比較ベースの検証</div></div>
+    <div class="row"><div class="k">AIエージェント活用</div><div class="v">Cursor、Codex + Antigravity、Gemini、Claude／マルチエージェント協調パターン／再利用可能なエージェント「スキル」（文書アシスタント・コンテンツ分析）／AI生成＋手動コードレビュー</div></div>
+    <div class="row"><div class="k">クラウド／エッジ</div><div class="v">Cloudflare（Workers／Pages／D1／KV／Functions）、WeChatミニプログラム開発、基本的なWebフルスタック（HTML／CSS／JS）</div></div>
+    <div class="row"><div class="k">言語・スクリプト</div><div class="v">Python（主力）、JavaScript／TypeScript（4年以上）、Shell</div></div>
+    <div class="row"><div class="k">機能テスト</div><div class="v">探索的・回帰・統合・組込み／デバイスレベル検証</div></div>
+    <div class="row"><div class="k">テスト・アジャイル管理</div><div class="v">テスト計画、トリアージ、レポート／スクラムマスター／オフショア・国際・部門横断の調整</div></div>
+    <div class="row"><div class="k">ツール</div><div class="v">JIRA、Jenkins、Git、Pytest、Robot Framework、Playwright、Swagger、Wireshark、Locust、JMeter</div></div>
+    <div class="row"><div class="k">プラットフォーム</div><div class="v">Linux（CLI・ログ・環境構築）、CAN／Ethernetテレマティクス、デバイス〜クラウド連携</div></div>
+  </div>
+
+  <h2>職務経歴</h2>
+
+  <div class="job">
+    <div class="job-head">
+      <div><span class="job-role">AIエージェント・ワークフロー構築者</span> <span class="job-org">（個人事業主／フリーランス）</span></div>
+      <div class="job-meta">2025/08 – 現在 ・ リモート</div>
+    </div>
+    <ul>
+      <li><span class="tag">AIエージェントを活用したソフトウェア開発ワークフロー</span>の実践的な実装をリード。要件からリリースまでの高速化と、信頼性の高いコード統合に注力。</li>
+      <li>文書アシスタントやコンテンツ分析など、再利用可能なエージェント「スキル」を設計・構築し、反復作業の標準化と効率化を実現。</li>
+      <li>実運用に近い形でマルチエージェント協調パターンを検証：<strong>Gemini + Cursor</strong> と <strong>Codex + Antigravity</strong> を比較し、コード生成・レビュー・オーケストレーションの適性を評価。</li>
+      <li><strong>WeChatミニプログラムを2件</strong>開発・リリース（うち1件は<strong>日本語のかな（ひらがな・カタカナ）学習アプリ</strong>）。「AI支援生成＋手動コードレビュー」の品質モデルを適用し、保守性・正確性・本番運用への耐性を担保。</li>
+      <li>ミニプログラムにとどまらず、<strong>オープンソースプロジェクトや開発者向けプラットフォームの統合・活用</strong>により技術領域を大幅に拡張。例として <strong>DigitalPlat</strong>（ドメイン／インフラツール）や <strong>Resend</strong>（トランザクションメールAPI）を活用し、ドメイン管理・メール配信・API連携・セルフホスト型OSSを実地に習得。</li>
+      <li><strong>Cloudflare</strong>（Workers／Pages／D1／KV）上でWebサービスをデプロイ・運用し、ビルドからリリースまでを一貫して担当。</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-head">
+      <div><span class="job-role">スクラムマスター ・ 自動化／機能検証</span> <span class="job-org">— WirelessCar China（フォルクスワーゲン＆ボルボ 合弁）</span></div>
+      <div class="job-meta">2021/06 – 2025/07 ・ 中国・北京</div>
+    </div>
+    <ul>
+      <li>コネクテッドカー・サービスチームの<span class="tag">スクラムマスター</span>として、アジャイル開発、スプリント計画、リスクの可視化、障害除去を推進。</li>
+      <li>複数チームにまたがる<strong>Scrum of Scrums</strong>を主導し、<strong>PI（プログラム・インクリメント）デイ</strong>の準備をリード。四半期ごとのロードマップを成果物単位に分解し、分散したチーム間の依存関係を調整。</li>
+      <li>四半期ごとに<strong>各国チームとステークホルダー・目標（オブジェクティブ）を整合</strong>。英語主体の環境で、中国と欧州のパートナー間のスコープ・優先度・リリースコミットメントを橋渡し。</li>
+      <li><strong>国際・部門横断の調整</strong>を担当し、<strong>スウェーデン</strong>のオフショアチームと日次で連携。不具合トリアージ、テスト範囲の整合、リリース準備を推進。</li>
+      <li>テレマティクスデータ検証およびAPI／デバイスレベルテストのPython自動化をリード。</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-head">
+      <div><span class="job-role">テストマネージャー ・ アルゴリズム／知覚検証 ＆ スクラムマスター</span> <span class="job-org">— Untouch Technology</span></div>
+      <div class="job-meta">2020/03 – 2021/06 ・ 中国・北京</div>
+    </div>
+    <ul class="compact">
+      <li>車内ビジョンシステムの<strong>アルゴリズム／知覚テスト</strong>をリード。<strong>データセット／テストセットの整備</strong>から実車走行テストまで、検証パイプライン全体を担当。</li>
+      <li><strong>訓練データを段階的に標準化し、信頼できるテストセットへ転換</strong>。データセンターのデータの一部を切り出して訓練／テスト分割を作成し、再現可能なテストセットへと少しずつ整え、<strong>実車フィールドテスト</strong>を駆動。</li>
+      <li>主要プロジェクト：<strong>DMS／DRM ドライバーモニタリング</strong>、喫煙・飲水・あくびなどの行動検出、<strong>カメラによるジェスチャー制御</strong>（車両のイグニッション・後退操作）。</li>
+      <li>補助ツールも開発。<strong>シリアルポート・データ変換ツール</strong>（Goの出力をPython／Cへ橋渡しし、テストで利用可能に）を構築。</li>
+      <li>テストチームを管理。アジャイル体制のもと<strong>朝会でスクラムマスターの役割</strong>を担い、各開発者・テスターとスプリントを確認。アルゴリズム・データ・プロダクト各チームとスコープと品質ゲートを調整し、不具合ライフサイクルを管理。</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-head">
+      <div><span class="job-role">シニアテスター ・ 自動化／機能検証</span> <span class="job-org">— G7 Networks</span></div>
+      <div class="job-meta">2018/07 – 2020/01 ・ 中国・北京</div>
+    </div>
+    <ul>
+      <li>大型トラック物流IoT向けに、ハードウェア端末（TBOX）・プラットフォーム解析・クラウドサービスをまたぐエンドツーエンド検証を実施。運用ダッシュボードやデータ可視化ツールのWeb UIテストも担当。</li>
+    </ul>
+    <div class="flag">
+      <strong>自発的に構築した自動化フレームワーク（主要な実績）。</strong>
+      車載独自テレマティクスプロトコルをデコードし、端末からの応答データと照合する<strong>Flask + Python のネットワーク型テストフレームワーク</strong>を独力で設計・構築。
+      不具合が「対象ソフトのプロトコルカプセル化の問題」なのか「応答データそのものの問題」なのかを切り分け可能にした。
+      <strong>全部門がネットワーク経由で利用</strong>でき、レポートを自動で可視化生成。
+      <ul class="compact" style="margin-top:4px;">
+        <li>各独自プロトコルをPythonの<strong>辞書（dictionary）</strong>でモデル化し、共通・反復的な部分は再利用可能なデコードアルゴリズムとして実装。</li>
+        <li>特に複雑なビット単位のケースは呼び出し可能なメソッドとしてハードコード（例：<code>0xAA</code> の後に8バイトの16進フィールドが続き、2桁ごとに異なる走行指標を表し、上位・下位バイトの各ビットが別々の意味を持つ）。共通のビット抽出ヘルパーを各パーサで再利用。</li>
+        <li>大型トラック領域を幅広くカバー：積載容量計測、積載／荷重、コールドチェーンの温度差、ドライバー／乗員の行動モニタリング（あくび・喫煙などの危険行動）。</li>
+        <li>多くのチームが手作業で対応していた課題を、共有・再現可能なセルフサービスツールへ転換。指示されたタスクではなく自発的な取り組み。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="job">
+    <div class="job-head">
+      <div><span class="job-role">テスト開発リード ・ 自動化／スマートハードウェア</span> <span class="job-org">— ShuZiJiaYuan</span></div>
+      <div class="job-meta">2016/04 – 2018/07 ・ 中国・北京</div>
+    </div>
+    <ul class="compact">
+      <li>IoTゲートウェイ統合および接続安定性テストのための自動化ツールを構築。</li>
+      <li>組込みデバイス・モバイルアプリ・クラウドプラットフォームにわたる機能テストを実施。テストデータセットを設計し、回帰サイクルを実行してシステムレベルの挙動を検証。</li>
+    </ul>
+  </div>
+
+  <div class="job">
+    <div class="job-head">
+      <div><span class="job-role">それ以前の経歴</span> <span class="job-org">（2016年以前）</span></div>
+      <div class="job-meta">通信 ・ 組込み ・ モバイル ・ エンタープライズ</div>
+    </div>
+    <ul class="compact">
+      <li>Avanade Beijing（Nokia／Microsoft案件）— テスト開発者 ／ Beijing C&amp;W Group — テストマネージャー。</li>
+      <li>WIPRO ／ Neusoft ／ Beijing Genten Software — テストリード／テストエンジニア。</li>
+    </ul>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h2>学歴</h2>
+      <p style="margin:0;"><strong>北方工業大学（North China University of Technology）</strong><br>
+      コンピュータサイエンス専攻 — 2009年</p>
+    </div>
+    <div>
+      <h2>語学</h2>
+      <ul class="compact" style="margin-top:4px;">
+        <li><strong>英語</strong> — ビジネスレベル（実務使用）</li>
+        <li><strong>中国語</strong> — ネイティブ</li>
+        <li><strong>日本語</strong> — 学習中（JLPT N2 取得を目標）</li>
+      </ul>
+    </div>
+  </div>
+
+</body>
+</html>
