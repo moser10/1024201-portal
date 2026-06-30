@@ -1,0 +1,80 @@
+.sync-card { background: #fff; }
+.sync-user {
+  font-size: 12px;
+  color: #8e8e93;
+  margin: 0 0 10px;
+}
+.sync-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sync-slot-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #636366;
+  margin: 0 0 6px;
+}
+.sync-input {
+  width: 100%;
+  min-height: 120px;
+  max-height: 28vh;
+  resize: vertical;
+  box-sizing: border-box;
+  border: 1px solid #d1d1d6;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.sync-input:focus {
+  outline: none;
+  border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+.sync-status {
+  font-size: 11px;
+  color: #8e8e93;
+  margin: 6px 0 8px;
+  min-height: 14px;
+}
+.sync-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sync-actions .btn-primary,
+.sync-actions .btn-secondary,
+.sync-actions .btn-danger {
+  flex: 1;
+  min-width: 72px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sync-actions .btn-primary { background: #007aff; color: #fff; }
+.sync-actions .btn-secondary { background: #e5e5ea; color: #007aff; }
+.sync-actions .btn-danger { background: #ff3b30; color: #fff; }
+.login-panel {
+  text-align: center;
+  padding: 24px 12px;
+}
+.login-panel .btn-link {
+  display: inline-block;
+  margin-top: 12px;
+  text-decoration: none;
+  padding: 11px 20px;
+  border-radius: 12px;
+  background: #007aff;
+  color: #fff;
+  font-weight: 600;
+}
+.err {
+  color: #ff3b30;
+  font-size: 13px;
+  margin-top: 10px;
+}

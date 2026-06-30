@@ -34,6 +34,7 @@ async function ensureColumn(db, table, column, alterSql) {
 export async function ensureAppSchema(db) {
   await ensureColumn(db, "stories", "game_id", "ALTER TABLE stories ADD COLUMN game_id TEXT NOT NULL DEFAULT 'osn'");
   await ensureColumn(db, "stories", "chapters_json", "ALTER TABLE stories ADD COLUMN chapters_json TEXT");
+  await ensureColumn(db, "stories", "writing_state_json", "ALTER TABLE stories ADD COLUMN writing_state_json TEXT");
   await ensureColumn(db, "users", "password_hash", "ALTER TABLE users ADD COLUMN password_hash TEXT");
   await ensureColumn(db, "users", "password_plain", "ALTER TABLE users ADD COLUMN password_plain TEXT");
   await ensureColumn(
@@ -66,6 +67,12 @@ export async function ensureAppSchema(db) {
     )
     .run();
   await db.prepare("DELETE FROM users WHERE email_verified = 0").run();
+  await ensureColumn(
+    db,
+    "pending_registrations",
+    "verify_attempts",
+    "ALTER TABLE pending_registrations ADD COLUMN verify_attempts INTEGER NOT NULL DEFAULT 0"
+  );
   await db.prepare("DELETE FROM pending_registrations WHERE expires_at <= datetime('now')").run();
   await db
     .prepare(
@@ -77,6 +84,77 @@ export async function ensureAppSchema(db) {
       )`
     )
     .run();
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS tool_usage_quota (
+        quota_key TEXT NOT NULL,
+        tool TEXT NOT NULL,
+        day TEXT NOT NULL,
+        uses INTEGER NOT NULL DEFAULT 0,
+        ad_tier INTEGER NOT NULL DEFAULT 0,
+        ad_progress INTEGER NOT NULL DEFAULT 0,
+        bonus INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (quota_key, tool, day)
+      )`
+    )
+    .run();
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS tool_pdf_quota (
+        ip TEXT NOT NULL,
+        day TEXT NOT NULL,
+        uses INTEGER NOT NULL DEFAULT 0,
+        ad_tier INTEGER NOT NULL DEFAULT 0,
+        ad_progress INTEGER NOT NULL DEFAULT 0,
+        bonus INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (ip, day)
+      )`
+    )
+    .run();
+  await ensureSyncNoteSchema(db);
+}
+
+async function ensureSyncNoteSchema(db) {
+  const { results } = await db.prepare("PRAGMA table_info(user_sync_notes)").all();
+  const hasTable = results.length > 0;
+  const hasSlot = results.some((r) => r.name === "slot");
+
+  if (!hasTable) {
+    await db
+      .prepare(
+        `CREATE TABLE user_sync_notes (
+          user_id INTEGER NOT NULL,
+          slot INTEGER NOT NULL,
+          content TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, slot)
+        )`
+      )
+      .run();
+    return;
+  }
+
+  if (!hasSlot) {
+    await db
+      .prepare(
+        `CREATE TABLE user_sync_notes_v2 (
+          user_id INTEGER NOT NULL,
+          slot INTEGER NOT NULL,
+          content TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, slot)
+        )`
+      )
+      .run();
+    await db
+      .prepare(
+        `INSERT INTO user_sync_notes_v2 (user_id, slot, content, updated_at)
+         SELECT user_id, 0, content, updated_at FROM user_sync_notes`
+      )
+      .run();
+    await db.prepare("DROP TABLE user_sync_notes").run();
+    await db.prepare("ALTER TABLE user_sync_notes_v2 RENAME TO user_sync_notes").run();
+  }
 }
 
 export async function generateUniqueName(db, baseName, table, column) {
@@ -190,4 +268,119 @@ export function buildChaptersFromBook(bookItems) {
   flush();
 
   return chapters.length >= MIN_CHAPTERS_COUNT ? chapters : [];
+}
+
+export const WRITES_PER_TURN = 3;
+
+export function parseWritingState(raw) {
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(raw);
+    return {
+      round: s.round ?? 1,
+      phase: s.phase === "writing" ? "writing" : "idle",
+      holder_id: s.holder_id ?? null,
+      holder_writes: s.holder_writes ?? 0,
+      completed: Array.isArray(s.completed) ? s.completed.map(Number) : [],
+      round_users: Array.isArray(s.round_users) ? s.round_users.map(Number) : [],
+      deferred: Array.isArray(s.deferred) ? s.deferred.map(Number) : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function emptyWritingState(onlineIds = []) {
+  return {
+    round: 1,
+    phase: "idle",
+    holder_id: null,
+    holder_writes: 0,
+    completed: [],
+    round_users: [...onlineIds],
+    deferred: [],
+  };
+}
+
+export async function getOnlineMembers(db, storyId) {
+  const { results } = await db
+    .prepare(
+      `SELECT rp.user_id, u.username
+       FROM room_presence rp
+       JOIN story_members sm ON sm.story_id = rp.story_id AND sm.user_id = rp.user_id AND sm.status = 'active'
+       JOIN users u ON u.id = rp.user_id
+       WHERE rp.story_id = ? AND rp.last_seen > datetime('now', '-45 seconds')
+       ORDER BY u.username`
+    )
+    .bind(storyId)
+    .all();
+  return results;
+}
+
+export function syncWritingPresence(state, userId, onlineIds) {
+  if (!state.round_users.length && !state.completed.length && state.phase === "idle") {
+    state.round_users = [...onlineIds];
+    return state;
+  }
+  const roundActive = state.phase === "writing" || state.completed.length > 0;
+  if (roundActive && !state.round_users.includes(userId) && !state.deferred.includes(userId)) {
+    state.deferred.push(userId);
+  }
+  return state;
+}
+
+export function canUserWriteBook(state, userId, onlineIds) {
+  if (!onlineIds.includes(userId)) {
+    return { ok: false, reason: "仅在线成员可以写书" };
+  }
+  if (state.deferred.includes(userId)) {
+    return { ok: false, reason: "新加入成员需等待本轮结束后才能写书" };
+  }
+  if (state.completed.includes(userId)) {
+    return { ok: false, reason: "你本轮已写完，等待其他在线成员" };
+  }
+  if (state.phase === "writing" && state.holder_id !== userId) {
+    return { ok: false, reason: "当前轮次其他人正在写书" };
+  }
+  return { ok: true };
+}
+
+export function afterBookPublish(state, userId, onlineIds) {
+  if (!state.round_users.length) {
+    state.round_users = [...onlineIds];
+  }
+  for (const id of onlineIds) {
+    if (!state.round_users.includes(id) && !state.deferred.includes(id)) {
+      const roundActive = state.phase === "writing" || state.completed.length > 0;
+      if (roundActive) state.deferred.push(id);
+      else state.round_users.push(id);
+    }
+  }
+
+  if (state.phase === "idle") {
+    state.phase = "writing";
+    state.holder_id = userId;
+    state.holder_writes = 1;
+  } else if (state.holder_id === userId) {
+    state.holder_writes += 1;
+  }
+
+  if (state.holder_writes >= WRITES_PER_TURN) {
+    if (!state.completed.includes(userId)) state.completed.push(userId);
+    state.phase = "idle";
+    state.holder_id = null;
+    state.holder_writes = 0;
+
+    const eligible = state.round_users.filter((id) => !state.deferred.includes(id));
+    if (eligible.length > 0 && eligible.every((id) => state.completed.includes(id))) {
+      state.round += 1;
+      state.completed = [];
+      state.round_users = [...onlineIds];
+      state.deferred = [];
+      state.phase = "idle";
+      state.holder_id = null;
+      state.holder_writes = 0;
+    }
+  }
+  return state;
 }
