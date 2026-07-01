@@ -23,9 +23,20 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; }
 
-        body { background-color: var(--ios-bg); color: var(--ios-text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px; overflow-x: hidden; }
+        body {
+            background-color: var(--ios-bg);
+            color: var(--ios-text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
 
-        header { width: 100%; max-width: 800px; display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; z-index: 10; gap: 10px; }
+        header { width: 100%; max-width: 800px; display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; z-index: 2; gap: 10px; position: relative; }
 
         .sidebar-widgets {
             display: flex;
@@ -147,81 +158,57 @@
             flex-grow: 1;
             width: 100%;
             max-width: 520px;
-            margin: 24px 0 40px;
+            margin: 16px 0 40px;
+            position: relative;
+            z-index: 1;
         }
 
         .portal-hero {
-            position: relative;
             width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 4px 0 8px;
         }
 
-        .portal-stack {
+        .portal-brand-block {
             position: relative;
-            width: fit-content;
-            max-width: 100%;
-            margin: 0 auto;
-        }
-
-        .portal-title-layer {
-            position: absolute;
-            left: 50%;
-            top: -32px;
-            transform: translateX(-50%);
-            width: 194%;
-            max-width: 756px;
-            z-index: 3;
             display: flex;
             justify-content: center;
             align-items: center;
-            pointer-events: none;
+            width: 100%;
+            min-height: 64px;
+            margin-bottom: 40px;
+            overflow: hidden;
         }
 
-        .portal-title-glow {
+        .portal-watermark {
             position: absolute;
             left: 50%;
-            top: 55%;
+            top: 50%;
             transform: translate(-50%, -50%);
-            width: 175%;
-            height: 320px;
-            background: radial-gradient(
-                ellipse 72% 68% at 50% 44%,
-                rgba(0, 122, 255, 0.34) 0%,
-                rgba(84, 203, 255, 0.16) 32%,
-                rgba(0, 122, 255, 0.06) 55%,
-                transparent 72%
-            );
-            filter: blur(14px);
-            z-index: 0;
+            font-size: clamp(96px, 24vw, 200px);
+            font-weight: 800;
+            letter-spacing: -0.055em;
+            line-height: 1;
+            color: #007aff;
+            opacity: 0.085;
+            white-space: nowrap;
+            pointer-events: none;
+            user-select: none;
         }
 
-        .portal-title-svg {
+        .portal-brand {
             position: relative;
             z-index: 1;
-            width: 100%;
-            max-width: 756px;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-            overflow: visible;
-            filter: blur(1.6px);
-        }
-
-        .portal-title-text {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
-            font-size: 165px;
+            margin: 0;
+            font-size: clamp(30px, 8vw, 40px);
             font-weight: 700;
-            letter-spacing: -11px;
-            fill: #007aff;
-            fill-opacity: 0.28;
+            letter-spacing: -0.045em;
+            color: #007aff;
+            line-height: 1;
         }
 
         .app-grid {
-            position: relative;
-            z-index: 2;
             display: grid;
             grid-template-columns: repeat(2, auto);
             gap: 18px 26px;
@@ -229,11 +216,12 @@
             align-items: center;
             width: fit-content;
             margin: 0 auto;
-            padding: 0;
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            box-shadow: none;
+            padding: 22px 28px;
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 22px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
         }
 
         .app-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--ios-text); }
@@ -288,12 +276,29 @@
 
             main {
                 max-width: 100%;
-                margin: 16px 0 32px;
+                margin: 12px 0 28px;
+            }
+
+            .portal-brand-block {
+                min-height: 52px;
+                margin-bottom: 32px;
+            }
+
+            .portal-watermark {
+                font-size: clamp(76px, 22vw, 128px);
+                opacity: 0.075;
+            }
+
+            .portal-brand {
+                font-size: clamp(26px, 7.5vw, 32px);
             }
 
             .app-grid {
                 gap: 16px 22px;
-                padding: 0;
+                padding: 18px 20px;
+                border-radius: 20px;
+                width: 100%;
+                max-width: 320px;
             }
 
             .app-icon {
@@ -365,14 +370,11 @@
 
     <main>
         <div class="portal-hero">
-            <div class="portal-stack">
-                <div class="portal-title-layer" aria-hidden="true">
-                    <div class="portal-title-glow"></div>
-                    <svg class="portal-title-svg" viewBox="0 0 560 120" preserveAspectRatio="xMidYMid meet" role="img" aria-label="1024201">
-                        <text x="280" y="92" text-anchor="middle" class="portal-title-text">1024201</text>
-                    </svg>
-                </div>
-                <div class="app-grid">
+            <div class="portal-brand-block">
+                <div class="portal-watermark" aria-hidden="true">1024201</div>
+                <h1 class="portal-brand">1024201</h1>
+            </div>
+            <div class="app-grid">
                 <a href="https://mail.1024201.com" class="app-item">
                     <div class="app-icon icon-mail">
                         <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
@@ -397,7 +399,6 @@
                     </div>
                     <div class="app-label" id="app-tools">Toolbox</div>
                 </a>
-                </div>
             </div>
         </div>
     </main>
