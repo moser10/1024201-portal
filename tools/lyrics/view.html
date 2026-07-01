@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="/js/featurePage.css">
   <link rel="stylesheet" href="lyrics.css">
 </head>
-<body class="feature-page lyrics-view-page">
+<body class="feature-page lyrics-view-page" data-tool="lyrics-view">
   <div class="feature-shell">
     <div class="feature-main">
     <div class="feature-top">
@@ -34,6 +34,8 @@
     </div>
     </div>
   </div>
-  <script type="module" src="view.js?v=3"></script>
+  <link rel="modulepreload" href="/js/langTabs.js">
+  <script src="/tools/js/instantPaint.js"></script>
+  <script type="module" src="view.js?v=4"></script>
 </body>
 </html>

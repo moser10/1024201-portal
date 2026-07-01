@@ -1,4 +1,5 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
+import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
 
 const UI = {
   en: {
@@ -89,6 +90,7 @@ function applyI18n() {
   prevBtn.textContent = t.prev;
   nextBtn.textContent = t.next;
   updatePlayButtons();
+  paintToolUser();
 }
 
 mountLangTabs(document.getElementById("langSlot"), {
@@ -102,6 +104,8 @@ mountLangTabs(document.getElementById("langSlot"), {
 });
 
 applyI18n();
+paintToolUser();
+deferWork(loadTracks);
 
 function fmt(sec) {
   if (!Number.isFinite(sec) || sec < 0) return "0:00";
@@ -318,4 +322,3 @@ progressBar.addEventListener("change", () => {
   isSeeking = false;
 });
 
-loadTracks();

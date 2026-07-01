@@ -1,6 +1,7 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser } from "/game/js/store.js";
 import { currentUserId, loginHref } from "../js/quotaClient.js";
+import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
 
 const MAX_LINES = 3;
 const FLASH_MS = 2200;
@@ -199,6 +200,7 @@ async function loadNotes() {
     const userLine = document.getElementById("userLine");
     userLine.hidden = false;
     userLine.textContent = t.user(data.username || getUser()?.username || "");
+    paintToolUser();
   } catch (e) {
     showError(e.message || t.errLoad);
   }
@@ -286,6 +288,7 @@ async function pasteSlot(el, e) {
 
 function boot() {
   applyI18n();
+  paintToolUser();
   const user = getUser();
   if (!user?.id) {
     loginPanel.hidden = false;
@@ -294,7 +297,7 @@ function boot() {
   }
   loginPanel.hidden = true;
   editorWrap.hidden = false;
-  loadNotes();
+  deferWork(loadNotes);
 }
 
 mountLangTabs(document.getElementById("langSlot"), {

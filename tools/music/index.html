@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#5856d6">
   <title>Music | 1024201</title>
+  <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css">
   <link rel="stylesheet" href="/js/featurePage.css">
   <link rel="stylesheet" href="music.css">
 </head>
-<body class="feature-page">
+<body class="feature-page" data-tool="music">
   <div class="feature-shell">
     <div class="feature-main">
     <div class="feature-top">
@@ -20,6 +21,7 @@
       <div class="feature-card-head">
         <h1 id="pageTitle">Music</h1>
         <p class="sub" id="pageSub">Chart previews via Deezer · 30s clips</p>
+        <p class="tool-user" id="userLine" hidden></p>
       </div>
 
       <div class="music-main" id="musicMain">
@@ -64,6 +66,7 @@
   </div>
 
   <audio id="audio" preload="none"></audio>
-  <script type="module" src="music.js?v=4"></script>
+  <script src="/tools/js/instantPaint.js"></script>
+  <script type="module" src="music.js?v=5"></script>
 </body>
 </html>

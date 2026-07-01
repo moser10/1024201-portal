@@ -4,11 +4,6 @@
   flex-direction: column;
   min-height: 0;
 }
-.sync-user {
-  font-size: 12px;
-  color: #8e8e93;
-  margin: 0 0 8px;
-}
 .sync-editor {
   flex: 1;
   min-height: 0;

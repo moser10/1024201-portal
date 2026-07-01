@@ -1,5 +1,4 @@
 import { getPortalLang } from "/js/langTabs.js";
-import { getUser } from "/game/js/store.js";
 
 export function toolLang() {
   return getPortalLang();
@@ -31,10 +30,8 @@ export const API_ERRORS = {
 };
 
 export function formatQuotaLine(t, quota) {
-  const user = getUser();
-  const name = user?.username ? `@${user.username}` : "";
   if (typeof t.quota === "function") {
-    return t.quota(quota.remaining, quota.allowed, quota.loggedIn, name);
+    return t.quota(quota.remaining, quota.allowed, quota.loggedIn);
   }
   return "";
 }

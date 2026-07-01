@@ -1,8 +1,8 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
-import { estimateEtaMs, mountProgress } from "./loading.js";
-import { loginHref, quotaQuery, isLoginRequired, currentUserId, quotaBody } from "../js/quotaClient.js";
+import { loginHref, quotaQuery, currentUserId, quotaBody } from "../js/quotaClient.js";
 import { apiErrorText, formatQuotaLine } from "../js/toolI18n.js";
 import { guessQuota, readQuotaCache, writeQuotaCache } from "../js/quotaUi.js";
+import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
 
 const UI = {
   en: {
@@ -14,8 +14,8 @@ const UI = {
     hint: "Enter a song title, an artist, or both. Guests: 1/day; registered: 5/day.",
     search: "Search",
     searching: "Searching…",
-    quota: (r, a, logged, name) =>
-      logged ? `Searches: ${r}/${a} · ${name || "signed in"}` : `Searches: ${r}/${a} (guest)`,
+    quota: (r, a, logged) =>
+      logged ? `Searches: ${r}/${a}` : `Searches: ${r}/${a} (guest)`,
     loginTitle: "Sign in for more",
     loginDesc: "Guest limit reached. Sign in for 5 searches per day.",
     loginBtn: "Sign in / Register",
@@ -41,8 +41,8 @@ const UI = {
     hint: "可只填歌名、只填歌手，或两者都填。游客每天 1 次；注册用户每天 5 次。",
     search: "搜索",
     searching: "正在搜索…",
-    quota: (r, a, logged, name) =>
-      logged ? `今日搜索剩余 ${r}/${a} · ${name || "已登录"}` : `今日搜索剩余 ${r}/${a}（游客）`,
+    quota: (r, a, logged) =>
+      logged ? `今日搜索剩余 ${r}/${a}` : `今日搜索剩余 ${r}/${a}（游客）`,
     loginTitle: "登录后继续使用",
     loginDesc: "游客今日次数已用完。登录后每天可搜索 5 次。",
     loginBtn: "登录 / 注册",
@@ -68,8 +68,8 @@ const UI = {
     hint: "曲名のみ、アーティストのみ、または両方。ゲスト1日1回、登録5回。",
     search: "検索",
     searching: "検索中…",
-    quota: (r, a, logged, name) =>
-      logged ? `本日残り ${r}/${a} · ${name || "ログイン済"}` : `本日残り ${r}/${a}（ゲスト）`,
+    quota: (r, a, logged) =>
+      logged ? `本日残り ${r}/${a}` : `本日残り ${r}/${a}（ゲスト）`,
     loginTitle: "ログインして続行",
     loginDesc: "ゲスト上限です。ログインで1日5回。",
     loginBtn: "ログイン / 登録",
@@ -113,6 +113,7 @@ function applyI18n() {
     document.getElementById("unlockTitle").textContent = t.unlockTitle;
   }
   updateQuotaUI();
+  paintToolUser();
   const errBox = document.getElementById("errBox");
   if (errBox && !errBox.hidden && errBox.dataset.errCode) {
     errBox.textContent = apiErrorText({ error: errBox.dataset.errCode }, lang) || t.err;
@@ -158,14 +159,15 @@ mountLangTabs(document.getElementById("langSlot"), {
     lang = next;
     t = UI[lang] || UI.en;
     applyI18n();
-    loadQuota();
+    deferWork(loadQuota);
   },
 });
 
 applyI18n();
+paintToolUser();
 quota = readQuotaCache("lyrics") || guessQuota();
 updateQuotaUI();
-loadQuota();
+deferWork(loadQuota);
 
 function albumLabel(row) {
   const a = (row.album || "").trim();
@@ -206,6 +208,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
 
   searchBtn.disabled = true;
   searchBtn.textContent = t.searching;
+  const { estimateEtaMs, mountProgress } = await import("./loading.js");
   const progress = mountProgress(loadingHost, {
     label: t.searching,
     etaMs: estimateEtaMs(6),

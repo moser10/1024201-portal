@@ -96,3 +96,9 @@ html.feature-page body {
 .feature-top .lang-tabs-host {
   flex-shrink: 0;
 }
+
+.tool-user {
+  font-size: 14px;
+  color: #8e8e93;
+  margin: 0 0 8px;
+}

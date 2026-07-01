@@ -25,13 +25,15 @@ function welcomeEmailHtml(name, verifyCode, today) {
   const safeCode = escapeHtml(verifyCode);
   const caseNote = codeCaseLabel(verifyCode);
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.8;color:#1c1c1e;">
-<p style="margin:0 0 12px;">欢迎 ${safeName}，</p>
-<p style="margin:0 0 12px;">Welcome ${safeName},</p>
+<p style="margin:0 0 14px;font-weight:600;color:#636366;">中文</p>
+<p style="margin:0 0 12px;">欢迎 ${safeName}：</p>
 <p style="margin:0 0 8px;padding-left:1em;">注册码：<strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong>${caseNote.zh}</p>
+<p style="margin:0 0 20px;padding-left:1em;">请在注册页面输入此验证码完成注册。</p>
+<p style="margin:0 0 14px;font-weight:600;color:#636366;">English</p>
+<p style="margin:0 0 12px;">Welcome ${safeName},</p>
 <p style="margin:0 0 8px;padding-left:1em;">Registration code: <strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong> ${caseNote.en}</p>
-<p style="margin:0 0 8px;padding-left:1em;">请在注册页面输入此验证码完成注册。</p>
-<p style="margin:0 0 16px;padding-left:1em;">Enter this code on the registration page to complete sign-up.</p>
-<p style="margin:0;"><strong>1024201</strong></p>
+<p style="margin:0 0 20px;padding-left:1em;">Enter this code on the registration page to complete sign-up.</p>
+<p style="margin:24px 0 0;"><strong>1024201</strong></p>
 <p style="margin:0;">${today}</p>
 </div>`;
 }

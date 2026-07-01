@@ -2,6 +2,7 @@ import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { currentUserId, loginHref, quotaQuery, quotaBody, isLoginRequired } from "../js/quotaClient.js";
 import { apiErrorText, formatQuotaLine } from "../js/toolI18n.js";
 import { guessQuota, readQuotaCache, writeQuotaCache } from "../js/quotaUi.js";
+import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
 
 const UI = {
   en: {
@@ -11,8 +12,8 @@ const UI = {
     pick: "Choose file",
     hint: ".docx .txt .md",
     convert: "Generate PDF",
-    quota: (r, a, logged, name) =>
-      logged ? `Today: ${r}/${a} · ${name || "signed in"}` : `Today: ${r}/${a} (guest)`,
+    quota: (r, a, logged) =>
+      logged ? `Today: ${r}/${a}` : `Today: ${r}/${a} (guest)`,
     noFile: "Select a file first",
     converting: "Converting…",
     errQuota: "Daily limit reached",
@@ -42,8 +43,8 @@ const UI = {
     pick: "选择文件",
     hint: ".docx .txt .md",
     convert: "生成 PDF",
-    quota: (r, a, logged, name) =>
-      logged ? `今日剩余 ${r}/${a} · ${name || "已登录"}` : `今日剩余 ${r}/${a}（游客）`,
+    quota: (r, a, logged) =>
+      logged ? `今日剩余 ${r}/${a}` : `今日剩余 ${r}/${a}（游客）`,
     noFile: "请先选择文件",
     converting: "转换中…",
     errQuota: "今日次数已用完",
@@ -73,8 +74,8 @@ const UI = {
     pick: "ファイルを選択",
     hint: ".docx .txt .md",
     convert: "PDFを生成",
-    quota: (r, a, logged, name) =>
-      logged ? `本日残り ${r}/${a} · ${name || "ログイン済"}` : `本日残り ${r}/${a}（ゲスト）`,
+    quota: (r, a, logged) =>
+      logged ? `本日残り ${r}/${a}` : `本日残り ${r}/${a}（ゲスト）`,
     noFile: "ファイルを選んでください",
     converting: "変換中…",
     errQuota: "本日の回数を使い切りました",
@@ -126,6 +127,7 @@ function applyI18n() {
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("adNote").textContent = t.adNote;
   document.getElementById("loginBtn").href = loginHref("/tools/pdf/");
+  paintToolUser();
   updateQuotaUI();
   if (!errBox.hidden && errBox.dataset.errCode) {
     errBox.textContent = apiErrorText({ error: errBox.dataset.errCode }, lang) || t.errQuota;
@@ -138,15 +140,14 @@ mountLangTabs(document.getElementById("langSlot"), {
     lang = next;
     t = UI[lang] || UI.en;
     applyI18n();
-    loadQuota();
+    deferWork(loadQuota);
   },
 });
 
 applyI18n();
-
 quota = readQuotaCache("pdf") || guessQuota();
 updateQuotaUI();
-loadQuota();
+deferWork(loadQuota);
 
 async function loadQuota() {
   quotaBox.classList.add("is-fetching");

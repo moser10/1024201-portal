@@ -68,6 +68,35 @@ async function requireAdmin(request, db) {
   return token;
 }
 
+async function deleteRoomCompletely(db, storyId) {
+  await db.prepare("DELETE FROM content_stream WHERE story_id = ?").bind(storyId).run();
+  await db.prepare("DELETE FROM story_members WHERE story_id = ?").bind(storyId).run();
+  await db.prepare("DELETE FROM room_presence WHERE story_id = ?").bind(storyId).run();
+  await db.prepare("DELETE FROM stories WHERE id = ?").bind(storyId).run();
+}
+
+async function deleteUserCompletely(db, userId) {
+  if (userId === null || userId === undefined || !Number.isFinite(Number(userId))) {
+    throw new Error("无效用户 ID");
+  }
+  const uid = Number(userId);
+  const { results: owned } = await db.prepare("SELECT id FROM stories WHERE owner_id = ?").bind(uid).all();
+  for (const row of owned) {
+    await deleteRoomCompletely(db, row.id);
+  }
+  await db.prepare("DELETE FROM content_stream WHERE user_id = ?").bind(uid).run();
+  await db.prepare("DELETE FROM recall_logs WHERE user_id = ?").bind(uid).run();
+  await db.prepare("DELETE FROM room_presence WHERE user_id = ?").bind(uid).run();
+  await db.prepare("DELETE FROM story_members WHERE user_id = ?").bind(uid).run();
+  await db.prepare("DELETE FROM user_sync_notes WHERE user_id = ?").bind(uid).run();
+  await db.prepare("DELETE FROM tool_usage_quota WHERE quota_key = ?").bind(String(uid)).run();
+  const user = await db.prepare("SELECT email FROM users WHERE id = ?").bind(uid).first();
+  if (user?.email) {
+    await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(user.email).run();
+  }
+  await db.prepare("DELETE FROM users WHERE id = ?").bind(uid).run();
+}
+
 function gameLabel(gameId, title) {
   const map = { osn: "OSN" };
   const prefix = map[gameId] || gameId?.toUpperCase() || "GAME";
@@ -133,17 +162,16 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "delete_user") {
       const { user_id } = await request.json();
-      await db.prepare("DELETE FROM story_members WHERE user_id = ?").bind(user_id).run();
-      await db.prepare("DELETE FROM users WHERE id = ?").bind(user_id).run();
+      await deleteUserCompletely(db, user_id);
       return json({ success: true });
     }
 
     if (request.method === "POST" && action === "delete_room") {
       const { story_id } = await request.json();
-      await db.prepare("DELETE FROM content_stream WHERE story_id = ?").bind(story_id).run();
-      await db.prepare("DELETE FROM story_members WHERE story_id = ?").bind(story_id).run();
-      await db.prepare("DELETE FROM room_presence WHERE story_id = ?").bind(story_id).run();
-      await db.prepare("DELETE FROM stories WHERE id = ?").bind(story_id).run();
+      if (story_id === null || story_id === undefined || !Number.isFinite(Number(story_id))) {
+        return json({ error: "无效房间 ID" }, 400);
+      }
+      await deleteRoomCompletely(db, Number(story_id));
       return json({ success: true });
     }
 

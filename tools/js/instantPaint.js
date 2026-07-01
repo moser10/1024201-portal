@@ -1,0 +1,49 @@
+(function () {
+  const LANGS = ["en", "ja", "zh"];
+  const PAGES = {
+    lyrics: {
+      en: { pageTitle: "Find Lyrics", pageSub: "LRCLIB + Deezer · search by song or artist", backLink: "Toolbox" },
+      zh: { pageTitle: "找歌词", pageSub: "LRCLIB + Deezer · 按歌名或歌手搜索", backLink: "返回工具箱" },
+      ja: { pageTitle: "歌詞検索", pageSub: "LRCLIB + Deezer · 曲名またはアーティスト", backLink: "ツールボックス" },
+    },
+    pdf: {
+      en: { pageTitle: "PDF Convert", pageSub: "Word / TXT / MD → PDF (client-side)", backLink: "Toolbox" },
+      zh: { pageTitle: "PDF 转换", pageSub: "Word / TXT / MD → PDF（本地转换）", backLink: "返回工具箱" },
+      ja: { pageTitle: "PDF変換", pageSub: "Word / TXT / MD → PDF（ローカル）", backLink: "ツールボックス" },
+    },
+    music: {
+      en: { pageTitle: "Music", pageSub: "Deezer chart · 30s preview clips", backLink: "Toolbox" },
+      zh: { pageTitle: "音乐", pageSub: "Deezer 榜单 · 30 秒试听", backLink: "返回工具箱" },
+      ja: { pageTitle: "音楽", pageSub: "Deezerチャート · 30秒プレビュー", backLink: "ツールボックス" },
+    },
+    syncnote: {
+      en: { pageTitle: "Text Relay", pageSub: "Three relay fields across devices.", backLink: "Toolbox" },
+      zh: { pageTitle: "文本中转站", pageSub: "三个中转框，跨设备同步；不点删除则一直保留各框内容。", backLink: "返回工具箱" },
+      ja: { pageTitle: "テキスト中継", pageSub: "3つの中継欄で端末間同期。", backLink: "ツールボックス" },
+    },
+    fx: {
+      en: { pageTitle: "Exchange Rates", pageSub: "ECB reference · refreshes every 6 hours", backLink: "Portal" },
+      zh: { pageTitle: "实时汇率", pageSub: "欧洲央行参考汇率 · 每 6 小时更新", backLink: "返回门户" },
+      ja: { pageTitle: "為替レート", pageSub: "ECB参考 · 6時間ごとに更新", backLink: "ポータル" },
+    },
+    "lyrics-view": {
+      en: { backLink: "Search" },
+      zh: { backLink: "返回搜索" },
+      ja: { backLink: "検索へ" },
+    },
+  };
+
+  function lang() {
+    const l = localStorage.getItem("portal_lang") || "en";
+    return LANGS.includes(l) ? l : "en";
+  }
+
+  const key = document.body.dataset.tool;
+  const dict = PAGES[key];
+  if (!dict) return;
+  const t = dict[lang()] || dict.en;
+  for (const [id, text] of Object.entries(t)) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+})();

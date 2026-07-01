@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#30d158">
   <title>Text Relay | 1024201</title>
+  <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css">
   <link rel="stylesheet" href="/js/featurePage.css">
   <link rel="stylesheet" href="syncnote.css">
 </head>
-<body class="feature-page">
+<body class="feature-page" data-tool="syncnote">
   <div class="feature-shell">
     <div class="feature-main">
     <div class="feature-top">
@@ -20,7 +21,7 @@
       <div class="feature-card-head">
         <h1 id="pageTitle">Text Relay</h1>
         <p class="sub" id="pageSub"></p>
-        <p class="sync-user" id="userLine" hidden></p>
+        <p class="tool-user" id="userLine" hidden></p>
       </div>
 
       <div class="login-panel" id="loginPanel" hidden>
@@ -68,6 +69,7 @@
     </div>
     </div>
   </div>
-  <script type="module" src="syncnote.js"></script>
+  <script src="/tools/js/instantPaint.js"></script>
+  <script type="module" src="syncnote.js?v=2"></script>
 </body>
 </html>

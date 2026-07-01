@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#007aff">
   <title>Find Lyrics | 1024201</title>
+  <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css">
   <link rel="stylesheet" href="/js/featurePage.css">
   <link rel="stylesheet" href="lyrics.css">
 </head>
-<body class="feature-page">
+<body class="feature-page" data-tool="lyrics">
   <div class="feature-shell">
     <div class="feature-main">
     <div class="feature-top">
@@ -20,6 +21,7 @@
       <div class="feature-card-head">
         <h1 id="pageTitle">Find Lyrics</h1>
         <p class="sub" id="pageSub">Search by lyrics · artist optional</p>
+        <p class="tool-user" id="userLine" hidden></p>
       </div>
 
       <div class="pdf-quota" id="quotaBox"></div>
@@ -70,6 +72,7 @@
     </div>
     </div>
   </div>
-  <script type="module" src="lyrics.js?v=6"></script>
+  <script src="/tools/js/instantPaint.js"></script>
+  <script type="module" src="lyrics.js?v=8"></script>
 </body>
 </html>

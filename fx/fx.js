@@ -1,4 +1,5 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
+import { deferWork } from "/tools/js/toolPageBoot.js";
 
 const CURRENCIES = [
   { code: "USD", names: { en: "United States", zh: "美国", ja: "米国" } },
@@ -126,4 +127,4 @@ baseSelect.onchange = () => {
 };
 
 applyI18n();
-loadRates();
+deferWork(loadRates);
