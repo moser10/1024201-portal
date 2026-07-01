@@ -170,31 +170,38 @@
             align-items: center;
         }
 
+        .portal-watermark {
+            position: fixed;
+            left: 50%;
+            top: max(84px, calc(env(safe-area-inset-top) + 64px));
+            bottom: max(64px, 16vh);
+            width: 1.1em;
+            transform: translateX(-50%);
+            writing-mode: vertical-lr;
+            text-orientation: upright;
+            font-size: clamp(42px, 10.5vw, 68px);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            line-height: 1.12;
+            color: #007aff;
+            opacity: 0.085;
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
         .portal-brand-block {
             position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            min-height: 64px;
+            min-height: 48px;
             margin-bottom: 40px;
-            overflow: hidden;
-        }
-
-        .portal-watermark {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            font-size: clamp(96px, 24vw, 200px);
-            font-weight: 800;
-            letter-spacing: -0.055em;
-            line-height: 1;
-            color: #007aff;
-            opacity: 0.085;
-            white-space: nowrap;
-            pointer-events: none;
-            user-select: none;
         }
 
         .portal-brand {
@@ -209,6 +216,8 @@
         }
 
         .app-grid {
+            position: relative;
+            z-index: 1;
             display: grid;
             grid-template-columns: repeat(2, auto);
             gap: 18px 26px;
@@ -234,7 +243,7 @@
         .icon-tools svg { width: 38px; height: 38px; }
         .app-label { margin-top: 10px; font-size: 14px; font-weight: 500; }
 
-        footer { font-size: 12px; color: var(--ios-text-secondary); padding: 10px 0; }
+        footer { font-size: 12px; color: var(--ios-text-secondary); padding: 10px 0; position: relative; z-index: 1; }
 
         #userBarSlot { display: flex; align-items: center; justify-content: center; }
         #userBarSlot .user-bar { align-items: center; }
@@ -279,14 +288,17 @@
                 margin: 12px 0 28px;
             }
 
-            .portal-brand-block {
-                min-height: 52px;
-                margin-bottom: 32px;
+            .portal-watermark {
+                top: max(72px, calc(env(safe-area-inset-top) + 56px));
+                bottom: max(56px, 14vh);
+                font-size: clamp(36px, 9.5vw, 52px);
+                opacity: 0.08;
+                letter-spacing: 0.05em;
             }
 
-            .portal-watermark {
-                font-size: clamp(76px, 22vw, 128px);
-                opacity: 0.075;
+            .portal-brand-block {
+                min-height: 44px;
+                margin-bottom: 32px;
             }
 
             .portal-brand {
@@ -328,6 +340,7 @@
     <link rel="stylesheet" href="/game/css/userBar.css?v=6">
 </head>
 <body>
+    <div class="portal-watermark" aria-hidden="true">1024201</div>
 
     <header>
         <div class="sidebar-widgets">
@@ -371,7 +384,6 @@
     <main>
         <div class="portal-hero">
             <div class="portal-brand-block">
-                <div class="portal-watermark" aria-hidden="true">1024201</div>
                 <h1 class="portal-brand">1024201</h1>
             </div>
             <div class="app-grid">
