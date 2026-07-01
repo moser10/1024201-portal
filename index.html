@@ -481,8 +481,8 @@
             applyI18n(lang);
             localStorage.setItem('portal_lang', lang);
             setLangActive(lang);
-            import('/game/js/userBar.js?v=6').then(({ mountUserBar }) => {
-                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '' });
+            import('/game/js/userBar.js?v=7').then(({ mountUserBar }) => {
+                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '', showHint: true });
             });
             updateClocks();
             fetch('/api/portal?action=geo').then((r) => r.json()).then((data) => {
@@ -555,8 +555,8 @@
         setInterval(updateClocks, 1000);
 
         window.addEventListener('pageshow', () => {
-            import('/game/js/userBar.js?v=6').then(({ mountUserBar }) => {
-                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '' });
+            import('/game/js/userBar.js?v=7').then(({ mountUserBar }) => {
+                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '', showHint: true });
             });
             loadDeviceLocation();
         });

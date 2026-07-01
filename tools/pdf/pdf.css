@@ -1,0 +1,107 @@
+.pdf-card { background: #fff; }
+.pdf-quota {
+  font-size: 13px;
+  font-weight: 600;
+  color: #007aff;
+  background: #f0f7ff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  min-height: 18px;
+}
+.pdf-quota.is-fetching {
+  color: #8e8e93;
+}
+.file-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed #c7c7cc;
+  border-radius: 14px;
+  padding: 28px 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.file-drop:hover, .file-drop.dragover {
+  border-color: #007aff;
+  background: #f8fbff;
+}
+.file-drop-icon { font-size: 28px; }
+.file-hint { font-size: 11px; color: #8e8e93; }
+.file-name {
+  font-size: 12px;
+  color: #3a3a3c;
+  margin: 0 0 12px;
+  word-break: break-all;
+}
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: #007aff;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-secondary {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 12px;
+  background: #e5e5ea;
+  color: #1c1c1e;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.btn-ghost {
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed #c7c7cc;
+  border-radius: 12px;
+  background: transparent;
+  color: #8e8e93;
+  font-size: 13px;
+  margin-top: 8px;
+  cursor: not-allowed;
+}
+.btn-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+.ad-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #8e8e93;
+  line-height: 1.4;
+}
+.unlock-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #fff8f0;
+  border: 1px solid #ffe0b2;
+}
+.unlock-title { font-size: 14px; font-weight: 700; margin: 0 0 6px; }
+.unlock-desc { font-size: 12px; color: #636366; margin: 0 0 8px; line-height: 1.45; }
+.ad-progress { font-size: 12px; color: #ff9f0a; margin: 6px 0 0; }
+.rules {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e5ea;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 28vh;
+}
+.rules h3 { font-size: 13px; margin: 0 0 8px; }
+.rules ul { margin: 0; padding-left: 18px; font-size: 12px; color: #636366; line-height: 1.5; }
+.err { color: #ff3b30; font-size: 13px; margin-top: 10px; }

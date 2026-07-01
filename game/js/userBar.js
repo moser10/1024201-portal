@@ -3,15 +3,16 @@ import { getUser, clearUser, clearRoom } from "./store.js";
 const PERSON_SVG =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
 
+import { getPortalLang } from "/js/langTabs.js";
+
 const TEXT = {
   zh: { hint: "点击退出", logout: "退出登录" },
   en: { hint: "Tap to sign out", logout: "Sign out" },
   ja: { hint: "タップでログアウト", logout: "ログアウト" },
-  bo: { hint: "བརྡབས་ནས་ཕྱིར་འཐེན།", logout: "ཕྱིར་འཐེན།" },
 };
 
 export function getBarLang() {
-  return localStorage.getItem("portal_lang") || "zh";
+  return getPortalLang();
 }
 
 function escapeHtml(str) {
@@ -27,14 +28,44 @@ function buildLoginUrl(returnPath) {
   return `/game/register/?return=${encodeURIComponent(ret)}`;
 }
 
+function bindMenuToggle(container, menu, triggers) {
+  let ignoreCloseUntil = 0;
+
+  const toggle = (e) => {
+    e.stopPropagation();
+    const opening = !menu.classList.contains("is-open");
+    menu.classList.toggle("is-open");
+    if (opening) {
+      ignoreCloseUntil = Date.now() + 500;
+    }
+  };
+
+  for (const el of triggers) {
+    el.addEventListener("click", toggle);
+  }
+
+  const onDoc = (e) => {
+    if (Date.now() < ignoreCloseUntil) return;
+    if (!container.contains(e.target)) menu.classList.remove("is-open");
+  };
+  document.addEventListener("click", onDoc, true);
+  return () => document.removeEventListener("click", onDoc, true);
+}
+
+const menuUnbind = new WeakMap();
+
 export function mountUserBar(container, options = {}) {
   if (!container) return;
-  const { returnPath, variant = "game", onLogout } = options;
+  if (menuUnbind.has(container)) {
+    menuUnbind.get(container)();
+    menuUnbind.delete(container);
+  }
+  const { returnPath, variant = "game", onLogout, showHint = false } = options;
   const lang = getBarLang();
   const t = TEXT[lang] || TEXT.zh;
   const user = getUser();
 
-  container.className = `user-bar user-bar--${variant}`;
+  container.className = `user-bar user-bar--${variant}${variant === "ios" ? " user-bar--portal-slot" : ""}`;
   container.replaceChildren();
 
   if (!user) {
@@ -61,34 +92,28 @@ export function mountUserBar(container, options = {}) {
 
   const menu = document.createElement("div");
   menu.className = "user-bar-menu";
-  menu.hidden = true;
   const logoutBtn = document.createElement("button");
   logoutBtn.type = "button";
   logoutBtn.textContent = t.logout;
   menu.appendChild(logoutBtn);
 
-  wrap.append(nameBtn, hint);
+  if (showHint) {
+    wrap.append(nameBtn, hint);
+  } else {
+    wrap.append(nameBtn);
+  }
   container.append(wrap, menu);
 
-  nameBtn.onclick = (e) => {
+  const triggers = showHint ? [nameBtn, hint] : [nameBtn];
+  const unbind = bindMenuToggle(container, menu, triggers);
+  menuUnbind.set(container, unbind);
+
+  logoutBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    menu.hidden = !menu.hidden;
-  };
-
-  hint.onclick = () => {
-    menu.hidden = false;
-  };
-
-  logoutBtn.onclick = () => {
+    menu.classList.remove("is-open");
     clearRoom();
     clearUser();
-    menu.hidden = true;
     if (onLogout) onLogout();
     else location.reload();
-  };
-
-  const onDoc = (e) => {
-    if (!container.contains(e.target)) menu.hidden = true;
-  };
-  document.addEventListener("click", onDoc);
+  });
 }

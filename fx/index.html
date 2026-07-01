@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" class="feature-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#34c759">
+  <title>Exchange Rates | 1024201</title>
+  <link rel="stylesheet" href="/js/langTabs.css">
+  <link rel="stylesheet" href="/js/featurePage.css">
+  <link rel="stylesheet" href="fx.css">
+</head>
+<body class="feature-page">
+  <div class="feature-shell">
+    <div class="feature-main">
+    <div class="feature-top">
+      <a class="feature-back" id="backLink" href="/">Portal</a>
+      <div id="langSlot"></div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-head">
+        <h1 id="pageTitle">Exchange Rates</h1>
+        <p class="sub" id="pageSub">ECB reference · refreshes every 6 hours</p>
+      </div>
+      <div class="base-row">
+        <label id="baseLabel" for="baseSelect">Base</label>
+        <select id="baseSelect"></select>
+      </div>
+      <p class="updated" id="updatedAt">—</p>
+      <div class="feature-scroll-panel">
+        <ul class="rate-list" id="rateList"></ul>
+      </div>
+      <p class="err" id="errBox" hidden></p>
+    </div>
+    </div>
+  </div>
+  <script type="module" src="fx.js?v=3"></script>
+</body>
+</html>

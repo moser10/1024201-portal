@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" class="feature-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#007aff">
+  <title>Lyrics | 1024201</title>
+  <link rel="stylesheet" href="/js/langTabs.css">
+  <link rel="stylesheet" href="/js/featurePage.css">
+  <link rel="stylesheet" href="lyrics.css">
+</head>
+<body class="feature-page lyrics-view-page">
+  <div class="feature-shell">
+    <div class="feature-main">
+    <div class="feature-top">
+      <a class="feature-back" id="backLink" href="index.html">Search</a>
+      <div id="langSlot"></div>
+    </div>
+
+    <div id="viewLoading" class="loading-panel" hidden></div>
+
+    <div class="feature-card view-card" id="viewContent" hidden>
+      <div class="view-title-row">
+        <h1 id="songTitle"></h1>
+        <button type="button" class="btn-print" id="printBtn" title="Print" aria-label="Print">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3m-3 11H8v-5h8m3-7V3H6v4h12M6 6h12v2H6V6z"/></svg>
+        </button>
+      </div>
+      <div class="view-lyrics-wrap">
+        <pre class="view-lyrics" id="lyricsBody"></pre>
+      </div>
+      <p class="view-note" id="noteBox" hidden></p>
+      <p class="err" id="errBox" hidden></p>
+    </div>
+    </div>
+  </div>
+  <script type="module" src="view.js?v=3"></script>
+</body>
+</html>

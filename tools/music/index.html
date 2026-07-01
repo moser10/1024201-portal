@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en" class="feature-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#5856d6">
+  <title>Music | 1024201</title>
+  <link rel="stylesheet" href="/js/langTabs.css">
+  <link rel="stylesheet" href="/js/featurePage.css">
+  <link rel="stylesheet" href="music.css">
+</head>
+<body class="feature-page">
+  <div class="feature-shell">
+    <div class="feature-main">
+    <div class="feature-top">
+      <a class="feature-back" id="backLink" href="/tools/">Toolbox</a>
+      <div id="langSlot"></div>
+    </div>
+    <div class="feature-card music-card" id="musicCard">
+      <div class="feature-card-head">
+        <h1 id="pageTitle">Music</h1>
+        <p class="sub" id="pageSub">Chart previews via Deezer · 30s clips</p>
+      </div>
+
+      <div class="music-main" id="musicMain">
+        <ul class="track-list" id="trackList"></ul>
+        <div class="lyrics-panel" id="lyricsPanel">
+          <div class="lyrics-head">
+            <span id="lyricsTitle">Lyrics</span>
+            <button type="button" id="lyricsClose" aria-label="Close">×</button>
+          </div>
+          <div class="lyrics-body" id="lyricsBody"></div>
+        </div>
+      </div>
+
+      <p class="err" id="errBox" hidden></p>
+
+      <div class="player">
+        <div class="now-playing" id="nowPlaying">—</div>
+        <div class="progress-row">
+          <span class="time" id="curTime">0:00</span>
+          <input type="range" id="progressBar" min="0" max="100" value="0" step="0.1">
+          <span class="time end" id="durTime">0:00</span>
+        </div>
+        <div class="transport">
+          <button type="button" id="prevBtn" class="btn-transport" aria-label="Previous">上一曲</button>
+          <button type="button" id="playPauseBtn" class="btn-transport" aria-label="Play">播放</button>
+          <button type="button" id="nextBtn" class="btn-transport" aria-label="Next">下一曲</button>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="detailModal" hidden>
+    <div class="modal" role="dialog">
+      <h2 id="modalTitle"></h2>
+      <p class="modal-artist" id="modalArtist"></p>
+      <p class="modal-album" id="modalAlbum"></p>
+      <p class="modal-bio" id="modalBio"></p>
+      <a class="modal-link" id="modalLink" href="#" target="_blank" rel="noopener"></a>
+      <button type="button" class="modal-close" id="modalClose">OK</button>
+    </div>
+  </div>
+
+  <audio id="audio" preload="none"></audio>
+  <script type="module" src="music.js?v=4"></script>
+</body>
+</html>

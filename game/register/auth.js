@@ -5,7 +5,7 @@ import { mountAccountChrome } from "/js/accountChrome.js";
 const API = "";
 const CODE_WINDOW_MS = 60_000;
 const MAX_VERIFY_ATTEMPTS = 5;
-const GAME_CENTER = "/game/";
+const DEFAULT_HOME = "/tools/";
 
 async function api(path, options = {}) {
   const res = await fetch(`${API}${path}`, options.headers?.["Content-Type"] === undefined && options.body
@@ -37,7 +37,7 @@ const authApi = {
 };
 
 const params = new URLSearchParams(location.search);
-const returnTo = params.get("return") || GAME_CENTER;
+const returnTo = params.get("return") || DEFAULT_HOME;
 
 const app = document.getElementById("app");
 
@@ -181,15 +181,21 @@ function hideVerifyError() {
   el.textContent = "";
 }
 
+function resolveDest() {
+  const raw = (returnTo || "").trim();
+  if (!raw || raw === "/game/register/" || raw.includes("/register")) return DEFAULT_HOME;
+  if (raw.startsWith("/")) return raw;
+  return `/${raw}`;
+}
+
 function goAfterRegister(user) {
   setUser(user);
-  window.location.href = GAME_CENTER;
+  window.location.href = resolveDest();
 }
 
 function goAfterLogin(user) {
   setUser(user);
-  const dest = returnTo.startsWith("/") ? returnTo : `/game/${returnTo}`;
-  window.location.href = dest === "/game/register/" || dest.includes("/register") ? GAME_CENTER : dest;
+  window.location.href = resolveDest();
 }
 
 async function handleRegBtnClick() {

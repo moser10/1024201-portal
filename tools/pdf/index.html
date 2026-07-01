@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" class="feature-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ff9f0a">
+  <title>PDF Convert | 1024201</title>
+  <link rel="stylesheet" href="/js/langTabs.css">
+  <link rel="stylesheet" href="/js/featurePage.css">
+  <link rel="stylesheet" href="pdf.css">
+</head>
+<body class="feature-page">
+  <div class="feature-shell">
+    <div class="feature-main">
+    <div class="feature-top">
+      <a class="feature-back" id="backLink" href="/tools/">Toolbox</a>
+      <div id="langSlot"></div>
+    </div>
+    <div class="feature-card pdf-card">
+      <div class="feature-card-head">
+        <h1 id="pageTitle">PDF Convert</h1>
+        <p class="sub" id="pageSub">Word / TXT / MD → PDF</p>
+      </div>
+
+      <div class="pdf-quota" id="quotaBox"></div>
+
+      <div class="unlock-panel" id="loginPanel" hidden>
+        <p class="unlock-title" id="loginTitle">Sign in for more</p>
+        <p class="unlock-desc" id="loginDesc"></p>
+        <a class="btn-primary btn-link" id="loginBtn" href="/game/register/?return=/tools/pdf/">Sign in / Register</a>
+      </div>
+
+      <label class="file-drop" id="fileDrop">
+        <input type="file" id="fileInput" accept=".txt,.md,.docx,.doc" hidden>
+        <span class="file-drop-icon">📄</span>
+        <span id="pickLabel">Choose file</span>
+        <span class="file-hint" id="pickHint">.docx .txt .md</span>
+      </label>
+      <p class="file-name" id="fileName" hidden></p>
+
+      <button type="button" class="btn-primary" id="convertBtn" disabled>Generate PDF</button>
+      <p class="err" id="errBox" hidden></p>
+
+      <div class="unlock-panel" id="unlockPanel" hidden>
+        <p class="unlock-title" id="unlockTitle">Daily limit reached</p>
+        <p class="unlock-desc" id="unlockDesc"></p>
+        <button type="button" class="btn-secondary" id="adBtn">Watch ad</button>
+        <p class="ad-progress" id="adProgress"></p>
+        <button type="button" class="btn-ghost" id="wiseBtn" disabled>Wise (coming soon)</button>
+        <p class="ad-note" id="adNote"></p>
+      </div>
+
+      <div class="rules" id="rulesBox">
+        <h3 id="rulesTitle">Rules</h3>
+        <ul id="rulesList"></ul>
+      </div>
+    </div>
+    </div>
+  </div>
+  <script type="module" src="pdf.js?v=4"></script>
+</body>
+</html>
