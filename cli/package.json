@@ -1,0 +1,14 @@
+{
+  "name": "@1024201/cli",
+  "version": "1.2.0",
+  "description": "1024201 portal CLI — fx, music, lyrics, syncnote, and more",
+  "type": "module",
+  "bin": {
+    "1024": "./bin/1024.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

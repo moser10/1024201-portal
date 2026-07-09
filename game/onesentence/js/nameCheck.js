@@ -1,28 +1,49 @@
-export function bindNameCheck({ input, btn, hint, checkFn, onStatus }) {
+export function bindNameCheck({ input, btn, hint, checkFn, onStatus, getOriginalName }) {
   let timer = null;
 
   const grayBtn = () => {
     btn.disabled = true;
     btn.classList.add("disabled");
-    btn.textContent = "推荐可用名";
+    btn.textContent = btn.dataset.defaultLabel || "推荐可用名";
     delete btn.dataset.v;
-    if (hint) hint.textContent = "";
+    if (hint) {
+      hint.textContent = "";
+      hint.className = "hint";
+    }
     onStatus?.(false);
   };
+
+  if (!btn.dataset.defaultLabel) {
+    btn.dataset.defaultLabel = btn.textContent.trim() || "推荐可用名";
+  }
 
   grayBtn();
 
   input.addEventListener("input", () => {
+    const value = input.value.trim();
+    const original = getOriginalName?.()?.trim();
+
+    if (original && value === original) {
+      grayBtn();
+      if (hint) {
+        hint.textContent = "与当前书名相同";
+        hint.className = "hint";
+      }
+      return;
+    }
+
     grayBtn();
     clearTimeout(timer);
+    if (!value) return;
+
     timer = setTimeout(async () => {
-      const value = input.value.trim();
-      if (!value) return;
       try {
         const data = await checkFn(value);
         if (data.available) {
-          if (hint) hint.textContent = "✓ 可以使用";
-          if (hint) hint.className = "hint ok";
+          if (hint) {
+            hint.textContent = "✓ 可以使用";
+            hint.className = "hint ok";
+          }
           onStatus?.(true);
         } else {
           if (hint) {

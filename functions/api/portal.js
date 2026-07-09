@@ -1,8 +1,17 @@
-import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
+import { corsHeaders, json, requireDb, ensureAppSchema, resolveUserId } from "./_shared.js";
+import {
+  ensureAddressReady,
+  getAddressCountries,
+  getAddressCities,
+  getAddressMeta,
+  searchAddressListings,
+  refreshAddressData,
+} from "./address.js";
 
 const DC_KW = /hosting|cloud|data\s*center|server|colo|vps|amazon|google|microsoft|digitalocean|linode|ovh|hetzner|alibaba|tencent|huawei/i;
 const LIMIT_ANON = 1;
 const LIMIT_USER = 5;
+const LYRICS_DEBOUNCE_MS = 3000;
 
 export async function onRequest(context) {
   const { request, env, ctx } = context;
@@ -50,21 +59,28 @@ export async function onRequest(context) {
     const title = url.searchParams.get("title")?.trim() || "";
     const artist = url.searchParams.get("artist")?.trim() || "";
     if (!title && !artist) return json({ error: "请填写歌曲名称或歌手" }, 400);
-    const userId = parseUserId(url);
+    const userId = await resolveUserId(request, env, url);
     const db = requireDb(env);
     await ensureAppSchema(db);
     const gate = await gateToolUse(db, request, "lyrics", userId);
     if (!gate.ok) return json(gate.body, gate.status);
     const rows = await searchLyricsMulti(title, artist);
-    gate.q.uses += 1;
+    const enriched = await enrichLyricsResults(rows);
+    const queryKey = lyricsQueryKey(title, artist);
+    const now = Date.now();
+    if (shouldCountLyricsRefresh(gate.q, queryKey, now)) {
+      gate.q.uses += 1;
+      gate.q.last_counted_at = now;
+    }
+    gate.q.last_refresh_query = queryKey;
     await saveToolQuota(db, gate.key, "lyrics", gate.q);
-    return json({ results: rows, ...toolQuotaPayload(gate.q, userId) });
+    return json({ results: enriched, ...toolQuotaPayload(gate.q, userId) });
   }
 
   if (request.method === "GET" && action === "lyrics_quota") {
     const db = requireDb(env);
     await ensureAppSchema(db);
-    const userId = parseUserId(url);
+    const userId = await resolveUserId(request, env, url);
     const key = quotaKey(request, userId);
     const q = await getToolQuota(db, key, "lyrics");
     return json(toolQuotaPayload(q, userId));
@@ -72,6 +88,12 @@ export async function onRequest(context) {
 
   if (request.method === "GET" && action === "lyrics_get") {
     const id = url.searchParams.get("id");
+    if (id?.startsWith("ncm-")) {
+      const row = await getNeteaseLyricsRow(id);
+      if (!row) return json({ error: "歌曲不存在" }, 404);
+      if (!row.lyrics?.trim()) return json({ error: "歌词不存在" }, 404);
+      return json(row);
+    }
     if (id?.startsWith("dz-")) {
       const row = await getDeezerLyricsRow(id.slice(3));
       if (!row) return json({ error: "歌曲不存在" }, 404);
@@ -105,7 +127,7 @@ export async function onRequest(context) {
   if (request.method === "GET" && action === "pdf_quota") {
     const db = requireDb(env);
     await ensureAppSchema(db);
-    const userId = parseUserId(url);
+    const userId = await resolveUserId(request, env, url);
     const key = quotaKey(request, userId);
     const q = await getToolQuota(db, key, "pdf");
     return json(toolQuotaPayload(q, userId));
@@ -115,7 +137,7 @@ export async function onRequest(context) {
     const db = requireDb(env);
     await ensureAppSchema(db);
     const body = await request.json().catch(() => ({}));
-    const userId = parseUserId(url, body);
+    const userId = await resolveUserId(request, env, url, body);
     const gate = await gateToolUse(db, request, "pdf", userId);
     if (!gate.ok) return json(gate.body, gate.status);
     gate.q.uses += 1;
@@ -127,7 +149,7 @@ export async function onRequest(context) {
     const db = requireDb(env);
     await ensureAppSchema(db);
     const body = await request.json().catch(() => ({}));
-    const userId = parseUserId(url, body);
+    const userId = await resolveUserId(request, env, url, body);
     const tool = url.searchParams.get("tool") || body?.tool || "pdf";
     if (!userId) return json({ error: "login_required", needLogin: true }, 403);
     const key = quotaKey(request, userId);
@@ -153,7 +175,7 @@ export async function onRequest(context) {
   }
 
   if (request.method === "GET" && action === "syncnote_get") {
-    return syncNoteGet(env, url);
+    return syncNoteGet(env, request, url);
   }
 
   if (request.method === "POST" && action === "syncnote_save") {
@@ -162,6 +184,48 @@ export async function onRequest(context) {
 
   if (request.method === "POST" && action === "syncnote_clear") {
     return syncNoteClear(env, request, url);
+  }
+
+  if (request.method === "GET" && action === "address_countries") {
+    const db = requireDb(env);
+    await ensureAddressReady(db, env, { waitUntil: (p) => waitUntil(p) });
+    return json({ countries: await getAddressCountries(db) });
+  }
+
+  if (request.method === "GET" && action === "address_cities") {
+    const country = url.searchParams.get("country")?.trim().toUpperCase();
+    if (!country) return json({ error: "country_required" }, 400);
+    const db = requireDb(env);
+    await ensureAddressReady(db, env, { waitUntil: (p) => waitUntil(p) });
+    return json({ cities: await getAddressCities(db, country) });
+  }
+
+  if (request.method === "GET" && action === "address_meta") {
+    const db = requireDb(env);
+    await ensureAddressReady(db, env, { waitUntil: (p) => waitUntil(p) });
+    return json(await getAddressMeta(db));
+  }
+
+  if (request.method === "GET" && action === "address_search") {
+    const db = requireDb(env);
+    await ensureAddressReady(db, env, { waitUntil: (p) => waitUntil(p) });
+    const country = url.searchParams.get("country")?.trim() || "";
+    const cityId = url.searchParams.get("city_id") || "";
+    const kind = url.searchParams.get("kind")?.trim() || "";
+    const q = url.searchParams.get("q")?.trim() || "";
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10) || 50));
+    const offset = Math.max(0, parseInt(url.searchParams.get("offset") || "0", 10) || 0);
+    const data = await searchAddressListings(db, { country, cityId, kind, q, limit, offset });
+    return json(data);
+  }
+
+  if (request.method === "POST" && action === "address_refresh") {
+    const secret = request.headers.get("X-Cron-Secret") || url.searchParams.get("secret");
+    const expected = env?.ADDRESS_CRON_SECRET || env?.CRON_SECRET;
+    if (!expected || secret !== expected) return json({ error: "forbidden" }, 403);
+    const db = requireDb(env);
+    const result = await refreshAddressData(db, env);
+    return json(result);
   }
 
   return json({ error: "未知操作" }, 404);
@@ -286,6 +350,63 @@ async function fetchLrclibSearch(params) {
   }
 }
 
+async function fetchLrclibGet(title, artist, album, duration) {
+  const u = new URL("https://lrclib.net/api/get");
+  if (title) u.searchParams.set("track_name", title);
+  if (artist) u.searchParams.set("artist_name", artist);
+  if (album) u.searchParams.set("album_name", album);
+  if (duration) u.searchParams.set("duration", String(duration));
+  try {
+    const res = await fetch(u.toString(), { cf: { cacheTtl: 3600 } });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeMatch(s) {
+  return String(s || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[''']/g, "'");
+}
+
+function titleMatches(rowTitle, query) {
+  if (!query?.trim()) return true;
+  const t = normalizeMatch(rowTitle);
+  const q = normalizeMatch(query);
+  if (!t || !q) return false;
+  return t === q || t.includes(q) || q.includes(t);
+}
+
+function artistMatches(rowArtist, query, expanded) {
+  if (!query?.trim()) return true;
+  const a = normalizeMatch(rowArtist);
+  const q = normalizeMatch(query);
+  if (a === q || a.includes(q) || q.includes(a)) return true;
+  for (const ea of expanded) {
+    const e = normalizeMatch(ea);
+    if (!e) continue;
+    if (a === e || a.includes(e) || e.includes(a)) return true;
+  }
+  return false;
+}
+
+function matchesBoth(row, title, artist, expanded) {
+  return titleMatches(row.title, title) && artistMatches(row.artist, artist, expanded);
+}
+
+function lyricsQueryKey(title, artist) {
+  return `${normalizeMatch(title)}|${normalizeMatch(artist)}`;
+}
+
+function shouldCountLyricsRefresh(q, queryKey, now) {
+  if ((q.last_refresh_query || "") !== queryKey) return true;
+  return now - (q.last_counted_at || 0) >= LYRICS_DEBOUNCE_MS;
+}
+
 async function searchLrclibVariants(title, artist) {
   const tasks = [];
   const artists = artist ? expandArtistTerms(artist) : [];
@@ -319,6 +440,100 @@ async function fetchDeezer(url) {
   }
 }
 
+const NETEASE_UA = "Mozilla/5.0 (compatible; 1024201-portal/1.0)";
+
+async function fetchNetease(path) {
+  try {
+    const res = await fetch(`https://music.163.com${path}`, {
+      headers: { "User-Agent": NETEASE_UA, Referer: "https://music.163.com/" },
+      cf: { cacheTtl: 1800 },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+function stripLrcTags(lrc) {
+  if (!lrc) return "";
+  return String(lrc)
+    .replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !/^(作词|作曲|编曲|制作人)\s*[:：]/.test(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+async function fetchNeteaseLyricsRaw(songId) {
+  const data = await fetchNetease(`/api/song/lyric?id=${songId}&lv=1&kv=1&tv=-1`);
+  return data?.lrc?.lyric || data?.tlyric?.lyric || "";
+}
+
+async function searchNetease(title, artist) {
+  const q = [title, artist].filter(Boolean).join(" ").trim();
+  if (!q) return [];
+  const data = await fetchNetease(`/api/cloudsearch/pc?s=${encodeURIComponent(q)}&type=1&offset=0&limit=25`);
+  const songs = data?.result?.songs || [];
+  const expanded = artist ? expandArtistTerms(artist) : [];
+  const both = !!(title && artist);
+  const matched = [];
+
+  for (const s of songs) {
+    const artistName = (s.ar || []).map((a) => a.name).join("/") || "";
+    const mapped = mapResultRow({
+      id: `ncm-${s.id}`,
+      trackName: s.name,
+      artistName,
+      albumName: s.al?.name || "",
+      releaseDate: s.al?.publishTime ? new Date(s.al.publishTime).toISOString().slice(0, 10) : "",
+      plainLyrics: "",
+      duration: Math.round((s.dt || 0) / 1000),
+    });
+    if (both && !matchesBoth(mapped, title, artist, expanded)) continue;
+    matched.push({ s, artistName });
+    if (matched.length >= 12) break;
+  }
+
+  return Promise.all(
+    matched.map(async ({ s, artistName }) => {
+      const rawLrc = await fetchNeteaseLyricsRaw(s.id);
+      const plainLyrics = stripLrcTags(rawLrc);
+      return {
+        id: `ncm-${s.id}`,
+        source: "netease",
+        trackName: s.name,
+        artistName,
+        albumName: s.al?.name || "",
+        releaseDate: s.al?.publishTime ? new Date(s.al.publishTime).toISOString().slice(0, 4) : "",
+        plainLyrics,
+        syncedLyrics: rawLrc || "",
+        duration: Math.round((s.dt || 0) / 1000),
+      };
+    })
+  );
+}
+
+async function getNeteaseLyricsRow(ncmId) {
+  const songId = String(ncmId).replace(/^ncm-/, "");
+  const [detail, rawLrc] = await Promise.all([
+    fetchNetease(`/api/song/detail/?ids=[${songId}]`),
+    fetchNeteaseLyricsRaw(songId),
+  ]);
+  const s = detail?.songs?.[0];
+  const lyrics = stripLrcTags(rawLrc);
+  return {
+    id: `ncm-${songId}`,
+    title: s?.name || "",
+    artist: (s?.ar || []).map((a) => a.name).join("/") || "",
+    album: s?.al?.name || "",
+    year: s?.al?.publishTime ? new Date(s.al.publishTime).toISOString().slice(0, 4) : "",
+    lyrics,
+  };
+}
+
 function deezerTrackRow(t, artistOverride) {
   return {
     id: `dz-${t.id}`,
@@ -349,7 +564,7 @@ async function searchDeezer(title, artist) {
     for (const t of data?.data || []) push(deezerTrackRow(t));
   }
 
-  if (artist) {
+  if (artist && !title) {
     const terms = expandArtistTerms(artist);
     for (const a of terms.slice(0, 5)) {
       const ad = await fetchDeezer(`https://api.deezer.com/search/artist?q=${encodeURIComponent(a)}&limit=4`);
@@ -378,7 +593,7 @@ function mapResultRow(r) {
     year: (r.releaseDate || "").slice(0, 4),
     duration: r.duration || null,
     lyrics: r.plainLyrics || stripSynced(r.syncedLyrics) || "",
-    source: String(id).startsWith("dz-") ? "deezer" : "lrclib",
+    source: String(id).startsWith("dz-") ? "deezer" : String(id).startsWith("ncm-") ? "netease" : "lrclib",
   };
 }
 
@@ -400,19 +615,24 @@ function scoreResult(row, titleQ, artistQ, expandedArtists) {
   if (tq && t.includes(tq)) score += 60;
   if (row.lyrics?.length > 0) score += 30;
   if (row.source === "lrclib") score += 15;
+  if (row.source === "netease") score += 20;
+  if (/[\u4e00-\u9fff]/.test(`${titleQ}${artistQ}`) && row.source === "netease") score += 100;
   return score;
 }
 
 async function searchLyricsMulti(title, artist) {
   const expanded = artist ? expandArtistTerms(artist) : [];
-  const [lrclib, deezer] = await Promise.all([
+  const both = !!(title && artist);
+  const [lrclib, deezer, netease] = await Promise.all([
     searchLrclibVariants(title, artist),
     searchDeezer(title, artist),
+    searchNetease(title, artist),
   ]);
 
   const map = new Map();
-  for (const raw of [...lrclib, ...deezer]) {
+  for (const raw of [...netease, ...lrclib, ...deezer]) {
     const row = mapResultRow(raw);
+    if (both && !matchesBoth(row, title, artist, expanded)) continue;
     const key = `${row.title.toLowerCase()}|${row.artist.toLowerCase()}`;
     const score = scoreResult(row, title, artist, expanded);
     const prev = map.get(key);
@@ -423,19 +643,101 @@ async function searchLyricsMulti(title, artist) {
 
   return [...map.values()]
     .sort((a, b) => b._score - a._score)
-    .slice(0, 50)
+    .slice(0, 30)
     .map(({ _score, ...row }) => row);
+}
+
+async function fetchLyricsForRow(row, timeoutMs = 4000) {
+  const work = async () => {
+    if (row.lyrics?.trim()) return row.lyrics;
+
+    if (row.id?.startsWith("ncm-")) {
+      const raw = await fetchNeteaseLyricsRaw(row.id.slice(4));
+      return stripLrcTags(raw);
+    }
+
+    if (row.id?.startsWith("dz-")) {
+      const full = await getDeezerLyricsRow(row.id.slice(3));
+      return full?.lyrics || "";
+    }
+
+    if (row.id && !String(row.id).startsWith("dz-")) {
+      try {
+        const res = await fetch(`https://lrclib.net/api/get/${row.id}`);
+        if (res.ok) {
+          const hit = await res.json();
+          return formatLyricsRow(hit).lyrics || "";
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const hit = await fetchLrclibGet(row.title, row.artist, row.album, row.duration);
+    if (hit) return formatLyricsRow(hit).lyrics || "";
+
+    return "";
+  };
+
+  return Promise.race([
+    work(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeoutMs)),
+  ]).catch(() => "");
+}
+
+async function enrichLyricsResults(rows) {
+  const out = [];
+  let extraFetches = 0;
+  const MAX_EXTRA = 5;
+  for (const row of rows) {
+    if (row.lyrics?.trim()) {
+      out.push(row);
+      continue;
+    }
+    if (extraFetches >= MAX_EXTRA) {
+      out.push(row);
+      continue;
+    }
+    extraFetches += 1;
+    const lyrics = await fetchLyricsForRow(row);
+    out.push(lyrics ? { ...row, lyrics } : row);
+  }
+  return out.sort((a, b) => {
+    const al = a.lyrics?.length > 0 ? 1 : 0;
+    const bl = b.lyrics?.length > 0 ? 1 : 0;
+    return bl - al;
+  });
 }
 
 async function getDeezerLyricsRow(dzId) {
   const track = await fetchDeezer(`https://api.deezer.com/track/${dzId}`);
   if (!track?.title) return null;
 
-  const artist = track.artist?.name || "";
-  const lrRows = await searchLrclibVariants(track.title, artist);
-  const hit = lrRows.find((r) => r.plainLyrics || r.syncedLyrics) || lrRows[0];
+  const artistName = track.artist?.name || "";
+  const title = track.title;
+  const album = track.album?.title || "";
+  const duration = track.duration || null;
+  const expanded = expandArtistTerms(artistName);
 
-  if (hit) {
+  let hit = await fetchLrclibGet(title, artistName, album, duration);
+  if (!hit?.plainLyrics && !hit?.syncedLyrics) {
+    const lrRows = await searchLrclibVariants(title, artistName);
+    const matching = lrRows.filter((r) => matchesBoth(mapResultRow(r), title, artistName, expanded));
+    hit =
+      matching.find((r) => r.plainLyrics || r.syncedLyrics) ||
+      matching[0] ||
+      lrRows.find((r) => r.plainLyrics || r.syncedLyrics);
+    if (hit?.id && !(hit.plainLyrics || hit.syncedLyrics)) {
+      try {
+        const res = await fetch(`https://lrclib.net/api/get/${hit.id}`);
+        if (res.ok) hit = await res.json();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  if (hit && (hit.plainLyrics || hit.syncedLyrics)) {
     const row = formatLyricsRow(hit);
     row.id = `dz-${dzId}`;
     return row;
@@ -443,9 +745,9 @@ async function getDeezerLyricsRow(dzId) {
 
   return {
     id: `dz-${dzId}`,
-    title: track.title,
-    artist,
-    album: track.album?.title || "",
+    title,
+    artist: artistName,
+    album,
     year: track.album?.release_date?.slice(0, 4) || "",
     lyrics: "",
   };
@@ -537,25 +839,39 @@ function dailyLimit(userId) {
 async function getToolQuota(db, key, tool) {
   const day = todayUtc();
   const row = await db
-    .prepare("SELECT uses, ad_tier, ad_progress, bonus FROM tool_usage_quota WHERE quota_key = ? AND tool = ? AND day = ?")
+    .prepare(
+      "SELECT uses, ad_tier, ad_progress, bonus, last_refresh_query, last_counted_at FROM tool_usage_quota WHERE quota_key = ? AND tool = ? AND day = ?"
+    )
     .bind(key, tool, day)
     .first();
-  return row || { uses: 0, ad_tier: 0, ad_progress: 0, bonus: 0 };
+  return row || { uses: 0, ad_tier: 0, ad_progress: 0, bonus: 0, last_refresh_query: "", last_counted_at: 0 };
 }
 
 async function saveToolQuota(db, key, tool, q) {
   const day = todayUtc();
   await db
     .prepare(
-      `INSERT INTO tool_usage_quota (quota_key, tool, day, uses, ad_tier, ad_progress, bonus)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO tool_usage_quota (quota_key, tool, day, uses, ad_tier, ad_progress, bonus, last_refresh_query, last_counted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(quota_key, tool, day) DO UPDATE SET
          uses = excluded.uses,
          ad_tier = excluded.ad_tier,
          ad_progress = excluded.ad_progress,
-         bonus = excluded.bonus`
+         bonus = excluded.bonus,
+         last_refresh_query = excluded.last_refresh_query,
+         last_counted_at = excluded.last_counted_at`
     )
-    .bind(key, tool, day, q.uses, q.ad_tier, q.ad_progress, q.bonus)
+    .bind(
+      key,
+      tool,
+      day,
+      q.uses,
+      q.ad_tier,
+      q.ad_progress,
+      q.bonus,
+      q.last_refresh_query || "",
+      q.last_counted_at || 0
+    )
     .run();
 }
 
@@ -647,10 +963,10 @@ async function requireRegisteredUser(db, userId) {
   return { ok: true, user: row };
 }
 
-async function syncNoteGet(env, url) {
+async function syncNoteGet(env, request, url) {
   const db = requireDb(env);
   await ensureAppSchema(db);
-  const userId = parseUserId(url);
+  const userId = await resolveUserId(request, env, url);
   const auth = await requireRegisteredUser(db, userId);
   if (!auth.ok) return json(auth.body, auth.status);
   const { results } = await db
@@ -676,7 +992,7 @@ async function syncNoteSave(env, request, url) {
   const db = requireDb(env);
   await ensureAppSchema(db);
   const body = await request.json().catch(() => ({}));
-  const userId = parseUserId(url, body);
+  const userId = await resolveUserId(request, env, url, body);
   const slot = parseSlot(body, url);
   if (slot === null) return json({ error: "invalid_slot" }, 400);
   const auth = await requireRegisteredUser(db, userId);
@@ -704,7 +1020,7 @@ async function syncNoteClear(env, request, url) {
   const db = requireDb(env);
   await ensureAppSchema(db);
   const body = await request.json().catch(() => ({}));
-  const userId = parseUserId(url, body);
+  const userId = await resolveUserId(request, env, url, body);
   const slot = parseSlot(body, url);
   if (slot === null) return json({ error: "invalid_slot" }, 400);
   const auth = await requireRegisteredUser(db, userId);

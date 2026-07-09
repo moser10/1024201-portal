@@ -11,6 +11,10 @@ const game = getGame("osn");
 const app = document.getElementById("app");
 
 function route() {
+  if (!getUser()) {
+    window.location.href = `/game/register/?return=${encodeURIComponent("onesentence/")}`;
+    return;
+  }
   const room = getRoom();
   if (room?.id) {
     renderPlay(app, () => {

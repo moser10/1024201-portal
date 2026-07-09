@@ -82,6 +82,7 @@ const flashing = new Set();
 
 const errBox = document.getElementById("errBox");
 const loginPanel = document.getElementById("loginPanel");
+const syncWorkspace = document.getElementById("syncWorkspace");
 const editorWrap = document.getElementById("editorWrap");
 const slotEls = [...document.querySelectorAll(".sync-slot")];
 
@@ -286,17 +287,26 @@ async function pasteSlot(el, e) {
   }
 }
 
+function setGuestMode(on) {
+  syncWorkspace.classList.toggle("sync-guest", on);
+  loginPanel.hidden = !on;
+  slotEls.forEach((el) => {
+    const ta = slotInput(el);
+    ta.readOnly = on;
+    ta.tabIndex = on ? -1 : 0;
+  });
+}
+
 function boot() {
   applyI18n();
   paintToolUser();
+  fitAllInputs();
   const user = getUser();
   if (!user?.id) {
-    loginPanel.hidden = false;
-    editorWrap.hidden = true;
+    setGuestMode(true);
     return;
   }
-  loginPanel.hidden = true;
-  editorWrap.hidden = false;
+  setGuestMode(false);
   deferWork(loadNotes);
 }
 

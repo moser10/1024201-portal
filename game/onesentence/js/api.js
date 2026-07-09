@@ -21,6 +21,8 @@ export const authApi = {
     api("/api/auth?action=check_email", { method: "POST", body: JSON.stringify({ email }) }),
   register: (email, username, password) =>
     api("/api/auth?action=register", { method: "POST", body: JSON.stringify({ email, username, password }) }),
+  verifyCode: (email, code) =>
+    api("/api/auth?action=verify_code", { method: "POST", body: JSON.stringify({ email, code }) }),
   login: (email, password) =>
     api("/api/auth?action=login", { method: "POST", body: JSON.stringify({ email, password }) }),
   forgot: (email) =>
@@ -31,8 +33,11 @@ export const authApi = {
 };
 
 export const roomApi = {
-  checkTitle: (title) =>
-    api("/api/room?action=check_title", { method: "POST", body: JSON.stringify({ title }) }),
+  checkTitle: (title, exclude_story_id) =>
+    api("/api/room?action=check_title", {
+      method: "POST",
+      body: JSON.stringify({ title, exclude_story_id }),
+    }),
   create: (title, owner_id) =>
     api("/api/room?action=create_room", { method: "POST", body: JSON.stringify({ title, owner_id }) }),
   updateTitle: (story_id, user_id, title) =>
@@ -54,6 +59,8 @@ export const roomApi = {
     api(`/api/room?action=pending&story_id=${story_id}&owner_id=${owner_id}`),
   approve: (story_id, owner_id, user_id) =>
     api("/api/room?action=approve_join", { method: "POST", body: JSON.stringify({ story_id, owner_id, user_id }) }),
+  reject: (story_id, owner_id, user_id) =>
+    api("/api/room?action=reject_join", { method: "POST", body: JSON.stringify({ story_id, owner_id, user_id }) }),
   pullUser: (story_id, owner_id, user_id) =>
     api("/api/room?action=pull_user", { method: "POST", body: JSON.stringify({ story_id, owner_id, user_id }) }),
   members: (story_id) => api(`/api/room?action=members&story_id=${story_id}`),

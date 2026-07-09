@@ -165,7 +165,7 @@
       <em>every department over the network</em> with automatically generated visual reports.
       <ul class="compact" style="margin-top:4px;">
         <li>Modeled each proprietary protocol with Python <strong>dictionaries</strong>; implemented reusable decoding algorithms for the common, repeatable protocol segments.</li>
-        <li>Hard-coded the genuinely awkward bit-level cases as callable methods (e.g. <code>0xAA</code> followed by an 8-byte hex field where every two digits map to a different driving metric and individual high/low-byte bits carry separate meanings), with shared bit-extraction helpers reused across parsers.</li>
+        <li>Implemented the genuinely complex bit-level cases as reusable, callable methods, with shared bit-extraction helpers reused across parsers.</li>
         <li>Covered the full heavy-truck domain: cargo volume measurement, payload / load weight, cold-chain temperature differentials, and driver / passenger behavior monitoring (yawning, smoking, and other unsafe behaviors).</li>
         <li>Turned a problem most teams would have handled manually into a shared, repeatable, self-service tool — a personal initiative, not an assigned task.</li>
       </ul>

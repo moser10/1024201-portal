@@ -11,11 +11,11 @@ const UI = {
     back: "Toolbox",
     lblTitle: "Song title",
     lblArtist: "Artist",
-    hint: "Enter a song title, an artist, or both. Guests: 1/day; registered: 5/day.",
+    hint: "Enter a song title, an artist, or both. Quota counts list refreshes (3s debounce). Guests: 1/day; registered: 5/day.",
     search: "Search",
     searching: "Searching…",
     quota: (r, a, logged) =>
-      logged ? `Searches: ${r}/${a}` : `Searches: ${r}/${a} (guest)`,
+      logged ? `List refreshes: ${r}/${a}` : `List refreshes: ${r}/${a} (guest)`,
     loginTitle: "Sign in for more",
     loginDesc: "Guest limit reached. Sign in for 5 searches per day.",
     loginBtn: "Sign in / Register",
@@ -38,11 +38,11 @@ const UI = {
     back: "返回工具箱",
     lblTitle: "歌曲名称",
     lblArtist: "歌手",
-    hint: "可只填歌名、只填歌手，或两者都填。游客每天 1 次；注册用户每天 5 次。",
+    hint: "可只填歌名、只填歌手，或两者都填（两者都填时为交集）。配额按刷新列表计次，3 秒内重复刷新不计数。游客 1 次/天；注册 5 次/天。",
     search: "搜索",
     searching: "正在搜索…",
     quota: (r, a, logged) =>
-      logged ? `今日搜索剩余 ${r}/${a}` : `今日搜索剩余 ${r}/${a}（游客）`,
+      logged ? `今日列表刷新 ${r}/${a}` : `今日列表刷新 ${r}/${a}（游客）`,
     loginTitle: "登录后继续使用",
     loginDesc: "游客今日次数已用完。登录后每天可搜索 5 次。",
     loginBtn: "登录 / 注册",
@@ -65,11 +65,11 @@ const UI = {
     back: "ツールボックス",
     lblTitle: "曲名",
     lblArtist: "アーティスト",
-    hint: "曲名のみ、アーティストのみ、または両方。ゲスト1日1回、登録5回。",
+    hint: "曲名のみ、アーティストのみ、または両方（両方は積集合）。3秒以内の連続更新は1回扱い。ゲスト1日1回、登録5回。",
     search: "検索",
     searching: "検索中…",
     quota: (r, a, logged) =>
-      logged ? `本日残り ${r}/${a}` : `本日残り ${r}/${a}（ゲスト）`,
+      logged ? `リスト更新 ${r}/${a}` : `リスト更新 ${r}/${a}（ゲスト）`,
     loginTitle: "ログインして続行",
     loginDesc: "ゲスト上限です。ログインで1日5回。",
     loginBtn: "ログイン / 登録",
@@ -90,6 +90,84 @@ const UI = {
 
 let lang = getPortalLang();
 let t = UI[lang] || UI.en;
+
+const SESSION_KEY = "lyrics_search_session";
+const CACHE_KEY = "lyrics_result_cache";
+
+function saveSearchSession(title, artist, rows) {
+  try {
+    sessionStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        title: title || "",
+        artist: artist || "",
+        results: (rows || []).map((r) => ({
+          id: r.id,
+          title: r.title,
+          artist: r.artist,
+          album: r.album,
+          year: r.year,
+        })),
+      })
+    );
+  } catch {
+    /* quota */
+  }
+}
+
+function readSearchSession() {
+  try {
+    const data = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+    if (!data?.results?.length) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function renderResults(rows) {
+  const body = document.getElementById("resultsBody");
+  const wrap = document.getElementById("resultsWrap");
+  const cache = {};
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="4">${t.empty}</td></tr>`;
+  } else {
+    body.innerHTML = rows
+      .map((r) => {
+        cache[r.id] = r;
+        return `
+        <tr data-id="${esc(r.id)}" data-title="${esc(r.title)}" data-artist="${esc(r.artist)}">
+          <td>${esc(r.title)}</td>
+          <td>${esc(r.artist)}</td>
+          <td>${esc(albumLabel(r))}</td>
+          <td>${esc(r.year || "—")}</td>
+        </tr>`;
+      })
+      .join("");
+    try {
+      const prev = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "{}");
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...prev, ...cache }));
+    } catch {
+      /* quota */
+    }
+  }
+  wrap.hidden = false;
+}
+
+function restoreSearchSession() {
+  const session = readSearchSession();
+  if (!session) return;
+  document.getElementById("qTitle").value = session.title || "";
+  document.getElementById("qArtist").value = session.artist || "";
+  let rows = session.results;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "{}");
+    rows = session.results.map((r) => ({ ...r, ...cached[r.id] }));
+  } catch {
+    /* ignore */
+  }
+  renderResults(rows);
+}
 
 function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
@@ -168,6 +246,7 @@ paintToolUser();
 quota = readQuotaCache("lyrics") || guessQuota();
 updateQuotaUI();
 deferWork(loadQuota);
+restoreSearchSession();
 
 function albumLabel(row) {
   const a = (row.album || "").trim();
@@ -185,7 +264,6 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const errBox = document.getElementById("errBox");
   const wrap = document.getElementById("resultsWrap");
-  const body = document.getElementById("resultsBody");
   const searchBtn = document.getElementById("searchBtn");
   const loadingHost = document.getElementById("searchLoading");
   errBox.hidden = true;
@@ -208,10 +286,10 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
 
   searchBtn.disabled = true;
   searchBtn.textContent = t.searching;
-  const { estimateEtaMs, mountProgress } = await import("./loading.js");
+  const { mountProgress } = await import("./loading.js");
   const progress = mountProgress(loadingHost, {
     label: t.searching,
-    etaMs: estimateEtaMs(6),
+    indeterminate: true,
   });
 
   try {
@@ -223,28 +301,8 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
       throw e;
     }
     const rows = data.results || [];
-    const cache = {};
-    if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="4">${t.empty}</td></tr>`;
-    } else {
-      body.innerHTML = rows
-        .map((r) => {
-          cache[r.id] = r;
-          return `
-        <tr data-id="${esc(r.id)}" data-title="${esc(r.title)}" data-artist="${esc(r.artist)}">
-          <td>${esc(r.title)}</td>
-          <td>${esc(r.artist)}</td>
-          <td>${esc(albumLabel(r))}</td>
-          <td>${esc(r.year || "—")}</td>
-        </tr>`;
-        })
-        .join("");
-      try {
-        sessionStorage.setItem("lyrics_result_cache", JSON.stringify(cache));
-      } catch {
-        /* quota */
-      }
-    }
+    saveSearchSession(title, artist, rows);
+    renderResults(rows);
     progress.done();
     quota = data;
     updateQuotaUI();
@@ -268,6 +326,8 @@ document.getElementById("resultsBody").addEventListener("click", (e) => {
   const row = e.target.closest("tr[data-id]");
   if (!row?.dataset.id) return;
   const params = new URLSearchParams({ id: row.dataset.id });
+  if (row.dataset.title) params.set("title", row.dataset.title);
+  if (row.dataset.artist) params.set("artist", row.dataset.artist);
   window.location.href = `view.html?${params}`;
 });
 

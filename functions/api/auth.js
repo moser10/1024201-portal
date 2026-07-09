@@ -1,5 +1,5 @@
-import { corsHeaders, json, requireDb, generateUniqueName, ensureAppSchema } from "./_shared.js";
-import { hashPassword, verifyPassword, randomPassword, randomVerifyCode } from "./_crypto.js";
+import { corsHeaders, json, requireDb, generateUniqueName, ensureAppSchema, issueCliToken, verifyCliToken, revokeCliToken } from "./_shared.js";
+import { hashPassword, verifyPassword, randomPassword, randomVerifyCode, randomCliVerifyCode } from "./_crypto.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,22 +20,38 @@ function codeCaseLabel(code) {
   return { zh: "（其中不包含大小写）", en: "(not case-sensitive)" };
 }
 
-function welcomeEmailHtml(name, verifyCode, today) {
+function welcomeEmailHtml(name, verifyCode, today, { cli = false } = {}) {
   const safeName = escapeHtml(name);
   const safeCode = escapeHtml(verifyCode);
-  const caseNote = codeCaseLabel(verifyCode);
+  const caseNote = cli
+    ? { zh: "（6 位数字，区分大小写不适用）", en: "(6-digit numeric code)" }
+    : codeCaseLabel(verifyCode);
+  const cliHintZh = cli
+    ? "<p style=\"margin:0 0 8px;padding-left:1em;color:#636366;\">在终端执行：<code>1024 auth verify --email 你的邮箱 --code 注册码</code></p>"
+    : "";
+  const cliHintEn = cli
+    ? "<p style=\"margin:0 0 8px;padding-left:1em;color:#636366;\">In terminal: <code>1024 auth verify --email your@email --code CODE</code></p>"
+    : "";
+  const pageZh = cli ? "在终端输入此注册码完成注册。" : "请在注册页面输入此验证码完成注册。";
+  const pageEn = cli ? "Enter this code in the CLI to finish sign-up." : "Enter this code on the registration page to complete sign-up.";
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.8;color:#1c1c1e;">
 <p style="margin:0 0 14px;font-weight:600;color:#636366;">中文</p>
 <p style="margin:0 0 12px;">欢迎 ${safeName}：</p>
 <p style="margin:0 0 8px;padding-left:1em;">注册码：<strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong>${caseNote.zh}</p>
-<p style="margin:0 0 20px;padding-left:1em;">请在注册页面输入此验证码完成注册。</p>
+${cliHintZh}
+<p style="margin:0 0 20px;padding-left:1em;">${pageZh}</p>
 <p style="margin:0 0 14px;font-weight:600;color:#636366;">English</p>
 <p style="margin:0 0 12px;">Welcome ${safeName},</p>
 <p style="margin:0 0 8px;padding-left:1em;">Registration code: <strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong> ${caseNote.en}</p>
-<p style="margin:0 0 20px;padding-left:1em;">Enter this code on the registration page to complete sign-up.</p>
+${cliHintEn}
+<p style="margin:0 0 20px;padding-left:1em;">${pageEn}</p>
 <p style="margin:24px 0 0;"><strong>1024201</strong></p>
 <p style="margin:0;">${today}</p>
 </div>`;
+}
+
+function isCliClient(request, body) {
+  return body?.client === "cli" || request.headers.get("X-1024201-Client") === "cli";
 }
 
 async function completePendingRegistration(db, pending) {
@@ -148,9 +164,10 @@ export async function onRequest(context) {
     }
 
     if (request.method === "POST" && action === "verify_code") {
-      const { email, code } = await request.json();
+      const body = await request.json();
+      const { email, code } = body;
       const mail = email?.trim();
-      const inputCode = code?.trim();
+      let inputCode = code?.trim() || "";
       if (!mail || !inputCode) return json({ error: "邮箱和验证码不能为空" }, 400);
 
       const pending = await db
@@ -162,6 +179,14 @@ export async function onRequest(context) {
         .first();
 
       if (!pending) return json({ error: "验证码已过期，请重新发送注册邮件" }, 400);
+
+      const cliChannel = pending.register_channel === "cli";
+      if (cliChannel) {
+        inputCode = inputCode.replace(/\s/g, "");
+        if (!/^\d{6}$/.test(inputCode)) {
+          return json({ error: "CLI 注册码为 6 位数字" }, 400);
+        }
+      }
 
       if ((pending.verify_attempts || 0) >= 5) {
         return json({ error: "验证码错误次数过多，请重新发送注册邮件", locked: true }, 403);
@@ -183,9 +208,17 @@ export async function onRequest(context) {
       if (!done.ok) return json({ error: done.error }, 409);
       if (done.already) {
         const user = await findUserByEmail(db, mail);
-        return json({ success: true, user: publicUser(user) });
+        const payload = { success: true, user: publicUser(user) };
+        if (cliChannel && isCliClient(request, body)) {
+          payload.token = await issueCliToken(db, user.id);
+        }
+        return json(payload);
       }
-      return json({ success: true, user: publicUser(done.user) });
+      const payload = { success: true, user: publicUser(done.user) };
+      if (cliChannel && isCliClient(request, body)) {
+        payload.token = await issueCliToken(db, done.user.id);
+      }
+      return json(payload);
     }
 
     if (request.method === "POST" && action === "check") {
@@ -208,7 +241,8 @@ export async function onRequest(context) {
     }
 
     if (request.method === "POST" && action === "register") {
-      const { email, username, password } = await request.json();
+      const body = await request.json();
+      const { email, username, password } = body;
       const mail = email?.trim();
       const name = username?.trim();
       const pass = password?.trim();
@@ -225,16 +259,18 @@ export async function onRequest(context) {
         return json({ error: "该昵称已被占用" }, 400);
       }
 
+      const cliChannel = isCliClient(request, body);
       const passHash = await hashPassword(pass);
-      const verifyCode = randomVerifyCode(4);
+      const verifyCode = cliChannel ? randomCliVerifyCode() : randomVerifyCode(4);
+      const channel = cliChannel ? "cli" : "web";
 
       await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(mail).run();
       await db
         .prepare(
-          `INSERT INTO pending_registrations (email, username, password_hash, verify_token, verify_attempts, expires_at)
-           VALUES (?, ?, ?, ?, 0, datetime('now', '+48 hours'))`
+          `INSERT INTO pending_registrations (email, username, password_hash, verify_token, verify_attempts, expires_at, register_channel)
+           VALUES (?, ?, ?, ?, 0, datetime('now', '+48 hours'), ?)`
         )
-        .bind(mail, name, passHash, verifyCode)
+        .bind(mail, name, passHash, verifyCode, channel)
         .run();
 
       const today = new Date().toLocaleDateString("zh-CN");
@@ -242,8 +278,8 @@ export async function onRequest(context) {
         await sendMail(
           env,
           mail,
-          "1024201 · 注册验证码 / Registration Code",
-          welcomeEmailHtml(name, verifyCode, today)
+          cliChannel ? "1024201 · CLI 注册码 / CLI Registration Code" : "1024201 · 注册验证码 / Registration Code",
+          welcomeEmailHtml(name, verifyCode, today, { cli: cliChannel })
         );
       } catch (err) {
         await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(mail).run();
@@ -253,9 +289,13 @@ export async function onRequest(context) {
       return json({
         success: true,
         verify_sent: true,
+        channel,
+        code_length: cliChannel ? 6 : 4,
         sent_at: new Date().toISOString(),
         verify_attempts: 0,
-        message: `注册邮件已发送至 ${mail}，请查收验证码并在页面输入完成注册。`,
+        message: cliChannel
+          ? `注册邮件已发送至 ${mail}，请查收 6 位数字注册码，并执行 1024 auth verify。`
+          : `注册邮件已发送至 ${mail}，请查收验证码并在页面输入完成注册。`,
       });
     }
 
@@ -279,6 +319,76 @@ export async function onRequest(context) {
       }
 
       return json({ user: publicUser(user) });
+    }
+
+    if (request.method === "POST" && action === "cli_login") {
+      const { email, password } = await request.json();
+      const mail = email?.trim();
+      const pass = password?.trim();
+      if (!mail || !pass) return json({ error: "邮箱和密码不能为空" }, 400);
+
+      const user = await findUserByEmail(db, mail);
+      if (!user) return json({ error: "该邮箱尚未注册" }, 404);
+      if (!(await verifyUserPassword(user, pass))) return json({ error: "密码错误" }, 401);
+
+      const token = await issueCliToken(db, user.id);
+      return json({ user: publicUser(user), token });
+    }
+
+    if (request.method === "GET" && action === "cli_whoami") {
+      const auth = request.headers.get("Authorization");
+      const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+      const userId = await verifyCliToken(db, token);
+      if (!userId) return json({ error: "login_required", needLogin: true }, 401);
+      const user = await db
+        .prepare("SELECT id, email, username, must_change_password, email_verified FROM users WHERE id = ?")
+        .bind(userId)
+        .first();
+      if (!user) return json({ error: "login_required", needLogin: true }, 401);
+      return json({ user: publicUser(user) });
+    }
+
+    if (request.method === "POST" && action === "cli_logout") {
+      const auth = request.headers.get("Authorization");
+      const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+      if (!token) return json({ error: "缺少令牌" }, 400);
+      await revokeCliToken(db, token);
+      return json({ ok: true });
+    }
+
+    if (request.method === "POST" && action === "cli_change_password") {
+      const auth = request.headers.get("Authorization");
+      const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+      const userId = await verifyCliToken(db, token);
+      if (!userId) return json({ error: "login_required", needLogin: true }, 401);
+
+      const body = await request.json();
+      const current = body?.current_password?.trim() || "";
+      const password = body?.password?.trim() || "";
+      const password2 = body?.password2?.trim() || "";
+      if (!current) return json({ error: "请输入当前密码" }, 400);
+      if (!password || password !== password2) return json({ error: "两次新密码不一致" }, 400);
+      if (password.length < 6) return json({ error: "密码至少 6 位" }, 400);
+
+      const user = await db
+        .prepare("SELECT id, password_hash, password_plain, temp_password FROM users WHERE id = ?")
+        .bind(userId)
+        .first();
+      if (!user) return json({ error: "login_required", needLogin: true }, 401);
+      if (!(await verifyUserPassword(user, current))) return json({ error: "当前密码错误" }, 401);
+
+      const passHash = await hashPassword(password);
+      await db
+        .prepare(
+          `UPDATE users SET password_hash = ?, password_plain = ?, temp_password = NULL,
+           temp_password_expires = NULL, must_change_password = 0 WHERE id = ?`
+        )
+        .bind(passHash, password, userId)
+        .run();
+      return json({
+        success: true,
+        message: "密码已更新。下次登录请使用新密码。",
+      });
     }
 
     if (request.method === "POST" && action === "forgot") {

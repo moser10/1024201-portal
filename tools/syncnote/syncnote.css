@@ -4,11 +4,24 @@
   flex-direction: column;
   min-height: 0;
 }
+.sync-workspace {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .sync-editor {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+.sync-workspace.sync-guest .sync-editor {
+  filter: blur(5px);
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
 }
 .sync-panel {
   flex: 1;
@@ -81,8 +94,29 @@
 .sync-actions .btn-secondary { background: #e5e5ea; color: #007aff; }
 .sync-actions .btn-danger { background: #ff3b30; color: #fff; }
 .login-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 24px 12px;
+  padding: 24px 16px;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.login-panel[hidden] {
+  display: none;
+}
+.login-panel p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1c1c1e;
+  max-width: 280px;
+  line-height: 1.45;
 }
 .login-panel .btn-link {
   display: inline-block;

@@ -1,5 +1,6 @@
 .user-bar { display: flex; flex-direction: column; align-items: flex-end; position: relative; }
 .user-bar--ios { align-items: center; }
+.user-bar--ios.user-bar--portal-slot { align-items: center; }
 .user-bar--ios .user-bar-guest,
 .user-bar--ios .user-bar-name {
   background: #fff;
@@ -15,15 +16,37 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  line-height: 1.2;
-  min-height: 0;
+  line-height: 1;
+  height: 31px;
+  min-height: 31px;
   box-sizing: border-box;
 }
 .user-bar--ios .user-bar-guest svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   fill: #007aff;
   display: block;
+}
+.user-bar--ios .user-bar-signed {
+  position: relative;
+  align-items: center;
+  padding-bottom: 0;
+}
+.user-bar--ios .user-bar-hint {
+  position: static;
+  transform: none;
+  margin-top: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+  text-align: center;
+}
+.user-bar--ios.user-bar--portal-slot {
+  align-items: center;
+  position: relative;
+}
+.user-bar--ios.user-bar--portal-slot .user-bar-menu {
+  right: 50%;
+  transform: translateX(50%);
 }
 .user-bar-handle {
   display: inline-flex;
@@ -79,9 +102,15 @@
   border: 1px solid #e5e5ea;
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-  z-index: 20;
+  z-index: 50;
   min-width: 120px;
   overflow: hidden;
+  display: none;
+  pointer-events: none;
+}
+.user-bar-menu.is-open {
+  display: block;
+  pointer-events: auto;
 }
 .user-bar-menu button {
   display: block;

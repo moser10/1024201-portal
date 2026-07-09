@@ -1,0 +1,158 @@
+.addr-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+}
+.addr-scroll {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 4px;
+}
+.addr-meta {
+  font-size: 12px;
+  color: #8e8e93;
+  margin: 4px 0 0;
+}
+.addr-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.addr-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.addr-row-inline {
+  flex-direction: row;
+  gap: 10px;
+  align-items: flex-end;
+}
+.addr-grow {
+  flex: 1;
+  min-width: 0;
+}
+.addr-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #636366;
+}
+.addr-select,
+.addr-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d1d6;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 14px;
+  background: #fff;
+}
+.addr-search-btn {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.addr-hint {
+  font-size: 12px;
+  color: #8e8e93;
+  margin: 0;
+  line-height: 1.45;
+}
+.addr-count {
+  font-size: 13px;
+  color: #636366;
+  margin: 0 0 8px;
+}
+.addr-results {
+  margin-bottom: 8px;
+}
+.addr-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  background: #fff;
+}
+.addr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.addr-table th,
+.addr-table td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #f2f2f7;
+}
+.addr-table th {
+  background: #f9f9fb;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #636366;
+}
+.addr-table tr:last-child td {
+  border-bottom: none;
+}
+.addr-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.addr-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-family: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  user-select: none;
+  border: 1.5px solid transparent;
+}
+.addr-tag.rent.on {
+  background: #e8f4fd;
+  color: #007aff;
+  border-color: #007aff;
+}
+.addr-tag.sale.on {
+  background: #eafbea;
+  color: #248a3d;
+  border-color: #248a3d;
+}
+.addr-tag.new.on {
+  background: #fff4e5;
+  color: #ff9500;
+  border-color: #ff9500;
+}
+.addr-tag.off {
+  background: #f2f2f7;
+  color: #c7c7cc;
+  border-color: #e5e5ea;
+}
+.addr-line-sub {
+  display: block;
+  color: #8e8e93;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.addr-phone-meta {
+  display: block;
+  font-size: 11px;
+  color: #8e8e93;
+  margin-top: 4px;
+}
+.addr-empty {
+  text-align: center;
+  color: #8e8e93;
+  padding: 24px 12px 16px;
+  margin: 0;
+}

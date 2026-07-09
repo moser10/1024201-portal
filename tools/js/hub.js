@@ -42,6 +42,22 @@ const TOOLS = [
     gradient: "linear-gradient(135deg, #5ac8fa 0%, #007aff 100%)",
     icon: LYRICS_ICON,
   },
+  {
+    id: "cli",
+    title: { zh: "命令行", en: "CLI", ja: "CLI" },
+    sub: { zh: "命令、注册与配额", en: "Commands, register & quotas", ja: "コマンド・登録と割当" },
+    href: "cli/",
+    gradient: "linear-gradient(135deg, #636366 0%, #1c1c1e 100%)",
+    icon: `<span class="tool-icon-cli">CLI</span>`,
+  },
+  {
+    id: "address",
+    title: { zh: "地址查找", en: "Address Lookup", ja: "住所検索" },
+    sub: { zh: "租售地址 · 邮编 · 区号", en: "Rent/sale · postal · phone", ja: "賃貸売買・郵便・電話" },
+    href: "address/",
+    gradient: "linear-gradient(135deg, #34c759 0%, #30b0c7 100%)",
+    icon: `<span class="tool-icon-block">ADDR</span>`,
+  },
 ];
 
 const HUB_I18N = {

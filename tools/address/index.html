@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" class="feature-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#34c759">
+  <title>Address Lookup | 1024201</title>
+  <link rel="modulepreload" href="/js/langTabs.js">
+  <link rel="stylesheet" href="/js/langTabs.css">
+  <link rel="stylesheet" href="/js/featurePage.css">
+  <link rel="stylesheet" href="address.css">
+</head>
+<body class="feature-page" data-tool="address">
+  <div class="feature-shell">
+    <div class="feature-main">
+      <div class="feature-top">
+        <a class="feature-back" id="backLink" href="/tools/">Toolbox</a>
+        <div id="langSlot"></div>
+      </div>
+      <div class="feature-card addr-card">
+        <div class="feature-card-head">
+          <h1 id="pageTitle">Address Lookup</h1>
+          <p class="sub" id="pageSub"></p>
+          <p class="addr-meta" id="metaLine"></p>
+        </div>
+
+        <div class="feature-scroll-panel addr-scroll">
+          <form class="addr-filters" id="searchForm">
+            <div class="addr-row">
+              <label class="addr-label" id="lblCountry" for="countrySel">Country</label>
+              <select id="countrySel" class="addr-select"></select>
+            </div>
+            <div class="addr-row">
+              <label class="addr-label" id="lblCity" for="citySel">City</label>
+              <select id="citySel" class="addr-select">
+                <option value="">—</option>
+              </select>
+            </div>
+            <div class="addr-row addr-row-inline">
+              <div>
+                <label class="addr-label" id="lblKind" for="kindSel">Type</label>
+                <select id="kindSel" class="addr-select">
+                  <option value="">All</option>
+                  <option value="rent">Rent</option>
+                  <option value="sale">Sale</option>
+                </select>
+              </div>
+              <div class="addr-grow">
+                <label class="addr-label" id="lblQuery" for="queryIn">Search</label>
+                <input id="queryIn" class="addr-input" type="search" autocomplete="off" />
+              </div>
+            </div>
+            <button type="submit" class="btn-primary addr-search-btn" id="searchBtn">Search</button>
+            <p class="addr-hint" id="searchHint"></p>
+          </form>
+
+          <p class="err" id="errBox" hidden></p>
+          <p class="addr-count" id="countLine" hidden></p>
+
+          <div class="addr-results" id="resultsWrap" hidden>
+            <div class="addr-table-wrap">
+              <table class="addr-table">
+                <thead>
+                  <tr>
+                    <th id="thKind">Type</th>
+                    <th id="thTitle">Title</th>
+                    <th id="thAddress">Address</th>
+                    <th id="thPostal">Postal</th>
+                    <th id="thPhone">Phone</th>
+                  </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <p class="addr-empty" id="emptyLine" hidden></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/tools/js/instantPaint.js"></script>
+  <script type="module" src="address.js?v=2"></script>
+</body>
+</html>

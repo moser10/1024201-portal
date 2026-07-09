@@ -1,0 +1,21 @@
+# {{NAME}} — Cloudflare Worker + static assets
+name = "{{NAME}}"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "{{DB_NAME}}"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+[vars]
+QUOTA_DISABLED = "true"
+GITHUB_STAR_REPO = "moser10/{{REPO_NAME}}"
+
+# Secrets: wrangler secret put GITHUB_CLIENT_ID
+#           wrangler secret put GITHUB_CLIENT_SECRET

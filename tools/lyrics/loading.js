@@ -11,50 +11,54 @@ export function estimateEtaMs(baseSec) {
   return Math.round(baseSec * factor * 1000);
 }
 
-export function mountProgress(host, { label, etaMs }) {
+/** Progress tied to actual work — no fake countdown that ends early. */
+export function mountProgress(host, { label, indeterminate = false } = {}) {
   if (!host) return { done() {}, fail() {} };
   host.hidden = false;
-  host.innerHTML = `
+  host.innerHTML = indeterminate
+    ? `
+    <p class="loading-label">${label}</p>
+    <div class="loading-bar loading-bar--busy" role="progressbar" aria-busy="true">
+      <div class="loading-bar-fill loading-bar-fill--busy"></div>
+    </div>`
+    : `
     <p class="loading-label">${label}</p>
     <div class="loading-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
       <div class="loading-bar-fill"></div>
-    </div>
-    <p class="loading-eta"></p>`;
+    </div>`;
 
   const fill = host.querySelector(".loading-bar-fill");
-  const etaEl = host.querySelector(".loading-eta");
   const bar = host.querySelector(".loading-bar");
-  const start = Date.now();
   let stopped = false;
+  let timer = null;
 
-  const tick = () => {
-    if (stopped) return;
-    const elapsed = Date.now() - start;
-    const pct = Math.min(94, (elapsed / etaMs) * 90);
-    fill.style.width = `${pct}%`;
-    bar.setAttribute("aria-valuenow", String(Math.round(pct)));
-    const remain = Math.max(0, Math.ceil((etaMs - elapsed) / 1000));
-    etaEl.textContent = remain > 0 ? `~${remain}s` : "…";
-  };
-
-  tick();
-  const timer = setInterval(tick, 120);
+  if (!indeterminate) {
+    let pct = 8;
+    const tick = () => {
+      if (stopped) return;
+      pct = Math.min(92, pct + 4);
+      fill.style.width = `${pct}%`;
+      bar.setAttribute("aria-valuenow", String(pct));
+    };
+    tick();
+    timer = setInterval(tick, 280);
+  }
 
   return {
     done() {
       stopped = true;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
       fill.style.width = "100%";
       bar.setAttribute("aria-valuenow", "100");
-      etaEl.textContent = "";
+      bar.removeAttribute("aria-busy");
       setTimeout(() => {
         host.hidden = true;
         host.innerHTML = "";
-      }, 220);
+      }, 180);
     },
     fail() {
       stopped = true;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
       host.hidden = true;
       host.innerHTML = "";
     },

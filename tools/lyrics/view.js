@@ -105,11 +105,11 @@ async function renderLyrics({ withProgress = false } = {}) {
 
   let progress;
   if (withProgress) {
-    const { estimateEtaMs, mountProgress } = await import("./loading.js");
+    const { mountProgress } = await import("./loading.js");
     bodyEl.textContent = "";
     progress = mountProgress(loadingHost, {
       label: t.translating,
-      etaMs: estimateEtaMs(6),
+      indeterminate: true,
     });
   } else {
     bodyEl.textContent = t.translating;
@@ -174,26 +174,18 @@ async function loadLyrics() {
   }
 
   const cached = id ? readCache(id) : null;
-  if (cached) {
-    if (cached.title) {
-      titleEl.textContent = cached.title;
-      contentEl.hidden = false;
-    }
-    if (cached.lyrics?.trim()) {
-      applyLyricsData(cached);
-      fetchLyricsFromApi(id, title, artist)
-        .then((fresh) => {
-          if (fresh.lyrics?.trim()) applyLyricsData(fresh);
-        })
-        .catch(() => {});
-      return;
-    }
+  if (cached?.lyrics?.trim()) {
+    applyLyricsData(cached);
+    return;
+  }
+  if (cached?.title) {
+    titleEl.textContent = cached.title;
   }
 
-  const { estimateEtaMs, mountProgress } = await import("./loading.js");
+  const { mountProgress } = await import("./loading.js");
   const progress = mountProgress(loadingHost, {
     label: t.loading,
-    etaMs: estimateEtaMs(3),
+    indeterminate: true,
   });
 
   try {

@@ -1,4 +1,4 @@
--- OneSentenceNovel D1 schema（新库：整文件执行一次）
+-- 1024201-portal D1 schema（新库：整文件执行一次）
 -- 已有旧库：见 schema-migrate.sql；线上 API 也会通过 ensureAppSchema 自动补列
 
 CREATE TABLE IF NOT EXISTS story_lines (
@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS stories (
   invite_code TEXT NOT NULL,
   game_id TEXT NOT NULL DEFAULT 'osn',
   chapters_json TEXT,
+  writing_state_json TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

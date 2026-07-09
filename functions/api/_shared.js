@@ -1,7 +1,9 @@
+import { ensureAddressSchema } from "./address.js";
+
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 export function json(data, status = 200) {
@@ -73,6 +75,12 @@ export async function ensureAppSchema(db) {
     "verify_attempts",
     "ALTER TABLE pending_registrations ADD COLUMN verify_attempts INTEGER NOT NULL DEFAULT 0"
   );
+  await ensureColumn(
+    db,
+    "pending_registrations",
+    "register_channel",
+    "ALTER TABLE pending_registrations ADD COLUMN register_channel TEXT NOT NULL DEFAULT 'web'"
+  );
   await db.prepare("DELETE FROM pending_registrations WHERE expires_at <= datetime('now')").run();
   await db
     .prepare(
@@ -98,6 +106,8 @@ export async function ensureAppSchema(db) {
       )`
     )
     .run();
+  await db.prepare(`ALTER TABLE tool_usage_quota ADD COLUMN last_refresh_query TEXT NOT NULL DEFAULT ''`).run().catch(() => {});
+  await db.prepare(`ALTER TABLE tool_usage_quota ADD COLUMN last_counted_at INTEGER NOT NULL DEFAULT 0`).run().catch(() => {});
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS tool_pdf_quota (
@@ -112,6 +122,75 @@ export async function ensureAppSchema(db) {
     )
     .run();
   await ensureSyncNoteSchema(db);
+  await ensureCliTokenSchema(db);
+  await ensureAddressSchema(db);
+}
+
+async function ensureCliTokenSchema(db) {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS user_cli_tokens (
+        token_hash TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_used TEXT
+      )`
+    )
+    .run();
+}
+
+export function randomCliToken() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return [...arr].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashCliToken(token) {
+  const data = new TextEncoder().encode(`cli:${token}`);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function issueCliToken(db, userId) {
+  const token = randomCliToken();
+  const tokenHash = await hashCliToken(token);
+  await db.prepare("INSERT INTO user_cli_tokens (token_hash, user_id) VALUES (?, ?)").bind(tokenHash, userId).run();
+  return token;
+}
+
+export async function verifyCliToken(db, token) {
+  if (!token) return null;
+  const tokenHash = await hashCliToken(token);
+  const row = await db.prepare("SELECT user_id FROM user_cli_tokens WHERE token_hash = ?").bind(tokenHash).first();
+  if (!row) return null;
+  await db
+    .prepare("UPDATE user_cli_tokens SET last_used = datetime('now') WHERE token_hash = ?")
+    .bind(tokenHash)
+    .run();
+  return row.user_id;
+}
+
+export async function revokeCliToken(db, token) {
+  if (!token) return false;
+  const tokenHash = await hashCliToken(token);
+  const result = await db.prepare("DELETE FROM user_cli_tokens WHERE token_hash = ?").bind(tokenHash).run();
+  return (result.meta?.changes || 0) > 0;
+}
+
+export async function resolveUserId(request, env, url, body) {
+  const auth = request.headers.get("Authorization");
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice(7).trim();
+    if (token) {
+      const db = requireDb(env);
+      await ensureAppSchema(db);
+      const userId = await verifyCliToken(db, token);
+      if (userId) return userId;
+    }
+  }
+  const raw = url.searchParams.get("user_id") ?? body?.user_id;
+  const id = parseInt(raw, 10);
+  return Number.isFinite(id) && id > 0 ? id : null;
 }
 
 async function ensureSyncNoteSchema(db) {

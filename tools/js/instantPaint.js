@@ -21,6 +21,16 @@
       zh: { pageTitle: "文本中转站", pageSub: "三个中转框，跨设备同步；不点删除则一直保留各框内容。", backLink: "返回工具箱" },
       ja: { pageTitle: "テキスト中継", pageSub: "3つの中継欄で端末間同期。", backLink: "ツールボックス" },
     },
+    cli: {
+      en: { pageTitle: "CLI", pageSub: "Run 1024201 tools from the terminal · same API & quotas as the web", backLink: "Toolbox" },
+      zh: { pageTitle: "命令行", pageSub: "在终端调用 1024201 工具 · 与网页共用接口与配额", backLink: "返回工具箱" },
+      ja: { pageTitle: "CLI", pageSub: "ターミナルから 1024201 ツール · Web と同じ API・割当", backLink: "ツールボックス" },
+    },
+    address: {
+      en: { pageTitle: "Address Lookup", pageSub: "Rental & sale addresses · postal codes · phone prefixes", backLink: "Toolbox" },
+      zh: { pageTitle: "地址查找", pageSub: "多国租售房源 · 详细地址 · 邮编 · 电话区号", backLink: "返回工具箱" },
+      ja: { pageTitle: "住所検索", pageSub: "賃貸・売買 · 住所 · 郵便番号 · 電話", backLink: "ツールボックス" },
+    },
     fx: {
       en: { pageTitle: "Exchange Rates", pageSub: "ECB reference · refreshes every 6 hours", backLink: "Portal" },
       zh: { pageTitle: "实时汇率", pageSub: "欧洲央行参考汇率 · 每 6 小时更新", backLink: "返回门户" },

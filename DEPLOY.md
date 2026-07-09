@@ -1,20 +1,24 @@
-# 部署说明
+# 部署说明 — 1024201 Portal
+
+GitHub：`moser10/1024201-portal`  
+Cloudflare Worker：`1024201-portal`  
+域名：`1024201.com`（1024201 为回文数 / palindrome number）
 
 ## Worker 名称（唯一）
 
-生产环境**只使用** **`one-sentence-novel`**（带连字符）。
+生产环境**只使用** **`1024201-portal`**。
 
-- `wrangler.toml` 的 `name` 必须是 `one-sentence-novel`
-- **删除**多余的 `onesentencenovel` Worker（见下方）
-- Cloudflare **Workers Builds** 必须连接 **`one-sentence-novel`**
+- `wrangler.toml` 的 `name` 必须是 `1024201-portal`
+- 旧 Worker `one-sentence-novel` 在迁移确认后可删除（见下方）
+- Cloudflare **Workers Builds** 须连接 **`1024201-portal`**
 
 ## 域名与 Worker 绑定
 
 | 域名 | Worker | 行为 |
 |------|--------|------|
-| `www.1024201.com` | **one-sentence-novel** | 门户首页 `/` |
-| `1024201.com` | **one-sentence-novel** | 门户首页 `/`（与 www 相同） |
-| `game.1024201.com` | **one-sentence-novel** | `/` → 301 → `/game/` 游戏大厅 |
+| `www.1024201.com` | **1024201-portal** | 门户首页 `/` |
+| `1024201.com` | **1024201-portal** | 门户首页 `/`（与 www 相同） |
+| `game.1024201.com` | **1024201-portal** | `/` → 301 → `/game/` 游戏大厅 |
 
 ### DNS 与 SSL（子域名打不开时必查）
 
@@ -26,15 +30,21 @@
 
 路由写在 **`wrangler.toml` 的 `[[routes]]`** 中，部署时才会保留；仅控制台配置会被 `wrangler deploy` 覆盖清空。
 
-### 删除 onesentencenovel
+### 迁移自 one-sentence-novel
 
-确认域名已全部迁到 `one-sentence-novel` 后：
+Worker 改名会创建新脚本名；**Secret 不会自动迁移**。部署 `1024201-portal` 后若 `/api/health` 中 `hasResendKey` 为 `false`：
 
 ```bash
-npx wrangler delete onesentencenovel
+npx wrangler secret put RESEND_API_KEY --name 1024201-portal
 ```
 
-或在控制台：Workers → `onesentencenovel` → Settings → Delete。
+确认新 Worker 正常后，可删除旧 Worker：
+
+```bash
+npx wrangler delete one-sentence-novel
+```
+
+D1 数据库仍绑定 `database_id`（控制台名可能仍为 `one-sentence-novel`，无需改名）。
 
 ## 分支
 
@@ -48,7 +58,7 @@ npx wrangler delete onesentencenovel
 **必须用 Secret**，不要用普通 Variable。
 
 ```bash
-npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put RESEND_API_KEY --name 1024201-portal
 ```
 
 验证：`https://www.1024201.com/api/health` → `"hasResendKey": true`
@@ -65,12 +75,15 @@ npx wrangler secret put RESEND_API_KEY
 npx wrangler deploy
 ```
 
-部署后请用 **Cmd+Shift+R** 强刷 `www.1024201.com`，确认 `/api/health` 中 `"worker":"one-sentence-novel"`。
+部署后请用 **Cmd+Shift+R** 强刷 `www.1024201.com`，确认 `/api/health` 中 `"worker":"1024201-portal"`。
 
-## 本地 wrangler 日志与密钥
+## PWA（添加到主屏幕）
 
-Wrangler 在对比本地/远程配置时，可能把**明文 Variable** 的值写进本地日志（路径见下）。**绝不要把 API 密钥配成普通 Variable**，只用 Secret。
+| 文件 | 作用 |
+|------|------|
+| `manifest.webmanifest` | 应用名、图标、主题色、全屏模式 |
+| `sw.js` | Service Worker（门户壳缓存；`/api/` 始终走网络） |
+| `pwa.js` | 注册 Service Worker |
+| `icons/` | 192 / 512 / apple-touch-icon |
 
-- macOS 日志目录：`~/Library/Preferences/.wrangler/logs/`
-- 含密钥的日志应手动删除；若密钥曾出现在日志或 deploy 输出中，请在 Resend 控制台**轮换**该 API Key
-- Wrangler **没有**对本地日志做自动脱敏；避免泄露的做法是：Secret 存 `wrangler secret put`、不写进 `wrangler.toml`、定期清空上述 logs 目录
+**iPhone 安装：** Safari 打开 `https://1024201.com/` → 分享 → **添加到主屏幕** → 主屏幕图标名「1042」。

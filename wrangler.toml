@@ -1,10 +1,11 @@
 # Worker 名称必须与 Cloudflare 控制台里实际接域名的 Worker 一致
-name = "one-sentence-novel"
+name = "1024201-portal"
 main = "worker.js"
 compatibility_date = "2024-09-23"
 workers_dev = false
 
-# 域名路由须写进本文件，否则 wrangler deploy 会清空控制台里的 Routes（站点 404）
+# 子功能子域：每上线一个新工具，须同步 (1) worker.js SUBDOMAIN_ROOT (2) 本文件 [[routes]] (3) DNS CNAME → 1024201.com
+# 仅映射子域根路径 / → 站内入口；主站路径结构不变。mail 为独立服务，不走此 Worker。
 [[routes]]
 pattern = "1024201.com/*"
 zone_name = "1024201.com"
@@ -17,6 +18,37 @@ zone_name = "1024201.com"
 pattern = "game.1024201.com/*"
 zone_name = "1024201.com"
 
+[[routes]]
+pattern = "fx.1024201.com/*"
+zone_name = "1024201.com"
+
+[[routes]]
+pattern = "music.1024201.com/*"
+zone_name = "1024201.com"
+
+[[routes]]
+pattern = "syncnote.1024201.com/*"
+zone_name = "1024201.com"
+
+[[routes]]
+pattern = "pdf.1024201.com/*"
+zone_name = "1024201.com"
+
+[[routes]]
+pattern = "lyrics.1024201.com/*"
+zone_name = "1024201.com"
+
+[[routes]]
+pattern = "cli.1024201.com/*"
+zone_name = "1024201.com"
+
+[[routes]]
+pattern = "address.1024201.com/*"
+zone_name = "1024201.com"
+
+[triggers]
+crons = ["0 14 * * *"]
+
 [assets]
 directory = "."
 binding = "ASSETS"
@@ -27,7 +59,7 @@ binding = "DB"
 database_name = "one-sentence-novel"
 database_id = "1c4cce8e-c510-450d-8277-80b29d415c4b"
 
-# 自定义域名在控制台配置：Workers → one-sentence-novel → Domains & Routes
+# 自定义域名在控制台配置：Workers → 1024201-portal → Domains & Routes
 # RESEND_API_KEY 用 Secret 配置（wrangler secret put），不要写进本文件
 # 禁止在本文件添加 [vars] 段——deploy 会同步并清掉控制台里未声明的明文 Variable
 # Worker Secret 不会被 wrangler deploy 删除；勿用 deploy 覆盖用户手动配置的密钥

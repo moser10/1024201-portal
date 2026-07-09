@@ -4,11 +4,25 @@
 <meta charset="UTF-8">
 <title>王昊文 — 職務経歴書</title>
 <style>
+  @font-face {
+    font-family: "NotoJP";
+    src: url("noto-jp-400.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+  }
+  @font-face {
+    font-family: "NotoJP";
+    src: url("noto-jp-700.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+  }
   @page { size: A4; margin: 14mm 14mm 14mm 14mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif;
+    font-family: "NotoJP", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
     color: #222;
     font-size: 10.2px;
     line-height: 1.55;
@@ -22,7 +36,7 @@
   }
   .title {
     font-size: 10.8px;
-    font-weight: 600;
+    font-weight: 700;
     color: #2f6b9e;
     margin: 3px 0 6px 0;
   }
@@ -44,11 +58,11 @@
   .job { margin-bottom: 9px; page-break-inside: avoid; }
   .job-head { display: flex; justify-content: space-between; align-items: baseline; }
   .job-role { font-weight: 700; color: #173a57; font-size: 10.8px; }
-  .job-org { font-weight: 600; color: #444; }
+  .job-org { font-weight: 700; color: #444; }
   .job-meta { font-size: 9.3px; color: #666; white-space: nowrap; }
   ul { margin: 3px 0 0 0; padding-left: 15px; }
   li { margin-bottom: 2.5px; text-align: justify; }
-  .tag { color: #2f6b9e; font-weight: 600; }
+  .tag { color: #2f6b9e; font-weight: 700; }
   .flag { background: #eef4fa; border-left: 3px solid #2f6b9e; padding: 5px 8px; margin-top: 4px; border-radius: 2px; }
   .two-col { display: flex; gap: 24px; }
   .two-col > div { flex: 1; }
@@ -148,7 +162,7 @@
       <strong>全部門がネットワーク経由で利用</strong>でき、レポートを自動で可視化生成。
       <ul class="compact" style="margin-top:4px;">
         <li>各独自プロトコルをPythonの<strong>辞書（dictionary）</strong>でモデル化し、共通・反復的な部分は再利用可能なデコードアルゴリズムとして実装。</li>
-        <li>特に複雑なビット単位のケースは呼び出し可能なメソッドとしてハードコード（例：<code>0xAA</code> の後に8バイトの16進フィールドが続き、2桁ごとに異なる走行指標を表し、上位・下位バイトの各ビットが別々の意味を持つ）。共通のビット抽出ヘルパーを各パーサで再利用。</li>
+        <li>特に複雑なビット単位のケースは、再利用可能な呼び出しメソッドとして実装し、共通のビット抽出ヘルパーを各パーサで再利用。</li>
         <li>大型トラック領域を幅広くカバー：積載容量計測、積載／荷重、コールドチェーンの温度差、ドライバー／乗員の行動モニタリング（あくび・喫煙などの危険行動）。</li>
         <li>多くのチームが手作業で対応していた課題を、共有・再現可能なセルフサービスツールへ転換。指示されたタスクではなく自発的な取り組み。</li>
       </ul>

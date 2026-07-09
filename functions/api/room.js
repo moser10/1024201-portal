@@ -14,7 +14,18 @@ import {
   bookCharCount,
   MIN_CHAPTER_CHARS,
   MIN_CHAPTERS_COUNT,
+  parseWritingState,
+  emptyWritingState,
+  getOnlineMembers,
+  syncWritingPresence,
+  canUserWriteBook,
+  afterBookPublish,
+  WRITES_PER_TURN,
 } from "./_shared.js";
+
+function trimEdges(text) {
+  return typeof text === "string" ? text.replace(/^\s+|\s+$/g, "") : "";
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -28,11 +39,19 @@ export async function onRequest(context) {
     await ensureAppSchema(db);
 
     if (request.method === "POST" && action === "check_title") {
-      const { title } = await request.json();
+      const { title, exclude_story_id } = await request.json();
       const name = title?.trim();
       if (!name) return json({ error: "书名不能为空" }, 400);
 
-      const existing = await db.prepare("SELECT id FROM stories WHERE title = ?").bind(name).first();
+      let existing;
+      if (exclude_story_id) {
+        existing = await db
+          .prepare("SELECT id FROM stories WHERE title = ? AND id != ?")
+          .bind(name, exclude_story_id)
+          .first();
+      } else {
+        existing = await db.prepare("SELECT id FROM stories WHERE title = ?").bind(name).first();
+      }
       if (existing) {
         const recommend = await generateUniqueName(db, name, "stories", "title");
         return json({ available: false, recommend });
@@ -97,8 +116,9 @@ export async function onRequest(context) {
     if (request.method === "POST" && action === "update_title") {
       const { story_id, user_id, title } = await request.json();
       const name = title?.trim();
-      const story = await db.prepare("SELECT owner_id FROM stories WHERE id = ?").bind(story_id).first();
+      const story = await db.prepare("SELECT owner_id, title FROM stories WHERE id = ?").bind(story_id).first();
       if (!story || story.owner_id !== user_id) return json({ error: "仅房主可修改书名" }, 403);
+      if (name === story.title) return json({ success: true, title: name });
 
       const dup = await db.prepare("SELECT id FROM stories WHERE title = ? AND id != ?").bind(name, story_id).first();
       if (dup) {
@@ -155,7 +175,7 @@ export async function onRequest(context) {
 
       const { results } = await db
         .prepare(
-          `SELECT s.id, s.title, s.invite_code, u.username AS owner_name,
+          `SELECT s.id, s.title, u.username AS owner_name,
                   sm.status AS my_status, sm.role AS my_role
            FROM stories s
            JOIN users u ON s.owner_id = u.id
@@ -235,13 +255,25 @@ export async function onRequest(context) {
       return json({ success: true });
     }
 
+    if (request.method === "POST" && action === "reject_join") {
+      const { story_id, owner_id, user_id } = await request.json();
+      const story = await db.prepare("SELECT owner_id FROM stories WHERE id = ?").bind(story_id).first();
+      if (!story || story.owner_id !== owner_id) return json({ error: "仅房主可审批" }, 403);
+
+      await db
+        .prepare("DELETE FROM story_members WHERE story_id = ? AND user_id = ? AND status = 'pending'")
+        .bind(story_id, user_id)
+        .run();
+      return json({ success: true });
+    }
+
     if (request.method === "POST" && action === "pull_user") {
       const { story_id, owner_id, user_id } = await request.json();
       const story = await db.prepare("SELECT owner_id FROM stories WHERE id = ?").bind(story_id).first();
       if (!story || story.owner_id !== owner_id) return json({ error: "仅房主可拉人" }, 403);
 
       const member = await isMember(db, story_id, user_id);
-      if (member?.status === "active") return json({ error: "该用户已在群中", already_in: true });
+      if (member?.status === "active") return json({ error: "该用户已在房间中", already_in: true });
 
       await db
         .prepare(
@@ -257,6 +289,17 @@ export async function onRequest(context) {
       const member = await isMember(db, story_id, user_id);
       if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
       await touchPresence(db, story_id, user_id);
+
+      const online = await getOnlineMembers(db, story_id);
+      const onlineIds = online.map((o) => o.user_id);
+      const story = await db.prepare("SELECT writing_state_json FROM stories WHERE id = ?").bind(story_id).first();
+      let state = parseWritingState(story?.writing_state_json) || emptyWritingState(onlineIds);
+      state = syncWritingPresence(state, Number(user_id), onlineIds);
+      await db
+        .prepare("UPDATE stories SET writing_state_json = ? WHERE id = ?")
+        .bind(JSON.stringify(state), story_id)
+        .run();
+
       return json({ success: true });
     }
 
@@ -335,10 +378,40 @@ export async function onRequest(context) {
       await touchPresence(db, storyId, userId);
       await cleanupInactiveChat(db, storyId);
 
+      const online = await getOnlineMembers(db, storyId);
+      const onlineIds = online.map((o) => o.user_id);
+
       const story = await db
-        .prepare("SELECT title, chapters_json, invite_code, owner_id FROM stories WHERE id = ?")
+        .prepare("SELECT title, chapters_json, invite_code, owner_id, writing_state_json FROM stories WHERE id = ?")
         .bind(storyId)
         .first();
+
+      let writingState = parseWritingState(story?.writing_state_json) || emptyWritingState(onlineIds);
+      writingState = syncWritingPresence(writingState, Number(userId), onlineIds);
+      await db
+        .prepare("UPDATE stories SET writing_state_json = ? WHERE id = ?")
+        .bind(JSON.stringify(writingState), storyId)
+        .run();
+
+      const writeCheck = canUserWriteBook(writingState, Number(userId), onlineIds);
+      let holderName = null;
+      if (writingState.holder_id) {
+        const h = await db.prepare("SELECT username FROM users WHERE id = ?").bind(writingState.holder_id).first();
+        holderName = h?.username || null;
+      }
+
+      let pendingApprovals = [];
+      if (Number(story?.owner_id) === Number(userId)) {
+        const { results: pending } = await db
+          .prepare(
+            `SELECT sm.user_id, u.username
+             FROM story_members sm JOIN users u ON sm.user_id = u.id
+             WHERE sm.story_id = ? AND sm.status = 'pending'`
+          )
+          .bind(storyId)
+          .all();
+        pendingApprovals = pending;
+      }
 
       const { results } = await db
         .prepare(
@@ -361,11 +434,25 @@ export async function onRequest(context) {
 
       return json({
         title: story?.title,
-        invite_code: story?.invite_code,
+        invite_code: Number(story?.owner_id) === Number(userId) ? story?.invite_code : undefined,
         owner_id: story?.owner_id,
         book,
         chat,
         chapters,
+        online,
+        pending_approvals: pendingApprovals,
+        writing: {
+          round: writingState.round,
+          phase: writingState.phase,
+          holder_id: writingState.holder_id,
+          holder_name: holderName,
+          holder_writes: writingState.holder_writes,
+          writes_per_turn: WRITES_PER_TURN,
+          completed: writingState.completed,
+          deferred: writingState.deferred,
+          can_write_book: writeCheck.ok,
+          write_hint: writeCheck.ok ? "" : writeCheck.reason,
+        },
         total_chars: bookCharCount(book),
         can_chapter: canGenerateChapters(book),
       });
@@ -373,14 +460,16 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "publish") {
       const { story_id, user_id, type, text } = await request.json();
-      const content = text?.trim();
+      const isBook = type === "book";
+      const content = isBook ? trimEdges(text) : text?.trim();
       if (!content) return json({ error: "内容不能为空" }, 400);
       if (!["book", "chat"].includes(type)) return json({ error: "类型无效" }, 400);
+      if (isBook && content.length > 50) return json({ error: "共享写书限50字" }, 400);
 
       const member = await isMember(db, story_id, user_id);
       if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
 
-      if (type === "book") {
+      if (isBook) {
         const penalty = await db
           .prepare(
             `SELECT COUNT(*) AS count FROM recall_logs
@@ -392,17 +481,21 @@ export async function onRequest(context) {
           return json({ error: "因半小时内撤回超过10次，写书功能已被冻结30分钟，但你仍可以聊天。" }, 403);
         }
 
-        const last = await db
-          .prepare(
-            `SELECT user_id FROM content_stream
-             WHERE story_id = ? AND type = 'book' AND status = 'active'
-             ORDER BY id DESC LIMIT 1`
-          )
-          .bind(story_id)
-          .first();
-        if (last && last.user_id === user_id) {
-          return json({ error: "不能连续写书，等其他人写一句吧！" }, 400);
-        }
+        await touchPresence(db, story_id, user_id);
+        const online = await getOnlineMembers(db, story_id);
+        const onlineIds = online.map((o) => o.user_id);
+        const storyRow = await db.prepare("SELECT writing_state_json FROM stories WHERE id = ?").bind(story_id).first();
+        let writingState = parseWritingState(storyRow?.writing_state_json) || emptyWritingState(onlineIds);
+        writingState = syncWritingPresence(writingState, Number(user_id), onlineIds);
+
+        const writeCheck = canUserWriteBook(writingState, Number(user_id), onlineIds);
+        if (!writeCheck.ok) return json({ error: writeCheck.reason }, 403);
+
+        writingState = afterBookPublish(writingState, Number(user_id), onlineIds);
+        await db
+          .prepare("UPDATE stories SET writing_state_json = ? WHERE id = ?")
+          .bind(JSON.stringify(writingState), story_id)
+          .run();
       }
 
       const result = await db

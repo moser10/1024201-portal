@@ -1,11 +1,19 @@
-import { authApi, roomApi } from "./api.js";
+import { roomApi } from "./api.js";
 import { bindNameCheck } from "./nameCheck.js";
-import { getUser, setUser, setRoom, clearRoom } from "../../js/store.js";
+import { getUser, setRoom, clearRoom } from "../../js/store.js";
 import { mountUserBar } from "../../js/userBar.js";
+import { mountLangTabs } from "/js/langTabs.js";
+import { renderTodos } from "../../js/todos.js";
+import { showToast } from "../../js/toast.js";
 
 export function renderLobby(app, onEnterRoom, game) {
   const user = getUser();
+  if (!user) {
+    window.location.href = `/game/register/?return=${encodeURIComponent("onesentence/")}`;
+    return;
+  }
   let todoTimer = null;
+  let lobbyDisposed = false;
 
   app.innerHTML = `
     <div class="card">
@@ -14,7 +22,8 @@ export function renderLobby(app, onEnterRoom, game) {
           <p class="game-brand">${game.nameEn}</p>
           <h1>${game.lobbyTitle}</h1>
         </div>
-        <div class="row" style="margin:0;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;">
+        <div class="row header-lang-row" style="margin:0;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;">
+          <div id="lobbyLangSlot"></div>
           <div id="lobbyUserBar"></div>
           <button type="button" id="leaveLobbyBtn" class="btn-secondary btn-small">返回游戏中心</button>
         </div>
@@ -51,25 +60,19 @@ export function renderLobby(app, onEnterRoom, game) {
         <div id="searchResults"></div>
       </section>
 
-      <section class="section" id="ownerPanel" hidden>
-        <h2>房主管理 · 拉人进群</h2>
-        <div class="row">
-          <input type="text" id="pullSearch" placeholder="搜索用户昵称">
-          <button id="pullSearchBtn" class="btn-secondary">搜索</button>
-        </div>
-        <div id="pullResults"></div>
-      </section>
-
       <section class="section">
         <h2>我的房间</h2>
         <div id="myRooms"></div>
       </section>
     </div>`;
 
+  mountLangTabs(document.getElementById("lobbyLangSlot"));
   mountUserBar(document.getElementById("lobbyUserBar"), {
     variant: "game",
     returnPath: "onesentence/",
     onLogout: () => {
+      lobbyDisposed = true;
+      clearInterval(todoTimer);
       window.location.href = "/game/register/";
     },
   });
@@ -152,7 +155,7 @@ export function renderLobby(app, onEnterRoom, game) {
           <div class="list-item">
             <div>
               <strong>${r.title}</strong><br>
-              <span class="sub">房主 ${r.owner_name} · 分享码 <code class="share-code">${r.invite_code}</code></span>
+              <span class="sub">房主 ${r.owner_name}</span>
               ${joinStatusLabel(r)}
             </div>
             ${joinActionHtml(r)}
@@ -176,152 +179,26 @@ export function renderLobby(app, onEnterRoom, game) {
     }
   };
 
-  document.getElementById("pullSearchBtn").onclick = async () => {
-    const q = document.getElementById("pullSearch").value.trim();
-    const box = document.getElementById("pullResults");
-    if (!ownerRoom) return alert("你暂无房主房间");
-    if (!q) return (box.innerHTML = "");
-    try {
-      const data = await authApi.searchUsers(q);
-      const members = (await roomApi.members(ownerRoom.id)).members;
-      const memberIds = new Set(members.map((m) => m.user_id));
-      box.innerHTML = data.users
-        .filter((u) => u.id !== user.id)
-        .map((u) => {
-          const inGroup = memberIds.has(u.id);
-          return `
-        <div class="list-item">
-          <span>@${u.username}${inGroup ? ' <em class="hint ok">已在群</em>' : ""}</span>
-          ${inGroup ? "" : `<button data-uid="${u.id}" class="btn-small pull-btn">拉进群</button>`}
-        </div>`;
-        })
-        .join("");
-      box.querySelectorAll(".pull-btn").forEach((btn) => {
-        btn.onclick = async () => {
-          try {
-            await roomApi.pullUser(ownerRoom.id, user.id, Number(btn.dataset.uid));
-            alert("已拉入群组");
-            loadTodos();
-          } catch (e) {
-            alert(e.message);
-          }
-        };
-      });
-    } catch (e) {
-      box.innerHTML = `<p class="hint err">${e.message}</p>`;
-    }
-  };
-
   function enterRoom(room) {
     clearInterval(todoTimer);
     setRoom(room);
     onEnterRoom(room);
   }
 
-  let ownerRoom = null;
-
   async function loadTodos() {
-    const box = document.getElementById("todoBox");
-    const currentUser = getUser();
-    try {
-      const data = await roomApi.todos(user.id);
-      const approveHtml = data.to_approve.length
-        ? `<h3>待审批</h3>${data.to_approve
-            .map(
-              (g) => `
-          <div class="todo-group">
-            <strong>《${g.title}》</strong>
-            ${g.requests
-              .map(
-                (r) => `
-              <div class="list-item">
-                <span>@${r.username}</span>
-                <button class="btn-small approve-btn" data-sid="${g.story_id}" data-uid="${r.user_id}">同意</button>
-              </div>`
-              )
-              .join("")}
-          </div>`
-            )
-            .join("")}`
-        : `<p class="sub">暂无待审批</p>`;
-
-      const waitingHtml = data.waiting.length
-        ? `<h3>待通过</h3>${data.waiting
-            .map((w) => `<div class="list-item"><span>《${w.title}》</span><em class="hint warn">等待房主同意</em></div>`)
-            .join("")}`
-        : `<p class="sub">暂无待通过申请</p>`;
-
-      const pwdHtml = currentUser.must_change_password
-        ? `<h3>账户安全</h3>
-           <div class="todo-group">
-             <p class="sub">你正在使用临时密码，请尽快修改</p>
-             <input type="password" id="newPass1" placeholder="新密码">
-             <input type="password" id="newPass2" placeholder="确认新密码">
-             <p id="pwdHint" class="hint"></p>
-             <button id="changePwdBtn" class="btn-primary" disabled>修改密码</button>
-           </div>`
-        : "";
-
-      box.innerHTML = pwdHtml + approveHtml + waitingHtml;
-
-      box.querySelectorAll(".approve-btn").forEach((btn) => {
-        btn.onclick = async () => {
-          await roomApi.approve(Number(btn.dataset.sid), user.id, Number(btn.dataset.uid));
-          loadTodos();
-          loadMyRooms();
-        };
-      });
-
-      const pwdBtn = document.getElementById("changePwdBtn");
-      if (pwdBtn) {
-        const p1 = document.getElementById("newPass1");
-        const p2 = document.getElementById("newPass2");
-        const hint = document.getElementById("pwdHint");
-        const sync = () => {
-          if (!p1.value || !p2.value) {
-            pwdBtn.disabled = true;
-            hint.textContent = "";
-            return;
-          }
-          if (p1.value !== p2.value) {
-            pwdBtn.disabled = true;
-            hint.textContent = "两次密码不一致";
-            hint.className = "hint err";
-          } else if (p1.value.length < 6) {
-            pwdBtn.disabled = true;
-            hint.textContent = "密码至少 6 位";
-            hint.className = "hint err";
-          } else {
-            pwdBtn.disabled = false;
-            hint.textContent = "✓ 可以提交";
-            hint.className = "hint ok";
-          }
-        };
-        p1.oninput = sync;
-        p2.oninput = sync;
-        pwdBtn.onclick = async () => {
-          try {
-            const res = await authApi.changePassword(currentUser.id, p1.value, p2.value);
-            currentUser.must_change_password = false;
-            setUser(currentUser);
-            alert(res.message);
-            loadTodos();
-          } catch (e) {
-            alert(e.message);
-          }
-        };
-      }
-    } catch (e) {
-      box.innerHTML = `<p class="hint err">${e.message}</p>`;
-    }
+    if (lobbyDisposed) return;
+    await renderTodos(document.getElementById("todoBox"), {
+      section: document.querySelector(".todo-section"),
+      onChange: loadMyRooms,
+    });
   }
 
   async function loadMyRooms() {
+    if (lobbyDisposed) return;
+    if (!getUser()) return;
     const box = document.getElementById("myRooms");
     try {
       const data = await roomApi.myRooms(user.id);
-      ownerRoom = data.rooms.find((r) => r.role === "owner") || null;
-      document.getElementById("ownerPanel").hidden = !ownerRoom;
 
       if (!data.rooms.length) {
         box.innerHTML = `<p class="sub">暂无房间，请创建或加入</p>`;

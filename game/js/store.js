@@ -10,6 +10,10 @@ export function getUser() {
 }
 
 export function setUser(user) {
+  const prev = getUser();
+  if (prev?.id && user?.id && prev.id !== user.id) {
+    clearRoom();
+  }
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 

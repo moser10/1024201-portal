@@ -24,45 +24,47 @@
         <p class="tool-user" id="userLine" hidden></p>
       </div>
 
-      <div class="login-panel" id="loginPanel" hidden>
-        <p id="loginDesc"></p>
-        <a class="btn-primary btn-link" id="loginBtn" href="/game/register/">Sign in</a>
-      </div>
-
-      <div id="editorWrap" class="sync-editor" hidden>
-        <div class="sync-panel">
-          <div class="sync-slots" id="slotsWrap">
-            <section class="sync-slot" data-slot="0">
-              <h2 class="sync-slot-label" data-slot-label="0"></h2>
-              <textarea class="sync-input" rows="1" spellcheck="false" autocomplete="off"></textarea>
-              <p class="sync-status"></p>
-              <div class="sync-actions">
-                <button type="button" class="btn-primary sync-copy"></button>
-                <button type="button" class="btn-secondary sync-paste"></button>
-                <button type="button" class="btn-danger sync-clear"></button>
-              </div>
-            </section>
-            <section class="sync-slot" data-slot="1">
-              <h2 class="sync-slot-label" data-slot-label="1"></h2>
-              <textarea class="sync-input" rows="1" spellcheck="false" autocomplete="off"></textarea>
-              <p class="sync-status"></p>
-              <div class="sync-actions">
-                <button type="button" class="btn-primary sync-copy"></button>
-                <button type="button" class="btn-secondary sync-paste"></button>
-                <button type="button" class="btn-danger sync-clear"></button>
-              </div>
-            </section>
-            <section class="sync-slot" data-slot="2">
-              <h2 class="sync-slot-label" data-slot-label="2"></h2>
-              <textarea class="sync-input" rows="1" spellcheck="false" autocomplete="off"></textarea>
-              <p class="sync-status"></p>
-              <div class="sync-actions">
-                <button type="button" class="btn-primary sync-copy"></button>
-                <button type="button" class="btn-secondary sync-paste"></button>
-                <button type="button" class="btn-danger sync-clear"></button>
-              </div>
-            </section>
+      <div class="sync-workspace" id="syncWorkspace">
+        <div id="editorWrap" class="sync-editor">
+          <div class="sync-panel">
+            <div class="sync-slots" id="slotsWrap">
+              <section class="sync-slot" data-slot="0">
+                <h2 class="sync-slot-label" data-slot-label="0"></h2>
+                <textarea class="sync-input" rows="1" spellcheck="false" autocomplete="off" readonly tabindex="-1"></textarea>
+                <p class="sync-status"></p>
+                <div class="sync-actions">
+                  <button type="button" class="btn-primary sync-copy"></button>
+                  <button type="button" class="btn-secondary sync-paste"></button>
+                  <button type="button" class="btn-danger sync-clear"></button>
+                </div>
+              </section>
+              <section class="sync-slot" data-slot="1">
+                <h2 class="sync-slot-label" data-slot-label="1"></h2>
+                <textarea class="sync-input" rows="1" spellcheck="false" autocomplete="off" readonly tabindex="-1"></textarea>
+                <p class="sync-status"></p>
+                <div class="sync-actions">
+                  <button type="button" class="btn-primary sync-copy"></button>
+                  <button type="button" class="btn-secondary sync-paste"></button>
+                  <button type="button" class="btn-danger sync-clear"></button>
+                </div>
+              </section>
+              <section class="sync-slot" data-slot="2">
+                <h2 class="sync-slot-label" data-slot-label="2"></h2>
+                <textarea class="sync-input" rows="1" spellcheck="false" autocomplete="off" readonly tabindex="-1"></textarea>
+                <p class="sync-status"></p>
+                <div class="sync-actions">
+                  <button type="button" class="btn-primary sync-copy"></button>
+                  <button type="button" class="btn-secondary sync-paste"></button>
+                  <button type="button" class="btn-danger sync-clear"></button>
+                </div>
+              </section>
+            </div>
           </div>
+        </div>
+
+        <div class="login-panel" id="loginPanel" hidden>
+          <p id="loginDesc"></p>
+          <a class="btn-primary btn-link" id="loginBtn" href="/game/register/">Sign in</a>
         </div>
       </div>
       <p class="err" id="errBox" hidden></p>
@@ -70,6 +72,6 @@
     </div>
   </div>
   <script src="/tools/js/instantPaint.js"></script>
-  <script type="module" src="syncnote.js?v=2"></script>
+  <script type="module" src="syncnote.js?v=3"></script>
 </body>
 </html>
