@@ -5,6 +5,24 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+ZSH_MARKER="# 1024201-portal dev"
+
+ensure_zshrc() {
+  local zshrc="${HOME}/.zshrc"
+  touch "$zshrc"
+  if grep -qF "$ZSH_MARKER" "$zshrc" 2>/dev/null; then
+    return 0
+  fi
+  cat >>"$zshrc" <<'EOF'
+
+# 1024201-portal dev
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+export PATH="$HOME/.npm-global/bin:$PATH"
+EOF
+  echo "Updated ~/.zshrc (nvm + 1024 CLI PATH)"
+}
+
 ensure_node() {
   if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
     local major
@@ -24,22 +42,22 @@ ensure_node() {
   fi
   # shellcheck disable=SC1091
   . "$NVM_DIR/nvm.sh"
-  nvm install
-  nvm use
+  if [ -f "$ROOT/.nvmrc" ]; then
+    nvm install
+    nvm use
+  else
+    nvm install 22
+    nvm use 22
+  fi
+  ensure_zshrc
+  # shellcheck disable=SC1091
+  . "$NVM_DIR/nvm.sh"
   echo "Node $(node -v) · npm $(npm -v)"
 }
 
-ensure_zsh_path_hint() {
-  local npm_global
-  npm_global="$(npm prefix -g 2>/dev/null || echo "${HOME}/.npm-global")"
-  if [[ ":$PATH:" != *":${npm_global}/bin:"* ]]; then
-    echo ""
-    echo "Add to zsh (~/.zshrc):"
-    echo "  export PATH=\"${npm_global}/bin:\$PATH\""
-  fi
-}
-
 ensure_node
+ensure_zshrc
+
 echo "Installing project dependencies (wrangler) ..."
 npm install
 
@@ -54,13 +72,14 @@ npm link ./cli
 
 echo ""
 echo "Verify:"
-echo "  ./node_modules/.bin/wrangler --version"
 ./node_modules/.bin/wrangler --version
-echo "  1024 --version"
 1024 --version
 
-ensure_zsh_path_hint
-
 echo ""
-echo "Done. Deploy (after CLOUDFLARE_API_TOKEN or wrangler login):"
+echo "Done."
+echo "  cd $ROOT"
+echo "  source ~/.zshrc    # or open a new Terminal tab"
+echo "  1024 --version"
+echo ""
+echo "Deploy (after wrangler login or CLOUDFLARE_API_TOKEN):"
 echo "  npm run deploy"

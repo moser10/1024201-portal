@@ -75,6 +75,21 @@ npx wrangler secret put RESEND_API_KEY --name 1024201-portal
 npx wrangler deploy
 ```
 
+### 新电脑一键安装（Node + wrangler + 1024 CLI）
+
+在空目录或已有克隆里：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/moser10/1024201-portal/main/install.sh | bash -s -- ~/CodeProjects/1024
+```
+
+或克隆后：
+
+```bash
+git clone https://github.com/moser10/1024201-portal.git ~/CodeProjects/1024
+bash ~/CodeProjects/1024/scripts/setup-dev.sh
+```
+
 部署后请用 **Cmd+Shift+R** 强刷 `www.1024201.com`，确认 `/api/health` 中 `"worker":"1024201-portal"`。
 
 ## PWA（添加到主屏幕）
