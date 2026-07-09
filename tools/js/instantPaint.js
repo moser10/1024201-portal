@@ -32,9 +32,9 @@
       ja: { pageTitle: "住所検索", pageSub: "賃貸・売買 · 住所 · 郵便番号 · 電話", backLink: "ツールボックス" },
     },
     fx: {
-      en: { pageTitle: "Exchange Rates", pageSub: "ECB reference · refreshes every 6 hours", backLink: "Portal" },
-      zh: { pageTitle: "实时汇率", pageSub: "欧洲央行参考汇率 · 每 6 小时更新", backLink: "返回门户" },
-      ja: { pageTitle: "為替レート", pageSub: "ECB参考 · 6時間ごとに更新", backLink: "ポータル" },
+      en: { pageTitle: "Exchange Rates", pageSub: "ECB reference · refreshes every 30 minutes", backLink: "Portal" },
+      zh: { pageTitle: "实时汇率", pageSub: "欧洲央行参考汇率 · 每 30 分钟更新", backLink: "返回门户" },
+      ja: { pageTitle: "為替レート", pageSub: "ECB参考 · 30分ごとに更新", backLink: "ポータル" },
     },
     "lyrics-view": {
       en: { backLink: "Search" },

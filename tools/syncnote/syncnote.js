@@ -15,14 +15,12 @@ const UI = {
     loginBtn: "Sign in / Register",
     slot: (n) => `Relay ${n}`,
     copy: "Copy",
-    paste: "Paste",
     clear: "Delete",
     saved: "Saved",
     saving: "Saving…",
     loaded: "Loaded",
     cleared: "Cleared",
     copied: "Copied to clipboard",
-    pasted: "Pasted from clipboard",
     user: (n) => `@${n}`,
     errLoad: "Failed to load",
     errSave: "Failed to save",
@@ -36,14 +34,12 @@ const UI = {
     loginBtn: "登录 / 注册",
     slot: (n) => `中转 ${n}`,
     copy: "复制",
-    paste: "粘贴",
     clear: "删除",
     saved: "已保存",
     saving: "保存中…",
     loaded: "已加载",
     cleared: "已清空",
     copied: "已复制到剪贴板",
-    pasted: "已从剪贴板粘贴",
     user: (n) => `@${n}`,
     errLoad: "加载失败",
     errSave: "保存失败",
@@ -57,14 +53,12 @@ const UI = {
     loginBtn: "ログイン / 登録",
     slot: (n) => `中継 ${n}`,
     copy: "コピー",
-    paste: "貼り付け",
     clear: "削除",
     saved: "保存済み",
     saving: "保存中…",
     loaded: "読み込み済み",
     cleared: "削除しました",
     copied: "クリップボードにコピー",
-    pasted: "クリップボードから貼り付け",
     user: (n) => `@${n}`,
     errLoad: "読み込みに失敗",
     errSave: "保存に失敗",
@@ -131,7 +125,6 @@ function applyI18n() {
     const n = slotNum(el) + 1;
     el.querySelector("[data-slot-label]").textContent = t.slot(n);
     el.querySelector(".sync-copy").textContent = t.copy;
-    el.querySelector(".sync-paste").textContent = t.paste;
     el.querySelector(".sync-clear").textContent = t.clear;
   });
 }
@@ -271,22 +264,6 @@ async function copySlot(el, e) {
   }
 }
 
-async function pasteSlot(el, e) {
-  e.preventDefault();
-  e.stopPropagation();
-  showError("");
-  try {
-    const text = await navigator.clipboard.readText();
-    const ta = slotInput(el);
-    ta.value = text;
-    fitInput(ta, { tail: true });
-    flashStatus(el, t.pasted);
-    scheduleSave(el);
-  } catch {
-    showError(t.errClip);
-  }
-}
-
 function setGuestMode(on) {
   syncWorkspace.classList.toggle("sync-guest", on);
   loginPanel.hidden = !on;
@@ -334,7 +311,6 @@ slotEls.forEach((el) => {
   ta.addEventListener("focus", () => fitInput(ta));
   ta.addEventListener("blur", () => fitInput(ta, { tail: true }));
   el.querySelector(".sync-copy").addEventListener("click", (e) => copySlot(el, e));
-  el.querySelector(".sync-paste").addEventListener("click", (e) => pasteSlot(el, e));
   el.querySelector(".sync-clear").addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();

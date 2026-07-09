@@ -19,7 +19,7 @@ const CURRENCIES = [
 const UI = {
   en: {
     title: "Exchange Rates",
-    sub: "ECB reference · refreshes every 6 hours",
+    sub: "ECB reference · refreshes every 30 minutes",
     base: "Base",
     back: "Portal",
     err: "Failed to load rates",
@@ -27,7 +27,7 @@ const UI = {
   },
   zh: {
     title: "实时汇率",
-    sub: "欧洲央行参考汇率 · 每 6 小时更新",
+    sub: "欧洲央行参考汇率 · 每 30 分钟更新",
     base: "基准货币",
     back: "返回门户",
     err: "汇率加载失败",
@@ -35,7 +35,7 @@ const UI = {
   },
   ja: {
     title: "為替レート",
-    sub: "ECB参考 · 6時間ごとに更新",
+    sub: "ECB参考 · 30分ごとに更新",
     base: "基準通貨",
     back: "ポータル",
     err: "読み込みに失敗しました",

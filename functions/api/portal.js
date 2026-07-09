@@ -922,7 +922,7 @@ async function gateToolUse(db, request, tool, userId) {
   return { ok: true, key, q };
 }
 
-const RATES_TTL_SEC = 6 * 60 * 60;
+const RATES_TTL_SEC = 30 * 60;
 const RATE_SYMBOLS = "USD,CNY,GBP,EUR,JPY,THB,SEK,INR,HKD,AUD,MXN,BRL";
 
 async function getCachedRates(base, waitUntil) {
@@ -944,7 +944,7 @@ async function getCachedRates(base, waitUntil) {
     date: data.date,
     rates: data.rates,
     cachedAt: new Date().toISOString(),
-    refreshHours: 6,
+    refreshMinutes: 30,
   };
   const toCache = new Response(JSON.stringify(payload), {
     headers: {
