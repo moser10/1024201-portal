@@ -2,8 +2,8 @@
 # Install 1024 CLI from a git checkout or published npm package.
 set -e
 
-INSTALL_DIR="${1024_INSTALL_DIR:-$HOME/.local/1024-cli}"
-REPO_URL="${1024_REPO_URL:-https://github.com/moser10/1024201-portal.git}"
+INSTALL_DIR="${PORTAL_INSTALL_DIR:-$HOME/.local/1024-cli}"
+REPO_URL="${PORTAL_REPO_URL:-https://github.com/moser10/1024201-portal.git}"
 
 if command -v 1024 >/dev/null 2>&1; then
   echo "1024 already on PATH: $(command -v 1024)"

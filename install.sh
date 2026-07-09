@@ -5,8 +5,11 @@
 #   curl -fsSL .../install.sh | bash -s -- ~/CodeProjects/1024
 set -euo pipefail
 
-REPO_URL="${1024_REPO_URL:-https://github.com/moser10/1024201-portal.git}"
-TARGET="${1:-${1024_INSTALL_DIR:-$HOME/CodeProjects/1024}}"
+# Avoid getcwd errors when the current directory was removed (e.g. empty 1024 folder deleted).
+cd "${HOME:-/tmp}" 2>/dev/null || cd /tmp
+
+REPO_URL="${PORTAL_REPO_URL:-https://github.com/moser10/1024201-portal.git}"
+TARGET="${1:-${PORTAL_INSTALL_DIR:-$HOME/CodeProjects/1024}}"
 
 if [ ! -d "$TARGET/.git" ]; then
   echo "Cloning $REPO_URL → $TARGET"

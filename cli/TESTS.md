@@ -2,7 +2,7 @@
 
 前置：Node.js ≥ 18。在项目根目录执行 `npm link ./cli` 或 `node cli/bin/1024.js`（下文用 `1024` 代指）。
 
-可选环境变量：`1024_API_BASE=https://1024201.com`（默认即此）。
+可选环境变量：`PORTAL_API_BASE=https://1024201.com`（默认即此）。
 
 ---
 
