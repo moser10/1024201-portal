@@ -63,9 +63,7 @@ binding = "DB"
 database_name = "one-sentence-novel"
 database_id = "1c4cce8e-c510-450d-8277-80b29d415c4b"
 
-[[r2_buckets]]
-binding = "FILES"
-bucket_name = "1024201-files"
+# 文件存 D1 分块（无需 R2 / 无需绑卡）
 
 # 自定义域名在控制台配置：Workers → 1024201-portal → Domains & Routes
 # RESEND_API_KEY 用 Secret 配置（wrangler secret put），不要写进本文件

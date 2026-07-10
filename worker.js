@@ -24,7 +24,6 @@ export default {
         JSON.stringify({
           ok: true,
           hasDb: !!(env?.DB && typeof env.DB.prepare === "function"),
-          hasFiles: !!env?.FILES,
           hasResendKey: !!env?.RESEND_API_KEY,
           registerFlow: "pending_v2",
           worker: "1024201-portal",

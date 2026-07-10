@@ -7,12 +7,12 @@ import { renderAttachGrid, uploadFile, deleteFile } from "../js/attachGrid.js";
 const MAX_LINES = 3;
 const FLASH_MS = 2200;
 const ATTACH_SLOT = 2;
-const MAX_FILE_MB = 20;
+const MAX_FILE_MB = 5;
 
 const UI = {
   en: {
     title: "Text Relay",
-    sub: "Two text fields + one attachment box (20MB each), synced across devices.",
+    sub: "Two text fields + one attachment box (5MB each, D1), synced across devices.",
     back: "Toolbox",
     loginDesc: "Sign in to use Text Relay.",
     loginBtn: "Sign in / Register",

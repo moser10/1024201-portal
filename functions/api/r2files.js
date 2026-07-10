@@ -1,7 +1,9 @@
 import { json, requireDb, ensureAppSchema, resolveUserId } from "./_shared.js";
 
-export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** D1 免费存储：单文件上限（整库免费约 5GB，不宜过大） */
+export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const SYNCNOTE_MAX_FILES = 12;
+const CHUNK_BYTES = 48 * 1024;
 const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
 
 export async function ensureFilesSchema(db) {
@@ -15,9 +17,24 @@ export async function ensureFilesSchema(db) {
         name TEXT NOT NULL,
         mime TEXT NOT NULL,
         size INTEGER NOT NULL,
-        r2_key TEXT NOT NULL,
         meta TEXT NOT NULL DEFAULT '{}',
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`
+    )
+    .run();
+
+  const { results: cols } = await db.prepare("PRAGMA table_info(user_files)").all();
+  if (!cols.some((c) => c.name === "meta")) {
+    await db.prepare(`ALTER TABLE user_files ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'`).run().catch(() => {});
+  }
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS user_file_chunks (
+        file_id TEXT NOT NULL,
+        chunk_idx INTEGER NOT NULL,
+        data BLOB NOT NULL,
+        PRIMARY KEY (file_id, chunk_idx)
       )`
     )
     .run();
@@ -39,11 +56,6 @@ export async function ensureFilesSchema(db) {
     )
     .run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_showcase_user ON showcase_works(user_id)`).run();
-}
-
-export function r2Key(userId, purpose, fileId, name) {
-  const safe = String(name || "file").replace(/[^\w.\-]+/g, "_").slice(0, 80);
-  return `u${userId}/${purpose}/${fileId}/${safe}`;
 }
 
 export function newFileId() {
@@ -89,12 +101,50 @@ export async function listUserFiles(db, userId, purpose, slot = null) {
   return results.map(fileRow);
 }
 
+async function writeChunks(db, fileId, bytes) {
+  const total = bytes.byteLength;
+  let idx = 0;
+  for (let offset = 0; offset < total; offset += CHUNK_BYTES) {
+    const slice = bytes.slice(offset, Math.min(offset + CHUNK_BYTES, total));
+    await db
+      .prepare(`INSERT INTO user_file_chunks (file_id, chunk_idx, data) VALUES (?, ?, ?)`)
+      .bind(fileId, idx, slice)
+      .run();
+    idx += 1;
+  }
+}
+
+async function readChunks(db, fileId) {
+  const { results } = await db
+    .prepare(`SELECT data FROM user_file_chunks WHERE file_id = ? ORDER BY chunk_idx ASC`)
+    .bind(fileId)
+    .all();
+  if (!results.length) return null;
+  const parts = results.map((r) => {
+    const d = r.data;
+    if (d instanceof ArrayBuffer) return new Uint8Array(d);
+    if (d instanceof Uint8Array) return d;
+    if (typeof d === "string") return new Uint8Array([...d].map((c) => c.charCodeAt(0)));
+    return new Uint8Array(0);
+  });
+  const len = parts.reduce((n, p) => n + p.byteLength, 0);
+  const out = new Uint8Array(len);
+  let pos = 0;
+  for (const p of parts) {
+    out.set(p, pos);
+    pos += p.byteLength;
+  }
+  return out;
+}
+
+async function deleteChunks(db, fileId) {
+  await db.prepare(`DELETE FROM user_file_chunks WHERE file_id = ?`).bind(fileId).run();
+}
+
 export async function handleFileUpload(env, request, url) {
   const db = requireDb(env);
   await ensureAppSchema(db);
   await ensureFilesSchema(db);
-
-  if (!env.FILES) return json({ error: "storage_not_configured" }, 503);
 
   const userId = await resolveUserId(request, env, url);
   const auth = await requireRegisteredUser(db, userId);
@@ -121,27 +171,24 @@ export async function handleFileUpload(env, request, url) {
 
   const size = file.size || 0;
   if (size <= 0 || size > MAX_FILE_BYTES) {
-    return json({ error: "file_too_large", maxMb: 20 }, 413);
+    return json({ error: "file_too_large", maxMb: MAX_FILE_BYTES / (1024 * 1024) }, 413);
   }
 
   const id = newFileId();
   const name = file.name || "upload";
-  const key = r2Key(userId, purpose, id, name);
   const meta = form.get("meta");
   const metaStr = typeof meta === "string" ? meta : "{}";
-
-  await env.FILES.put(key, await file.arrayBuffer(), {
-    httpMetadata: { contentType: mime },
-    customMetadata: { userId: String(userId), purpose, fileId: id },
-  });
+  const bytes = new Uint8Array(await file.arrayBuffer());
 
   await db
     .prepare(
-      `INSERT INTO user_files (id, user_id, purpose, slot, name, mime, size, r2_key, meta)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO user_files (id, user_id, purpose, slot, name, mime, size, meta)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .bind(id, userId, purpose, slot, name.slice(0, 200), mime, size, key, metaStr)
+    .bind(id, userId, purpose, slot, name.slice(0, 200), mime, size, metaStr)
     .run();
+
+  await writeChunks(db, id, bytes);
 
   const row = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(id).first();
   return json({ ok: true, file: fileRow(row) });
@@ -150,7 +197,6 @@ export async function handleFileUpload(env, request, url) {
 export async function handleFileGet(env, request, url) {
   const db = requireDb(env);
   await ensureFilesSchema(db);
-  if (!env.FILES) return json({ error: "storage_not_configured" }, 503);
 
   const id = url.searchParams.get("id");
   if (!id) return json({ error: "missing_id" }, 400);
@@ -158,27 +204,19 @@ export async function handleFileGet(env, request, url) {
   const row = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(id).first();
   if (!row) return json({ error: "not_found" }, 404);
 
-  if (row.purpose === "showcase") {
-    const obj = await env.FILES.get(row.r2_key);
-    if (!obj) return json({ error: "not_found" }, 404);
-    return new Response(obj.body, {
-      headers: {
-        "Content-Type": row.mime,
-        "Cache-Control": "public, max-age=86400",
-        "Content-Disposition": `inline; filename="${encodeURIComponent(row.name)}"`,
-      },
-    });
+  if (row.purpose !== "showcase") {
+    const userId = await resolveUserId(request, env, url);
+    if (userId !== row.user_id) return json({ error: "forbidden" }, 403);
   }
 
-  const userId = await resolveUserId(request, env, url);
-  if (userId !== row.user_id) return json({ error: "forbidden" }, 403);
+  const body = await readChunks(db, id);
+  if (!body) return json({ error: "not_found" }, 404);
 
-  const obj = await env.FILES.get(row.r2_key);
-  if (!obj) return json({ error: "not_found" }, 404);
-  return new Response(obj.body, {
+  const cache = row.purpose === "showcase" ? "public, max-age=86400" : "private, max-age=3600";
+  return new Response(body, {
     headers: {
       "Content-Type": row.mime,
-      "Cache-Control": "private, max-age=3600",
+      "Cache-Control": cache,
       "Content-Disposition": `inline; filename="${encodeURIComponent(row.name)}"`,
     },
   });
@@ -188,7 +226,6 @@ export async function handleFileDelete(env, request, url) {
   const db = requireDb(env);
   await ensureAppSchema(db);
   await ensureFilesSchema(db);
-  if (!env.FILES) return json({ error: "storage_not_configured" }, 503);
 
   const body = await request.json().catch(() => ({}));
   const userId = await resolveUserId(request, env, url, body);
@@ -201,7 +238,7 @@ export async function handleFileDelete(env, request, url) {
   const row = await db.prepare("SELECT * FROM user_files WHERE id = ? AND user_id = ?").bind(id, userId).first();
   if (!row) return json({ error: "not_found" }, 404);
 
-  await env.FILES.delete(row.r2_key);
+  await deleteChunks(db, id);
   await db.prepare("DELETE FROM user_files WHERE id = ?").bind(id).run();
   await db.prepare("DELETE FROM showcase_works WHERE file_id = ?").bind(id).run();
   return json({ ok: true, id });
@@ -236,8 +273,10 @@ export async function handleShowcasePublish(env, request, url) {
   const fileId = body.file_id;
   if (!fileId) return json({ error: "missing_file" }, 400);
 
-  const file = await db.prepare("SELECT * FROM user_files WHERE id = ? AND user_id = ? AND purpose = ?")
-    .bind(fileId, userId, "showcase").first();
+  const file = await db
+    .prepare("SELECT * FROM user_files WHERE id = ? AND user_id = ? AND purpose = ?")
+    .bind(fileId, userId, "showcase")
+    .first();
   if (!file) return json({ error: "not_found" }, 404);
 
   const workId = newFileId();
@@ -333,11 +372,9 @@ export async function handleShowcaseMine(env, request, url) {
 }
 
 export async function clearSyncnoteFiles(env, db, userId, slot) {
-  if (!env.FILES) return;
   const files = await listUserFiles(db, userId, "syncnote", slot);
   for (const f of files) {
-    const row = await db.prepare("SELECT r2_key FROM user_files WHERE id = ?").bind(f.id).first();
-    if (row) await env.FILES.delete(row.r2_key);
+    await deleteChunks(db, f.id);
     await db.prepare("DELETE FROM user_files WHERE id = ?").bind(f.id).run();
   }
 }

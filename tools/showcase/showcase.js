@@ -13,7 +13,7 @@ const UI = {
     loginDesc: "Sign in to upload portfolio works.",
     loginBtn: "Sign in / Register",
     lblTitle: "Title",
-    lblFile: "Image (max 20MB)",
+    lblFile: "Image (max 5MB)",
     lblWatermark: "Watermark text",
     stampLbl: "Add upload-time stamp",
     stampHint:
@@ -32,7 +32,7 @@ const UI = {
     loginDesc: "请登录后上传作品。",
     loginBtn: "登录 / 注册",
     lblTitle: "作品标题",
-    lblFile: "图片（最大 20MB）",
+    lblFile: "图片（最大 5MB）",
     lblWatermark: "水印文字",
     stampLbl: "添加时间戳",
     stampHint:
@@ -51,7 +51,7 @@ const UI = {
     loginDesc: "ログインして作品をアップロード。",
     loginBtn: "ログイン / 登録",
     lblTitle: "タイトル",
-    lblFile: "画像（最大20MB）",
+    lblFile: "画像（最大5MB）",
     lblWatermark: "透かし文字",
     stampLbl: "タイムスタンプを追加",
     stampHint: "アップロードIPのタイムゾーンを使用。VPN利用時は実際の場所と異なる場合があります。",

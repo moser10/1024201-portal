@@ -17,9 +17,9 @@
       ja: { pageTitle: "音楽", pageSub: "Deezerチャート · 30秒プレビュー", backLink: "ツールボックス" },
     },
     syncnote: {
-      en: { pageTitle: "Text Relay", pageSub: "Two text fields + attachments (20MB each)", backLink: "Toolbox" },
-      zh: { pageTitle: "文本中转站", pageSub: "两个文本框 + 附件框（单文件最大 20MB）", backLink: "返回工具箱" },
-      ja: { pageTitle: "テキスト中継", pageSub: "テキスト2枠 + 添付（各20MB）", backLink: "ツールボックス" },
+      en: { pageTitle: "Text Relay", pageSub: "Two text fields + attachments (5MB, D1)", backLink: "Toolbox" },
+      zh: { pageTitle: "文本中转站", pageSub: "两个文本框 + 附件（5MB/个，D1 免费存储）", backLink: "返回工具箱" },
+      ja: { pageTitle: "テキスト中継", pageSub: "テキスト2枠 + 添付（5MB・D1）", backLink: "ツールボックス" },
     },
     showcase: {
       en: { pageTitle: "Portfolio", pageSub: "Watermark images for designers & photographers", backLink: "Toolbox" },
