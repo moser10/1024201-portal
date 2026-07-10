@@ -29,10 +29,12 @@ from pathlib import Path
 p = Path("/tmp/cfac_root_pass.txt")
 raw = p.read_bytes()
 stripped = raw.decode("utf-8", errors="replace").strip()
-print(f"[check] pass_file_bytes={len(raw)}")
-print(f"[check] pass_len_after_strip={len(stripped)}")
-print(f"[check] ends_with_newline={'yes' if raw.endswith(b'\\n') or raw.endswith(b'\\r\\n') else 'no'}")
-print(f"[check] contains_cr={'yes' if b'\\r' in raw else 'no'}")
+ends_nl = "yes" if raw.endswith(b"\n") or raw.endswith(b"\r\n") else "no"
+has_cr = "yes" if b"\r" in raw else "no"
+print("[check] pass_file_bytes=%d" % len(raw))
+print("[check] pass_len_after_strip=%d" % len(stripped))
+print("[check] ends_with_newline=%s" % ends_nl)
+print("[check] contains_cr=%s" % has_cr)
 if not stripped:
     raise SystemExit("ERROR: password file empty after strip")
 if len(stripped) < 8:
