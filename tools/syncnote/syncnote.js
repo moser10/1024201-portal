@@ -2,9 +2,15 @@ import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser } from "/game/js/store.js";
 import { currentUserId, loginHref } from "../js/quotaClient.js";
 import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
-import { renderAttachGrid, uploadFile, deleteFile, downloadFileEntry, SYNCNOTE_MAX_ATTACH } from "../js/attachGrid.js";
-import { fetchFileStorage, paintStorageMeta } from "../js/storageQuota.js";
-import { showToast, showSheet } from "/game/js/toast.js";
+import {
+  renderAttachGrid,
+  uploadFile,
+  deleteFile,
+  downloadFileEntry,
+  SYNCNOTE_MAX_ATTACH,
+} from "../js/attachGrid.js";
+import { fetchFileStorage, storageLeftLabel } from "../js/storageQuota.js";
+import { showSheet } from "/game/js/toast.js";
 
 const MAX_LINES = 3;
 const FLASH_MS = 2200;
@@ -14,7 +20,6 @@ const MAX_FILE_MB = 5;
 const UI = {
   en: {
     title: "Text Relay",
-    sub: "",
     back: "Toolbox",
     loginDesc: "Sign in to use Text Relay.",
     loginBtn: "Sign in / Register",
@@ -26,16 +31,14 @@ const UI = {
     downloadOk: "OK",
     downloadEmpty: "No images to download",
     downloadDone: (n) =>
-      `${n} image(s) saved to your device’s default Downloads folder.\n\niPhone/iPad: Files app → Downloads\nMac: ~/Downloads\nAndroid: Downloads`,
-    maxImages: `Up to ${SYNCNOTE_MAX_ATTACH} images`,
+      `${n} image(s) saved to your default Downloads folder.\n\niPhone/iPad: Files → Downloads\nMac: Downloads folder\nAndroid: Download`,
+    maxImages: "Up to 3 images",
     clear: "Delete all",
     saved: "Saved",
     saving: "Saving…",
-    uploading: "Uploading…",
     loaded: "Loaded",
     cleared: "Cleared",
     copied: "Copied to clipboard",
-    storageDesc: "",
     storageLeft: (mb) => `${mb} left`,
     errLoad: "Failed to load",
     errSave: "Failed to save",
@@ -45,7 +48,6 @@ const UI = {
   },
   zh: {
     title: "文本中转站",
-    sub: "",
     back: "返回工具箱",
     loginDesc: "请登录后使用文本中转站。",
     loginBtn: "登录 / 注册",
@@ -58,15 +60,13 @@ const UI = {
     downloadEmpty: "没有可下载的图片",
     downloadDone: (n) =>
       `已下载 ${n} 张图片到系统默认「下载」文件夹。\n\niPhone/iPad：文件 App → 下载\nMac：下载文件夹\nAndroid：Download 目录`,
-    maxImages: `最多 ${SYNCNOTE_MAX_ATTACH} 张图片`,
+    maxImages: "最多 3 张图片",
     clear: "全部删除",
     saved: "已保存",
     saving: "保存中…",
-    uploading: "上传中…",
     loaded: "已加载",
     cleared: "已清空",
     copied: "已复制到剪贴板",
-    storageDesc: "",
     storageLeft: (mb) => `剩余 ${mb}`,
     errLoad: "加载失败",
     errSave: "保存失败",
@@ -76,7 +76,6 @@ const UI = {
   },
   ja: {
     title: "テキスト中継",
-    sub: "",
     back: "ツールボックス",
     loginDesc: "テキスト中継を使うにはログインしてください。",
     loginBtn: "ログイン / 登録",
@@ -88,16 +87,14 @@ const UI = {
     downloadOk: "OK",
     downloadEmpty: "ダウンロードする画像がありません",
     downloadDone: (n) =>
-      `${n} 枚を端末の既定のダウンロードフォルダに保存しました。\n\niPhone/iPad：ファイル → ダウンロード\nMac：ダウンロード\nAndroid：Download`,
-    maxImages: `最大 ${SYNCNOTE_MAX_ATTACH} 枚`,
+      `${n} 枚を既定のダウンロードフォルダに保存しました。\n\niPhone/iPad：ファイル → ダウンロード\nMac：ダウンロード\nAndroid：Download`,
+    maxImages: "最大 3 枚",
     clear: "すべて削除",
     saved: "保存済み",
     saving: "保存中…",
-    uploading: "アップロード中…",
     loaded: "読み込み済み",
     cleared: "削除しました",
     copied: "クリップボードにコピー",
-    storageDesc: "",
     storageLeft: (mb) => `残り ${mb}`,
     errLoad: "読み込みに失敗",
     errSave: "保存に失敗",
@@ -122,7 +119,6 @@ const syncWorkspace = document.getElementById("syncWorkspace");
 const slotEls = [...document.querySelectorAll(".sync-slot")];
 const attachGrid = document.getElementById("attachGrid");
 const attachInput = document.getElementById("attachInput");
-const attachDesc = document.getElementById("attachDesc");
 const attachSpace = document.getElementById("attachSpace");
 const attachSlotEl = slotEls.find((s) => parseInt(s.dataset.slot, 10) === ATTACH_SLOT);
 
@@ -139,6 +135,7 @@ function slotInput(el) {
 }
 
 function slotStatusEl(el) {
+  if (isAttachSlot(el)) return null;
   return el.querySelector(".sync-status");
 }
 
@@ -178,53 +175,71 @@ function paintAttachGrid() {
   if (addBtn) addBtn.disabled = !uid || attachFiles.length >= SYNCNOTE_MAX_ATTACH;
 }
 
+async function refreshAttachStorage() {
+  const uid = currentUserId();
+  if (!attachSpace) return;
+  if (!uid) {
+    attachSpace.textContent = "";
+    return;
+  }
+  try {
+    const data = await fetchFileStorage(uid, "syncnote");
+    attachSpace.textContent = storageLeftLabel(t, data.remaining ?? 0);
+  } catch {
+    attachSpace.textContent = "";
+  }
+}
+
 function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
   const subEl = document.getElementById("pageSub");
-  if (subEl) {
-    subEl.textContent = t.sub || "";
-    subEl.hidden = !t.sub;
-  }
+  if (subEl) subEl.hidden = true;
   document.getElementById("backLink").textContent = t.back;
   document.getElementById("loginDesc").textContent = t.loginDesc;
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/syncnote/");
-  if (attachDesc) {
-    attachDesc.textContent = t.storageDesc || "";
-    attachDesc.hidden = !t.storageDesc;
-  }
   slotEls.forEach((el) => {
     const n = slotNum(el);
     if (isAttachSlot(el)) {
-      el.querySelector("[data-slot-label]")?.textContent = t.slotAttach;
-      el.querySelector(".sync-add-file")?.textContent = t.addFile;
-      el.querySelector(".sync-download-all")?.textContent = t.downloadAll;
+      const label = el.querySelector("[data-slot-label]");
+      const addBtn = el.querySelector(".sync-add-file");
+      const dlBtn = el.querySelector(".sync-download-all");
+      if (label) label.textContent = t.slotAttach;
+      if (addBtn) addBtn.textContent = t.addFile;
+      if (dlBtn) dlBtn.textContent = t.downloadAll;
       return;
     }
-    el.querySelector("[data-slot-label]")?.textContent = t.slot(n + 1);
-    el.querySelector(".sync-copy")?.textContent = t.copy;
-    el.querySelector(".sync-clear")?.textContent = t.clear;
+    const label = el.querySelector("[data-slot-label]");
+    const copyBtn = el.querySelector(".sync-copy");
+    const clearBtn = el.querySelector(".sync-clear");
+    if (label) label.textContent = t.slot(n + 1);
+    if (copyBtn) copyBtn.textContent = t.copy;
+    if (clearBtn) clearBtn.textContent = t.clear;
   });
 }
 
 function renderBaseline(slot) {
-  if (flashing.has(slot)) return;
+  if (flashing.has(slot) || slot === ATTACH_SLOT) return;
   const el = slotEls.find((s) => slotNum(s) === slot);
-  if (!el) return;
-  slotStatusEl(el).textContent = baselineStatus.get(slot) || "";
+  const status = slotStatusEl(el);
+  if (!status) return;
+  status.textContent = baselineStatus.get(slot) || "";
 }
 
 function setBaseline(el, msg) {
   const slot = slotNum(el);
+  if (isAttachSlot(el)) return;
   baselineStatus.set(slot, msg);
   renderBaseline(slot);
 }
 
 function flashStatus(el, msg) {
   const slot = slotNum(el);
+  const status = slotStatusEl(el);
+  if (!status) return;
   clearTimeout(flashTimers.get(slot));
   flashing.add(slot);
-  slotStatusEl(el).textContent = msg;
+  status.textContent = msg;
   flashTimers.set(
     slot,
     setTimeout(() => {
@@ -251,20 +266,6 @@ function savedLabel(updatedAt) {
   return updatedAt ? `${t.saved} · ${updatedAt}` : t.saved;
 }
 
-async function refreshAttachStorage() {
-  const uid = currentUserId();
-  if (!uid) {
-    if (attachSpace) attachSpace.textContent = "";
-    return;
-  }
-  try {
-    const data = await fetchFileStorage(uid, "syncnote");
-    paintStorageMeta({ descEl: attachDesc, spaceEl: attachSpace, t, data });
-  } catch {
-    if (attachSpace) attachSpace.textContent = "";
-  }
-}
-
 async function loadNotes() {
   const uid = currentUserId();
   if (!uid) return;
@@ -278,12 +279,8 @@ async function loadNotes() {
       const slot = slotNum(el);
       const row = bySlot.get(slot) || { content: "", updatedAt: null };
       if (isAttachSlot(el)) {
-        attachFiles = (row.files || []).slice(0, SYNCNOTE_MAX_ATTACH).map((f) => ({
-          ...f,
-          url: f.url,
-        }));
+        attachFiles = (row.files || []).slice(0, SYNCNOTE_MAX_ATTACH);
         paintAttachGrid();
-        await refreshAttachStorage();
         return;
       }
       const ta = slotInput(el);
@@ -292,10 +289,8 @@ async function loadNotes() {
       setBaseline(el, loadedLabel(row.updatedAt));
       fitInput(ta, { tail: true });
     });
-    const userLine = document.getElementById("userLine");
-    userLine.hidden = false;
-    userLine.textContent = `@${data.username || getUser()?.username || ""}`;
     paintToolUser();
+    await refreshAttachStorage();
   } catch (e) {
     showError(e.message || t.errLoad);
   }
@@ -331,7 +326,7 @@ function scheduleSave(el) {
 
 async function clearSlot(el) {
   const uid = currentUserId();
-  if (!uid) return;
+  if (!uid || isAttachSlot(el)) return;
   const slot = slotNum(el);
   showError("");
   try {
@@ -342,19 +337,12 @@ async function clearSlot(el) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t.errSave);
-    if (isAttachSlot(el)) {
-      attachFiles = [];
-      paintAttachGrid();
-      await refreshAttachStorage();
-      showToast(t.cleared);
-    } else {
-      const ta = slotInput(el);
-      ta.value = "";
-      fitInput(ta);
-      flashStatus(el, t.cleared);
-      setBaseline(el, "");
-    }
+    const ta = slotInput(el);
+    ta.value = "";
+    fitInput(ta);
     dirtySlots.delete(slot);
+    flashStatus(el, t.cleared);
+    setBaseline(el, "");
   } catch (e) {
     showError(e.message || t.errSave);
   }
@@ -369,7 +357,6 @@ async function removeAttach(id) {
     attachFiles = attachFiles.filter((f) => f.id !== id);
     paintAttachGrid();
     await refreshAttachStorage();
-    showToast(t.cleared);
   } catch (e) {
     showError(e.message || t.errUpload);
   }
@@ -387,7 +374,7 @@ async function downloadAllAttach() {
   try {
     for (const f of images) {
       await downloadFileEntry(f, uid);
-      await new Promise((r) => setTimeout(r, 280));
+      await new Promise((r) => setTimeout(r, 300));
     }
     await showSheet(t.downloadDone(images.length), [{ label: t.downloadOk, value: true }]);
   } catch (e) {
@@ -408,9 +395,7 @@ async function handleAttachPick(fileList) {
   try {
     const picks = [...fileList].slice(0, room);
     for (const file of picks) {
-      if (!file.type?.startsWith("image/")) {
-        throw new Error(t.errUploadImage);
-      }
+      if (!file.type?.startsWith("image/")) throw new Error(t.errUploadImage);
       if (file.size > MAX_FILE_MB * 1024 * 1024) {
         throw new Error(`${file.name}: max ${MAX_FILE_MB}MB`);
       }
@@ -420,7 +405,6 @@ async function handleAttachPick(fileList) {
     attachFiles = attachFiles.slice(0, SYNCNOTE_MAX_ATTACH);
     paintAttachGrid();
     await refreshAttachStorage();
-    showToast(t.saved);
   } catch (e) {
     showError(e.message || t.errUpload);
   } finally {
@@ -441,12 +425,14 @@ async function copySlot(el, e) {
 }
 
 function setGuestMode(on) {
-  syncWorkspace.classList.toggle("sync-guest", on);
+  syncWorkspace?.classList.toggle("sync-guest", on);
   loginPanel.hidden = !on;
   slotEls.forEach((el) => {
     if (isAttachSlot(el)) {
-      el.querySelector(".sync-add-file").disabled = on;
-      el.querySelector(".sync-download-all").disabled = on;
+      const addBtn = el.querySelector(".sync-add-file");
+      const dlBtn = el.querySelector(".sync-download-all");
+      if (addBtn) addBtn.disabled = on;
+      if (dlBtn) dlBtn.disabled = on;
       return;
     }
     const ta = slotInput(el);
@@ -466,9 +452,8 @@ function boot() {
     return;
   }
   setGuestMode(false);
-  deferWork(async () => {
-    await loadNotes();
-    await refreshAttachStorage();
+  deferWork(() => {
+    loadNotes();
   });
 }
 
@@ -482,7 +467,8 @@ mountLangTabs(document.getElementById("langSlot"), {
     baselineStatus.forEach((msg, slot) => {
       if (!flashing.has(slot)) {
         const el = slotEls.find((s) => slotNum(s) === slot);
-        if (el) slotStatusEl(el).textContent = msg;
+        const status = slotStatusEl(el);
+        if (status) status.textContent = msg;
       }
     });
   },

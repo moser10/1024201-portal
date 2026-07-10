@@ -139,8 +139,6 @@
   line-height: 1.45;
   min-height: 16px;
 }
-.sync-slot-desc { font-weight: 400; }
-.sync-slot-desc[hidden] { display: none; }
 .sync-slot-space {
   font-weight: 700;
   color: #1c1c1e;
