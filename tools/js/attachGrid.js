@@ -27,7 +27,7 @@ function fileUrl(f, userId) {
 /**
  * @param {HTMLElement} host
  * @param {Array<{id,name,mime,url,size}>} files
- * @param {{ onDelete?: (id)=>void, onSave?: (file)=>void, readOnly?: boolean, userId?: number|string }} opts
+ * @param {{ onDelete?: (id)=>void, onPreview?: (file)=>void, readOnly?: boolean, userId?: number|string }} opts
  */
 export function renderAttachGrid(host, files, opts = {}) {
   if (!host) return;
@@ -43,18 +43,36 @@ export function renderAttachGrid(host, files, opts = {}) {
   for (const f of list) {
     const cell = document.createElement("div");
     cell.className = "attach-cell attach-cell--thumb";
-    if (opts.onSave && !opts.readOnly) cell.classList.add("attach-cell--save");
-    cell.innerHTML = thumbInner(f, opts.userId);
+    cell.dataset.fileId = f.id;
+    if (opts.onPreview && !opts.readOnly) cell.classList.add("attach-cell--preview");
+    cell.innerHTML = thumbInner(f);
     if (!opts.readOnly && opts.onDelete) bindDelete(cell, f.id, opts.onDelete);
-    if (opts.onSave && !opts.readOnly) bindSave(cell, f, opts.onSave);
+    if (opts.onPreview && !opts.readOnly) bindPreview(cell, f, opts.onPreview);
     host.appendChild(cell);
   }
 }
 
-function thumbInner(f, userId) {
+export function applyThumbToCell(cell, url) {
+  if (!cell || !url) return;
+  const ph = cell.querySelector(".attach-thumb-ph");
+  let img = cell.querySelector(".attach-thumb");
+  if (!img) {
+    img = document.createElement("img");
+    img.className = "attach-thumb";
+    img.decoding = "async";
+    cell.insertBefore(img, cell.firstChild);
+  }
+  img.src = url;
+  img.hidden = false;
+  if (ph) ph.remove();
+}
+
+function thumbInner(f) {
   if (isImageMime(f.mime)) {
-    const src = fileUrl(f, userId);
-    return `<img class="attach-thumb" src="${esc(src)}" alt="${esc(f.name)}" loading="lazy" decoding="async" />`;
+    if (f.thumbUrl) {
+      return `<img class="attach-thumb" src="${esc(f.thumbUrl)}" alt="${esc(f.name)}" decoding="async" />`;
+    }
+    return `<div class="attach-thumb-ph" aria-hidden="true"></div>`;
   }
   return `<div class="attach-file-badge">${fileIconSvg()}<span>${esc(shortName(f.name))}</span></div>`;
 }
@@ -72,14 +90,14 @@ function bindDelete(cell, id, onDelete) {
   cell.appendChild(btn);
 }
 
-function bindSave(cell, file, onSave) {
+function bindPreview(cell, file, onPreview) {
   cell.setAttribute("role", "button");
   cell.tabIndex = 0;
-  cell.setAttribute("aria-label", file.name || "Save image");
+  cell.setAttribute("aria-label", file.name || "Preview image");
   const go = (e) => {
     if (e.target.closest(".attach-del")) return;
     e.preventDefault();
-    onSave(file);
+    onPreview(file);
   };
   cell.addEventListener("click", go);
   cell.addEventListener("keydown", (e) => {

@@ -178,6 +178,67 @@
   color: #8e8e93;
 }
 .sync-save-hint[hidden] { display: none; }
+.sync-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 350;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.sync-preview[hidden] { display: none; }
+.sync-preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.sync-preview-img[hidden] { display: none; }
+.sync-preview-progress {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  max-width: 480px;
+  margin: 0 auto;
+}
+.sync-preview-progress .loading-label {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e5e5ea;
+  text-align: center;
+}
+.sync-preview-progress .loading-bar {
+  height: 4px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+.sync-preview-progress .loading-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 0;
+  background: #007aff;
+  transition: width 0.35s ease-out;
+}
+.sync-preview-close {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
 .attach-grid {
   display: flex;
   flex-wrap: wrap;
@@ -199,15 +260,26 @@
   width: 72px;
   height: 72px;
 }
-.attach-cell--save {
+.attach-cell--preview {
   cursor: pointer;
 }
-.attach-cell--save:focus-visible {
+.attach-cell--preview:focus-visible {
   outline: 2px solid #007aff;
   outline-offset: 2px;
 }
-.attach-cell--save:active .attach-thumb {
+.attach-cell--preview:active .attach-thumb,
+.attach-cell--preview:active .attach-thumb-ph {
   opacity: 0.85;
+}
+.attach-thumb-ph {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(110deg, #ececf0 8%, #f7f7fa 18%, #ececf0 33%);
+  background-size: 200% 100%;
+  animation: attach-ph-shimmer 1.2s linear infinite;
+}
+@keyframes attach-ph-shimmer {
+  to { background-position: -200% 0; }
 }
 .attach-cell--icon {
   width: 56px;

@@ -1,19 +1,31 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser } from "/game/js/store.js";
 import { currentUserId, loginHref } from "../js/quotaClient.js";
-import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
+import { paintToolUser } from "../js/toolPageBoot.js";
 import {
   renderAttachGrid,
+  applyThumbToCell,
   uploadFile,
   deleteFile,
   downloadFileEntry,
   shareFileEntries,
+  fetchFileBlob,
   isMobileIos,
   SYNCNOTE_MAX_ATTACH,
 } from "../js/attachGrid.js";
 import { fetchFileStorage, storageLeftLabel } from "../js/storageQuota.js";
-import { showSheet, showToast } from "/game/js/toast.js";
+import { showSheet } from "/game/js/toast.js";
 import { mountProgress } from "../lyrics/loading.js";
+import {
+  readLocalCache,
+  writeLocalCache,
+  patchLocalCache,
+  getThumbBlob,
+  putThumbBlob,
+  deleteThumbBlob,
+  blobToThumbBlob,
+  fileToThumbBlob,
+} from "../js/syncnoteCache.js";
 
 const MAX_LINES = 3;
 const FLASH_MS = 2200;
@@ -38,8 +50,8 @@ const UI = {
     uploading: "Uploading…",
     uploadingN: (n, total) => `Uploading ${n}/${total}…`,
     savedImage: "Image saved",
-    saveHint:
-      "Tap a thumbnail to save that image. On iPhone/iPad, long-press the preview and choose Save to Photos.",
+    saveHint: "Tap a thumbnail to view full size. Use Download all to save files to your device.",
+    previewLoading: "Loading image…",
     downloadDone: (n) =>
       `${n} image(s) saved to your default Downloads folder.\n\niPhone/iPad: Files → Downloads\nMac: Downloads folder\nAndroid: Download`,
     downloadShareDone: (n) =>
@@ -77,7 +89,8 @@ const UI = {
     uploading: "上传中…",
     uploadingN: (n, total) => `上传中 ${n}/${total}…`,
     savedImage: "图片已保存",
-    saveHint: "点击缩略图可保存单张图片；在 iPhone/iPad 上亦可长按图片并选择「存储到照片」。",
+    saveHint: "点击缩略图查看大图；使用「全部下载」保存到本地。",
+    previewLoading: "加载大图…",
     downloadDone: (n) =>
       `已下载 ${n} 张图片到系统默认「下载」文件夹。\n\niPhone/iPad：文件 App → 下载\nMac：下载文件夹\nAndroid：Download 目录`,
     downloadShareDone: (n) =>
@@ -115,8 +128,8 @@ const UI = {
     uploading: "アップロード中…",
     uploadingN: (n, total) => `アップロード中 ${n}/${total}…`,
     savedImage: "画像を保存しました",
-    saveHint:
-      "サムネイルをタップして画像を保存できます。iPhone/iPadでは画像を長押しし「写真に保存」を選ぶこともできます。",
+    saveHint: "サムネイルをタップして拡大表示。「すべてダウンロード」で端末に保存できます。",
+    previewLoading: "画像を読み込み中…",
     downloadDone: (n) =>
       `${n} 枚を既定のダウンロードフォルダに保存しました。\n\niPhone/iPad：ファイル → ダウンロード\nMac：ダウンロード\nAndroid：Download`,
     downloadShareDone: (n) =>
@@ -157,8 +170,15 @@ const attachInput = document.getElementById("attachInput");
 const attachSpace = document.getElementById("attachSpace");
 const attachProgress = document.getElementById("attachProgress");
 const attachSaveHint = document.getElementById("attachSaveHint");
+const attachPreview = document.getElementById("attachPreview");
+const previewImg = document.getElementById("previewImg");
+const previewProgress = document.getElementById("previewProgress");
+const previewClose = document.getElementById("previewClose");
 const attachSlotEl = slotEls.find((s) => parseInt(s.dataset.slot, 10) === ATTACH_SLOT);
 let attachBusy = false;
+const thumbObjectUrls = new Map();
+const slotUpdatedAt = new Map();
+let previewObjectUrl = null;
 
 function slotNum(el) {
   return parseInt(el.dataset.slot, 10);
@@ -222,16 +242,170 @@ function updateProgressLabel(host, text) {
   if (label) label.textContent = text;
 }
 
+const cacheWriteTimer = { id: 0 };
+
+function scheduleCacheWrite() {
+  clearTimeout(cacheWriteTimer.id);
+  cacheWriteTimer.id = setTimeout(() => persistCache(), 400);
+}
+
+function revokeThumbUrls() {
+  for (const url of thumbObjectUrls.values()) URL.revokeObjectURL(url);
+  thumbObjectUrls.clear();
+}
+
+function closePreview() {
+  if (previewObjectUrl) {
+    URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = null;
+  }
+  if (previewImg) {
+    previewImg.removeAttribute("src");
+    previewImg.hidden = true;
+  }
+  if (previewProgress) {
+    previewProgress.hidden = true;
+    previewProgress.innerHTML = "";
+  }
+  if (attachPreview) attachPreview.hidden = true;
+}
+
+function cachePayloadFromState(remaining = null) {
+  const uid = currentUserId();
+  if (!uid) return null;
+  const slots = {};
+  slotEls.forEach((el) => {
+    if (isAttachSlot(el)) return;
+    const slot = slotNum(el);
+    slots[slot] = {
+      content: slotInput(el).value,
+      updatedAt: slotUpdatedAt.get(slot) ?? null,
+    };
+  });
+  const prev = readLocalCache(uid);
+  return {
+    slots,
+    files: attachFiles.map(({ id, name, mime, size, url, purpose, slot, createdAt }) => ({
+      id,
+      name,
+      mime,
+      size,
+      url,
+      purpose,
+      slot,
+      createdAt,
+    })),
+    remaining: remaining ?? prev?.remaining ?? null,
+  };
+}
+
+function persistCache(remaining = null) {
+  const uid = currentUserId();
+  if (!uid) return;
+  writeLocalCache(uid, cachePayloadFromState(remaining));
+}
+
+function applySlotsToDom(slots = {}) {
+  slotEls.forEach((el) => {
+    const slot = slotNum(el);
+    if (isAttachSlot(el)) return;
+    const row = slots[slot] || slots[String(slot)] || { content: "", updatedAt: null };
+    if (row.updatedAt != null) slotUpdatedAt.set(slot, row.updatedAt);
+    const ta = slotInput(el);
+    ta.value = row.content || "";
+    dirtySlots.delete(slot);
+    setBaseline(el, loadedLabel(row.updatedAt));
+    fitInput(ta, { tail: true });
+  });
+}
+
+function paintFromCache() {
+  const uid = currentUserId();
+  if (!uid) return false;
+  const cached = readLocalCache(uid);
+  if (!cached) return false;
+
+  applySlotsToDom(cached.slots || {});
+  attachFiles = (cached.files || []).slice(0, SYNCNOTE_MAX_ATTACH);
+  paintAttachGrid();
+  if (attachSpace && cached.remaining != null) {
+    attachSpace.textContent = storageLeftLabel(t, cached.remaining);
+  }
+  hydrateCachedThumbs();
+  return true;
+}
+
+async function hydrateCachedThumbs() {
+  const cells = [...attachGrid.querySelectorAll("[data-file-id]")];
+  await Promise.all(
+    cells.map(async (cell) => {
+      const id = cell.dataset.fileId;
+      if (!id || thumbObjectUrls.has(id)) return;
+      const blob = await getThumbBlob(id);
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      thumbObjectUrls.set(id, url);
+      applyThumbToCell(cell, url);
+    })
+  );
+}
+
+function scheduleThumbPrefetch() {
+  const uid = currentUserId();
+  if (!uid || !attachFiles.length) return;
+  const run = () => prefetchMissingThumbs(uid);
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(run, { timeout: 3000 });
+  } else {
+    setTimeout(run, 200);
+  }
+}
+
+async function prefetchMissingThumbs(uid) {
+  for (const f of attachFiles) {
+    if (!String(f.mime || "").startsWith("image/")) continue;
+    if (await getThumbBlob(f.id)) continue;
+    try {
+      const full = await fetchFileBlob(f, uid);
+      const thumb = await blobToThumbBlob(full);
+      if (!thumb) continue;
+      await putThumbBlob(f.id, thumb);
+      const cell = attachGrid.querySelector(`[data-file-id="${f.id}"]`);
+      if (!cell || thumbObjectUrls.has(f.id)) continue;
+      const url = URL.createObjectURL(thumb);
+      thumbObjectUrls.set(f.id, url);
+      applyThumbToCell(cell, url);
+    } catch {
+      /* background */
+    }
+  }
+}
+
+async function storeThumbFromFile(fileId, source) {
+  const thumb = await fileToThumbBlob(source);
+  if (!thumb) return;
+  await putThumbBlob(fileId, thumb);
+  const cell = attachGrid.querySelector(`[data-file-id="${fileId}"]`);
+  if (!cell) return;
+  const prev = thumbObjectUrls.get(fileId);
+  if (prev) URL.revokeObjectURL(prev);
+  const url = URL.createObjectURL(thumb);
+  thumbObjectUrls.set(fileId, url);
+  applyThumbToCell(cell, url);
+}
+
 function paintAttachGrid() {
   const uid = currentUserId();
+  revokeThumbUrls();
   renderAttachGrid(attachGrid, attachFiles, {
     readOnly: !uid,
     userId: uid,
     onDelete: uid && !attachBusy ? (id) => removeAttach(id) : undefined,
-    onSave: uid && !attachBusy ? (file) => saveOneAttach(file) : undefined,
+    onPreview: uid && !attachBusy ? (file) => previewAttach(file) : undefined,
   });
   setAttachBusy(attachBusy);
   paintAttachHint();
+  hydrateCachedThumbs();
 }
 
 async function refreshAttachStorage() {
@@ -244,8 +418,9 @@ async function refreshAttachStorage() {
   try {
     const data = await fetchFileStorage(uid, "syncnote");
     attachSpace.textContent = storageLeftLabel(t, data.remaining ?? 0);
+    patchLocalCache(uid, { remaining: data.remaining ?? 0 });
   } catch {
-    attachSpace.textContent = "";
+    /* keep cached value */
   }
 }
 
@@ -329,30 +504,36 @@ function savedLabel(updatedAt) {
 async function loadNotes() {
   const uid = currentUserId();
   if (!uid) return;
-  showError("");
+  const hadCache = !!readLocalCache(uid);
+  refreshAttachStorage();
   try {
     const res = await fetch(`/api/portal?action=syncnote_get&user_id=${encodeURIComponent(uid)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t.errLoad);
     const bySlot = new Map((data.slots || []).map((s) => [s.slot, s]));
+    const slots = {};
     slotEls.forEach((el) => {
       const slot = slotNum(el);
       const row = bySlot.get(slot) || { content: "", updatedAt: null };
       if (isAttachSlot(el)) {
         attachFiles = (row.files || []).slice(0, SYNCNOTE_MAX_ATTACH);
-        paintAttachGrid();
         return;
       }
-      const ta = slotInput(el);
-      ta.value = row.content || "";
-      dirtySlots.delete(slot);
-      setBaseline(el, loadedLabel(row.updatedAt));
-      fitInput(ta, { tail: true });
+      slots[slot] = { content: row.content || "", updatedAt: row.updatedAt };
     });
+    applySlotsToDom(slots);
+    paintAttachGrid();
     paintToolUser();
-    await refreshAttachStorage();
+    const prev = readLocalCache(uid);
+    writeLocalCache(uid, {
+      slots,
+      files: attachFiles,
+      remaining: prev?.remaining ?? null,
+    });
+    scheduleThumbPrefetch();
+    showError("");
   } catch (e) {
-    showError(e.message || t.errLoad);
+    if (!hadCache) showError(e.message || t.errLoad);
   }
 }
 
@@ -370,7 +551,9 @@ async function saveSlot(el, { quiet = false } = {}) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t.errSave);
     dirtySlots.delete(slot);
+    if (data.updatedAt) slotUpdatedAt.set(slot, data.updatedAt);
     if (!flashing.has(slot)) setBaseline(el, savedLabel(data.updatedAt));
+    persistCache();
   } catch (e) {
     showError(e.message || t.errSave);
     if (!flashing.has(slot)) renderBaseline(slot);
@@ -403,6 +586,7 @@ async function clearSlot(el) {
     dirtySlots.delete(slot);
     flashStatus(el, t.cleared);
     setBaseline(el, "");
+    persistCache();
   } catch (e) {
     showError(e.message || t.errSave);
   }
@@ -415,30 +599,41 @@ async function removeAttach(id) {
   try {
     await deleteFile({ id, userId: uid });
     attachFiles = attachFiles.filter((f) => f.id !== id);
+    await deleteThumbBlob(id);
     paintAttachGrid();
-    await refreshAttachStorage();
+    persistCache();
+    refreshAttachStorage();
   } catch (e) {
     showError(e.message || t.errUpload);
   }
 }
 
-async function saveOneAttach(file) {
+async function previewAttach(file) {
   const uid = currentUserId();
   if (!uid || attachBusy) return;
   showError("");
+  closePreview();
+  if (attachPreview) attachPreview.hidden = false;
+  if (previewProgress) previewProgress.hidden = false;
   setAttachBusy(true);
-  const prog = mountProgress(attachProgress, { label: t.downloading, estimatedMs: 3500 });
+  const estMs = Math.min(12000, Math.max(2500, (file.size || 500000) / 400));
+  const prog = mountProgress(previewProgress, { label: t.previewLoading, estimatedMs: estMs });
   try {
-    await downloadFileEntry(file, uid, { userGesture: true });
+    const blob = await fetchFileBlob(file, uid);
     prog.done();
-    showToast(t.savedImage);
+    previewObjectUrl = URL.createObjectURL(blob);
+    if (previewImg) {
+      previewImg.src = previewObjectUrl;
+      previewImg.alt = file.name || "";
+      previewImg.hidden = false;
+    }
+    if (previewProgress) previewProgress.hidden = true;
   } catch (e) {
     prog.fail();
-    if (e?.name === "AbortError") return;
+    closePreview();
     showError(e.message || t.errUpload);
   } finally {
     setAttachBusy(false);
-    paintAttachGrid();
   }
 }
 
@@ -480,7 +675,6 @@ async function downloadAllAttach() {
     showError(e.message || t.errUpload);
   } finally {
     setAttachBusy(false);
-    paintAttachGrid();
   }
 }
 
@@ -510,10 +704,12 @@ async function handleAttachPick(fileList) {
       }
       const uploaded = await uploadFile({ file, purpose: "syncnote", slot: ATTACH_SLOT, userId: uid });
       attachFiles.push(uploaded);
+      await storeThumbFromFile(uploaded.id, file);
     }
     attachFiles = attachFiles.slice(0, SYNCNOTE_MAX_ATTACH);
     paintAttachGrid();
-    await refreshAttachStorage();
+    persistCache();
+    refreshAttachStorage();
     prog.done();
   } catch (e) {
     prog.fail();
@@ -557,18 +753,23 @@ function setGuestMode(on) {
 function boot() {
   applyI18n();
   paintToolUser();
-  paintAttachGrid();
-  fitAllInputs();
   const user = getUser();
   if (!user?.id) {
     setGuestMode(true);
+    paintAttachGrid();
+    fitAllInputs();
     return;
   }
   setGuestMode(false);
-  deferWork(() => {
-    loadNotes();
-  });
+  paintFromCache();
+  fitAllInputs();
+  setTimeout(() => loadNotes(), 0);
 }
+
+previewClose?.addEventListener("click", closePreview);
+attachPreview?.addEventListener("click", (e) => {
+  if (e.target === attachPreview) closePreview();
+});
 
 mountLangTabs(document.getElementById("langSlot"), {
   layout: "horizontal",
@@ -601,6 +802,7 @@ slotEls.forEach((el) => {
   ta.addEventListener("input", () => {
     fitInput(ta);
     scheduleSave(el);
+    scheduleCacheWrite();
   });
   ta.addEventListener("focus", () => fitInput(ta));
   ta.addEventListener("blur", () => fitInput(ta, { tail: true }));
