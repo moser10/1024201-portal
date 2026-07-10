@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Minimal CFAC sub+rules HTTPS server. Data in JSON; no heavy deps."""
-import base64, json, os, re, sqlite3, ssl
+"""Minimal CFAC HTTPS: node sub + SR (Study Rule) config."""
+import base64, json, os, sqlite3, ssl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -11,7 +11,7 @@ VPS_IP = os.environ.get("CFAC_VPS_IP", "199.255.96.31")
 CERT = Path("/etc/cfac-sub/certs/sub.crt")
 KEY = Path("/etc/cfac-sub/certs/sub.key")
 TOKEN = Path("/etc/cfac-sub/token").read_text().strip()
-RULES = Path("/etc/cfac-sub/shadowrocket-rules.conf")
+SR = Path("/etc/cfac-sub/sr.conf")
 DESTS = Path("/etc/cfac-sub/reality-dests.json")
 
 
@@ -34,10 +34,9 @@ def links():
             continue
         uuid, flow = cls[0].get("id") or "", cls[0].get("flow") or "xtls-rprx-vision"
         name = remark or f"cfac-{port}"
-        # annotate current camouflage in node name for visibility
         try:
             j = json.loads(DESTS.read_text())
-            cur = j["dests"][j.get("active_index", 0)]["name"]
+            cur = j["dests"][int(j.get("active_index", 0)) % len(j["dests"])]["name"]
             name = f"cfac-{port}-{cur}"
         except Exception:
             pass
@@ -64,25 +63,36 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = urlparse(self.path).path.rstrip("/")
-        base, rules = f"/{TOKEN}", f"/{TOKEN}/rules"
+        base = f"/{TOKEN}"
+        sr = f"/{TOKEN}/sr"
+        # keep old /rules alias
+        rules = f"/{TOKEN}/rules"
         status = f"/{TOKEN}/status"
         if p in (base, f"/sub/{TOKEN}"):
             ls = links()
             if not ls:
                 return self._send(404, b"empty\n")
             body = base64.b64encode(("\n".join(ls) + "\n").encode())
-            # ask Shadowrocket to refresh hourly to pick rotated SNI
             return self._send(200, body, extra={"Profile-Update-Interval": "1"})
-        if p in (rules, f"/sub/{TOKEN}/rules"):
-            if not RULES.is_file():
-                return self._send(404, b"no rules\n")
-            return self._send(200, RULES.read_bytes(), "text/plain; charset=utf-8")
+        if p in (sr, rules, f"/sub/{TOKEN}/sr", f"/sub/{TOKEN}/rules"):
+            if not SR.is_file():
+                return self._send(404, b"no sr\n")
+            return self._send(200, SR.read_bytes())
         if p == status:
             try:
                 j = json.loads(DESTS.read_text())
                 i = int(j.get("active_index", 0)) % len(j["dests"])
-                cur = j["dests"][i]
-                body = json.dumps({"ok": True, "active": cur, "nodes": len(links())}, ensure_ascii=False).encode()
+                body = json.dumps(
+                    {
+                        "ok": True,
+                        "active": j["dests"][i],
+                        "next_rotate_at": j.get("next_rotate_at"),
+                        "rotate_min_minutes": j.get("rotate_min_minutes", 50),
+                        "rotate_max_minutes": j.get("rotate_max_minutes", 190),
+                        "nodes": len(links()),
+                    },
+                    ensure_ascii=False,
+                ).encode()
             except Exception as e:
                 body = json.dumps({"ok": False, "err": type(e).__name__}).encode()
             return self._send(200, body, "application/json")
@@ -95,7 +105,7 @@ def main():
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.load_cert_chain(str(CERT), str(KEY))
     httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
-    print(f"[sub] https://0.0.0.0:{PORT}/<token>/")
+    print(f"[sub] https 0.0.0.0:{PORT}")
     httpd.serve_forever()
 
 
