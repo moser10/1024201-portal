@@ -6,6 +6,13 @@ export function isImageMime(mime) {
   return String(mime || "").startsWith("image/");
 }
 
+export function isMobileIos() {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 export function fileIconSvg() {
   return `<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6m-1 1v5h5M8 13h8v2H8v-2m0 4h5v2H8v-2"/></svg>`;
 }
@@ -20,7 +27,7 @@ function fileUrl(f, userId) {
 /**
  * @param {HTMLElement} host
  * @param {Array<{id,name,mime,url,size}>} files
- * @param {{ onDelete?: (id)=>void, readOnly?: boolean, userId?: number|string }} opts
+ * @param {{ onDelete?: (id)=>void, onSave?: (file)=>void, readOnly?: boolean, userId?: number|string }} opts
  */
 export function renderAttachGrid(host, files, opts = {}) {
   if (!host) return;
@@ -36,8 +43,10 @@ export function renderAttachGrid(host, files, opts = {}) {
   for (const f of list) {
     const cell = document.createElement("div");
     cell.className = "attach-cell attach-cell--thumb";
+    if (opts.onSave && !opts.readOnly) cell.classList.add("attach-cell--save");
     cell.innerHTML = thumbInner(f, opts.userId);
     if (!opts.readOnly && opts.onDelete) bindDelete(cell, f.id, opts.onDelete);
+    if (opts.onSave && !opts.readOnly) bindSave(cell, f, opts.onSave);
     host.appendChild(cell);
   }
 }
@@ -61,6 +70,21 @@ function bindDelete(cell, id, onDelete) {
     onDelete(id);
   });
   cell.appendChild(btn);
+}
+
+function bindSave(cell, file, onSave) {
+  cell.setAttribute("role", "button");
+  cell.tabIndex = 0;
+  cell.setAttribute("aria-label", file.name || "Save image");
+  const go = (e) => {
+    if (e.target.closest(".attach-del")) return;
+    e.preventDefault();
+    onSave(file);
+  };
+  cell.addEventListener("click", go);
+  cell.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") go(e);
+  });
 }
 
 function shortName(name) {
@@ -98,12 +122,28 @@ export async function deleteFile({ id, userId }) {
   return data;
 }
 
-export async function downloadFileEntry(file, userId) {
+export async function fetchFileBlob(file, userId) {
   const url = fileUrl(file, userId);
   const res = await fetch(url);
   if (!res.ok) throw new Error("download_failed");
-  const blob = await res.blob();
+  return res.blob();
+}
+
+export async function downloadFileEntry(file, userId, { userGesture = false } = {}) {
+  const blob = await fetchFileBlob(file, userId);
   const name = file.name || `image-${file.id?.slice(0, 8) || "file"}.jpg`;
+  const type = blob.type || file.mime || "image/jpeg";
+  const fileObj = new File([blob], name, { type });
+
+  if (userGesture && isMobileIos() && navigator.share && navigator.canShare?.({ files: [fileObj] })) {
+    try {
+      await navigator.share({ files: [fileObj] });
+      return name;
+    } catch (e) {
+      if (e?.name === "AbortError") throw e;
+    }
+  }
+
   const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = objectUrl;
@@ -112,6 +152,18 @@ export async function downloadFileEntry(file, userId) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), isMobileIos() ? 8000 : 2000);
   return name;
+}
+
+export async function shareFileEntries(files, userId) {
+  const blobs = [];
+  for (const f of files) {
+    const blob = await fetchFileBlob(f, userId);
+    const name = f.name || `image-${f.id?.slice(0, 8) || "file"}.jpg`;
+    blobs.push(new File([blob], name, { type: blob.type || f.mime || "image/jpeg" }));
+  }
+  if (!navigator.share || !navigator.canShare?.({ files: blobs })) return false;
+  await navigator.share({ files: blobs });
+  return true;
 }

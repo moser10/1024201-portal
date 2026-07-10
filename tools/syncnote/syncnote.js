@@ -7,10 +7,13 @@ import {
   uploadFile,
   deleteFile,
   downloadFileEntry,
+  shareFileEntries,
+  isMobileIos,
   SYNCNOTE_MAX_ATTACH,
 } from "../js/attachGrid.js";
 import { fetchFileStorage, storageLeftLabel } from "../js/storageQuota.js";
-import { showSheet } from "/game/js/toast.js";
+import { showSheet, showToast } from "/game/js/toast.js";
+import { mountProgress } from "../lyrics/loading.js";
 
 const MAX_LINES = 3;
 const FLASH_MS = 2200;
@@ -30,8 +33,19 @@ const UI = {
     downloadAll: "Download all",
     downloadOk: "OK",
     downloadEmpty: "No images to download",
+    downloading: "Downloading…",
+    downloadingN: (n, total) => `Downloading ${n}/${total}…`,
+    uploading: "Uploading…",
+    uploadingN: (n, total) => `Uploading ${n}/${total}…`,
+    savedImage: "Image saved",
+    saveHint:
+      "Tap a thumbnail to save that image. On iPhone/iPad, long-press the preview and choose Save to Photos.",
     downloadDone: (n) =>
       `${n} image(s) saved to your default Downloads folder.\n\niPhone/iPad: Files → Downloads\nMac: Downloads folder\nAndroid: Download`,
+    downloadShareDone: (n) =>
+      `${n} image(s) opened in the share sheet. Choose Save to Photos or Save to Files.`,
+    downloadIosDone: (n) =>
+      `${n} image(s) processed. If any are missing, tap each thumbnail to save individually.`,
     maxImages: "Up to 3 images",
     clear: "Delete all",
     saved: "Saved",
@@ -58,8 +72,18 @@ const UI = {
     downloadAll: "全部下载",
     downloadOk: "知道了",
     downloadEmpty: "没有可下载的图片",
+    downloading: "下载中…",
+    downloadingN: (n, total) => `下载中 ${n}/${total}…`,
+    uploading: "上传中…",
+    uploadingN: (n, total) => `上传中 ${n}/${total}…`,
+    savedImage: "图片已保存",
+    saveHint: "点击缩略图可保存单张图片；在 iPhone/iPad 上亦可长按图片并选择「存储到照片」。",
     downloadDone: (n) =>
       `已下载 ${n} 张图片到系统默认「下载」文件夹。\n\niPhone/iPad：文件 App → 下载\nMac：下载文件夹\nAndroid：Download 目录`,
+    downloadShareDone: (n) =>
+      `已通过分享面板发送 ${n} 张图片，可选择「存储到照片」或「存储到文件」。`,
+    downloadIosDone: (n) =>
+      `已处理 ${n} 张图片。如有遗漏，请逐张点击缩略图保存。`,
     maxImages: "最多 3 张图片",
     clear: "全部删除",
     saved: "已保存",
@@ -86,8 +110,19 @@ const UI = {
     downloadAll: "すべてダウンロード",
     downloadOk: "OK",
     downloadEmpty: "ダウンロードする画像がありません",
+    downloading: "ダウンロード中…",
+    downloadingN: (n, total) => `ダウンロード中 ${n}/${total}…`,
+    uploading: "アップロード中…",
+    uploadingN: (n, total) => `アップロード中 ${n}/${total}…`,
+    savedImage: "画像を保存しました",
+    saveHint:
+      "サムネイルをタップして画像を保存できます。iPhone/iPadでは画像を長押しし「写真に保存」を選ぶこともできます。",
     downloadDone: (n) =>
       `${n} 枚を既定のダウンロードフォルダに保存しました。\n\niPhone/iPad：ファイル → ダウンロード\nMac：ダウンロード\nAndroid：Download`,
+    downloadShareDone: (n) =>
+      `${n} 枚を共有シートで開きました。「写真に保存」または「ファイルに保存」を選べます。`,
+    downloadIosDone: (n) =>
+      `${n} 枚を処理しました。不足がある場合はサムネイルをタップして個別に保存してください。`,
     maxImages: "最大 3 枚",
     clear: "すべて削除",
     saved: "保存済み",
@@ -120,7 +155,10 @@ const slotEls = [...document.querySelectorAll(".sync-slot")];
 const attachGrid = document.getElementById("attachGrid");
 const attachInput = document.getElementById("attachInput");
 const attachSpace = document.getElementById("attachSpace");
+const attachProgress = document.getElementById("attachProgress");
+const attachSaveHint = document.getElementById("attachSaveHint");
 const attachSlotEl = slotEls.find((s) => parseInt(s.dataset.slot, 10) === ATTACH_SLOT);
+let attachBusy = false;
 
 function slotNum(el) {
   return parseInt(el.dataset.slot, 10);
@@ -164,15 +202,36 @@ function fitAllInputs(opts) {
   });
 }
 
+function paintAttachHint() {
+  if (!attachSaveHint) return;
+  const show = attachFiles.length > 0 && currentUserId();
+  attachSaveHint.textContent = show ? t.saveHint : "";
+  attachSaveHint.hidden = !show;
+}
+
+function setAttachBusy(on) {
+  attachBusy = on;
+  const addBtn = attachSlotEl?.querySelector(".sync-add-file");
+  const dlBtn = attachSlotEl?.querySelector(".sync-download-all");
+  if (addBtn) addBtn.disabled = on || !currentUserId() || attachFiles.length >= SYNCNOTE_MAX_ATTACH;
+  if (dlBtn) dlBtn.disabled = on || !currentUserId();
+}
+
+function updateProgressLabel(host, text) {
+  const label = host?.querySelector(".loading-label");
+  if (label) label.textContent = text;
+}
+
 function paintAttachGrid() {
   const uid = currentUserId();
   renderAttachGrid(attachGrid, attachFiles, {
     readOnly: !uid,
     userId: uid,
-    onDelete: uid ? (id) => removeAttach(id) : undefined,
+    onDelete: uid && !attachBusy ? (id) => removeAttach(id) : undefined,
+    onSave: uid && !attachBusy ? (file) => saveOneAttach(file) : undefined,
   });
-  const addBtn = attachSlotEl?.querySelector(".sync-add-file");
-  if (addBtn) addBtn.disabled = !uid || attachFiles.length >= SYNCNOTE_MAX_ATTACH;
+  setAttachBusy(attachBusy);
+  paintAttachHint();
 }
 
 async function refreshAttachStorage() {
@@ -198,6 +257,7 @@ function applyI18n() {
   document.getElementById("loginDesc").textContent = t.loginDesc;
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/syncnote/");
+  if (attachSaveHint && !attachSaveHint.hidden) attachSaveHint.textContent = t.saveHint;
   slotEls.forEach((el) => {
     const n = slotNum(el);
     if (isAttachSlot(el)) {
@@ -362,29 +422,71 @@ async function removeAttach(id) {
   }
 }
 
+async function saveOneAttach(file) {
+  const uid = currentUserId();
+  if (!uid || attachBusy) return;
+  showError("");
+  setAttachBusy(true);
+  const prog = mountProgress(attachProgress, { label: t.downloading, estimatedMs: 3500 });
+  try {
+    await downloadFileEntry(file, uid, { userGesture: true });
+    prog.done();
+    showToast(t.savedImage);
+  } catch (e) {
+    prog.fail();
+    if (e?.name === "AbortError") return;
+    showError(e.message || t.errUpload);
+  } finally {
+    setAttachBusy(false);
+    paintAttachGrid();
+  }
+}
+
 async function downloadAllAttach() {
   const uid = currentUserId();
-  if (!uid) return;
+  if (!uid || attachBusy) return;
   const images = attachFiles.filter((f) => String(f.mime || "").startsWith("image/"));
   if (!images.length) {
     await showSheet(t.downloadEmpty, [{ label: t.downloadOk, value: true }]);
     return;
   }
   showError("");
+  setAttachBusy(true);
+  const ios = isMobileIos();
+  const estMs = images.length * (ios ? 4500 : 1800);
+  const prog = mountProgress(attachProgress, { label: t.downloading, estimatedMs: estMs });
   try {
-    for (const f of images) {
-      await downloadFileEntry(f, uid);
-      await new Promise((r) => setTimeout(r, 300));
+    if (ios) {
+      const shared = await shareFileEntries(images, uid);
+      if (shared) {
+        prog.done();
+        await showSheet(t.downloadShareDone(images.length), [{ label: t.downloadOk, value: true }]);
+        return;
+      }
     }
-    await showSheet(t.downloadDone(images.length), [{ label: t.downloadOk, value: true }]);
+    for (let i = 0; i < images.length; i++) {
+      updateProgressLabel(attachProgress, t.downloadingN(i + 1, images.length));
+      await downloadFileEntry(images[i], uid);
+      if (i < images.length - 1) {
+        await new Promise((r) => setTimeout(r, ios ? 1500 : 350));
+      }
+    }
+    prog.done();
+    const msg = ios ? t.downloadIosDone(images.length) : t.downloadDone(images.length);
+    await showSheet(msg, [{ label: t.downloadOk, value: true }]);
   } catch (e) {
+    prog.fail();
+    if (e?.name === "AbortError") return;
     showError(e.message || t.errUpload);
+  } finally {
+    setAttachBusy(false);
+    paintAttachGrid();
   }
 }
 
 async function handleAttachPick(fileList) {
   const uid = currentUserId();
-  if (!uid || !fileList?.length) return;
+  if (!uid || !fileList?.length || attachBusy) return;
   const room = SYNCNOTE_MAX_ATTACH - attachFiles.length;
   if (room <= 0) {
     showError(t.maxImages);
@@ -392,9 +494,16 @@ async function handleAttachPick(fileList) {
     return;
   }
   showError("");
+  setAttachBusy(true);
+  const picks = [...fileList].slice(0, room);
+  const prog = mountProgress(attachProgress, {
+    label: t.uploading,
+    estimatedMs: picks.length * 5000,
+  });
   try {
-    const picks = [...fileList].slice(0, room);
-    for (const file of picks) {
+    for (let i = 0; i < picks.length; i++) {
+      const file = picks[i];
+      updateProgressLabel(attachProgress, t.uploadingN(i + 1, picks.length));
       if (!file.type?.startsWith("image/")) throw new Error(t.errUploadImage);
       if (file.size > MAX_FILE_MB * 1024 * 1024) {
         throw new Error(`${file.name}: max ${MAX_FILE_MB}MB`);
@@ -405,10 +514,14 @@ async function handleAttachPick(fileList) {
     attachFiles = attachFiles.slice(0, SYNCNOTE_MAX_ATTACH);
     paintAttachGrid();
     await refreshAttachStorage();
+    prog.done();
   } catch (e) {
+    prog.fail();
     showError(e.message || t.errUpload);
   } finally {
     attachInput.value = "";
+    setAttachBusy(false);
+    paintAttachGrid();
   }
 }
 
@@ -431,8 +544,8 @@ function setGuestMode(on) {
     if (isAttachSlot(el)) {
       const addBtn = el.querySelector(".sync-add-file");
       const dlBtn = el.querySelector(".sync-download-all");
-      if (addBtn) addBtn.disabled = on;
-      if (dlBtn) dlBtn.disabled = on;
+      if (addBtn) addBtn.disabled = on || attachBusy || !currentUserId() || attachFiles.length >= SYNCNOTE_MAX_ATTACH;
+      if (dlBtn) dlBtn.disabled = on || attachBusy || !currentUserId();
       return;
     }
     const ta = slotInput(el);
