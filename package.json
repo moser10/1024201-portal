@@ -1,8 +1,13 @@
 {
   "name": "1024201-portal",
   "private": true,
+  "type": "module",
   "scripts": {
-    "deploy": "wrangler deploy && node scripts/post-deploy.mjs",
+    "predeploy": "node scripts/predeploy-check.mjs",
+    "deploy": "npm run predeploy && wrangler deploy && node scripts/post-deploy.mjs",
+    "deploy:worker": "wrangler deploy",
+    "postdeploy": "node scripts/post-deploy.mjs",
+    "check": "node scripts/predeploy-check.mjs",
     "setup": "npm install && npm link ./cli",
     "cli": "node cli/bin/1024.js",
     "cli:link": "npm link ./cli"

@@ -1,6 +1,8 @@
 .wrangler/
 .cursor/
 node_modules/
+scripts/.address-seed.sql
+scripts/.address-seed*.sql
 
 # 本地交接上下文（含 VPS IP/面板路径，勿上传）
 .1024_context.md
