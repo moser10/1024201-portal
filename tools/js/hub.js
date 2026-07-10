@@ -11,6 +11,14 @@ const LYRICS_ICON = `
 
 const TOOLS = [
   {
+    id: "showcase",
+    title: { zh: "作品展示", en: "Portfolio", ja: "作品展示" },
+    sub: { zh: "水印保护 · 分享展示", en: "Watermark · share safely", ja: "透かし付き展示" },
+    href: "showcase/",
+    gradient: "linear-gradient(135deg, #ff375f 0%, #ff9f0a 100%)",
+    icon: `<svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="#fff" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2M8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg>`,
+  },
+  {
     id: "syncnote",
     title: { zh: "文本中转站", en: "Text Relay", ja: "テキスト中継" },
     sub: { zh: "跨设备复制粘贴", en: "Cross-device paste", ja: "端末間コピー" },

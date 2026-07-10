@@ -17,9 +17,19 @@
       ja: { pageTitle: "音楽", pageSub: "Deezerチャート · 30秒プレビュー", backLink: "ツールボックス" },
     },
     syncnote: {
-      en: { pageTitle: "Text Relay", pageSub: "Three relay fields across devices.", backLink: "Toolbox" },
-      zh: { pageTitle: "文本中转站", pageSub: "三个中转框，跨设备同步；不点删除则一直保留各框内容。", backLink: "返回工具箱" },
-      ja: { pageTitle: "テキスト中継", pageSub: "3つの中継欄で端末間同期。", backLink: "ツールボックス" },
+      en: { pageTitle: "Text Relay", pageSub: "Two text fields + attachments (20MB each)", backLink: "Toolbox" },
+      zh: { pageTitle: "文本中转站", pageSub: "两个文本框 + 附件框（单文件最大 20MB）", backLink: "返回工具箱" },
+      ja: { pageTitle: "テキスト中継", pageSub: "テキスト2枠 + 添付（各20MB）", backLink: "ツールボックス" },
+    },
+    showcase: {
+      en: { pageTitle: "Portfolio", pageSub: "Watermark images for designers & photographers", backLink: "Toolbox" },
+      zh: { pageTitle: "作品展示", pageSub: "设计/摄影作品加水印展示，降低被白嫖风险", backLink: "返回工具箱" },
+      ja: { pageTitle: "作品展示", pageSub: "透かし付きで作品を公開", backLink: "ツールボックス" },
+    },
+    "showcase-view": {
+      en: { backLink: "Portfolio" },
+      zh: { backLink: "作品展示" },
+      ja: { backLink: "作品展示" },
     },
     cli: {
       en: { pageTitle: "CLI", pageSub: "Run 1024201 tools from the terminal · same API & quotas as the web", backLink: "Toolbox" },

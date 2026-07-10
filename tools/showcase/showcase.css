@@ -1,0 +1,108 @@
+.sc-card { background: #fff; }
+.sc-workspace { position: relative; }
+.sc-workspace.sc-guest .sc-form,
+.sc-workspace.sc-guest .sc-mine {
+  filter: blur(5px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.sc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sc-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #636366;
+}
+.sc-input {
+  padding: 10px 12px;
+  border: 1px solid #e5e5ea;
+  border-radius: 10px;
+  font-size: 15px;
+}
+.sc-input-file {
+  font-size: 14px;
+}
+.sc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #1c1c1e;
+  margin: 4px 0 0;
+}
+.sc-check input { margin-top: 3px; }
+.sc-hint {
+  font-size: 11px;
+  color: #8e8e93;
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.sc-submit { margin-top: 4px; }
+.sc-mine { margin-top: 20px; border-top: 1px solid #e5e5ea; padding-top: 14px; }
+.sc-mine-title { font-size: 15px; margin: 0 0 10px; }
+.sc-mine-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sc-mine-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #007aff;
+  font-size: 14px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #f2f2f7;
+}
+.sc-mine-list img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.sc-result {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #007aff;
+  word-break: break-all;
+}
+.sc-view-page .sc-view-card { text-align: center; }
+.sc-view-card h1 { font-size: 22px; margin: 0 0 6px; }
+.sc-meta { font-size: 13px; color: #8e8e93; margin: 0 0 12px; }
+.sc-image-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f2f2f7;
+}
+.sc-image-wrap img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+.sc-views { font-size: 12px; color: #8e8e93; margin-top: 10px; }
+.login-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px 16px;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(2px);
+}
+.login-panel[hidden] { display: none; }
+.login-panel .btn-link {
+  display: inline-block;
+  margin-top: 12px;
+  text-decoration: none;
+  padding: 11px 20px;
+  border-radius: 12px;
+  background: #007aff;
+  color: #fff;
+  font-weight: 600;
+}
+.err { color: #ff3b30; font-size: 13px; margin-top: 8px; }

@@ -2,66 +2,81 @@ import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser } from "/game/js/store.js";
 import { currentUserId, loginHref } from "../js/quotaClient.js";
 import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
+import { renderAttachGrid, uploadFile, deleteFile } from "../js/attachGrid.js";
 
 const MAX_LINES = 3;
 const FLASH_MS = 2200;
+const ATTACH_SLOT = 2;
+const MAX_FILE_MB = 20;
 
 const UI = {
   en: {
     title: "Text Relay",
-    sub: "Three relay fields across devices. Saved until you delete each one.",
+    sub: "Two text fields + one attachment box (20MB each), synced across devices.",
     back: "Toolbox",
     loginDesc: "Sign in to use Text Relay.",
     loginBtn: "Sign in / Register",
     slot: (n) => `Relay ${n}`,
+    slotAttach: "Attachments",
     copy: "Copy",
-    clear: "Delete",
+    addFile: "Add file",
+    clear: "Delete all",
     saved: "Saved",
     saving: "Saving…",
+    uploading: "Uploading…",
     loaded: "Loaded",
     cleared: "Cleared",
     copied: "Copied to clipboard",
-    user: (n) => `@${n}`,
+    attachHint: `Max ${MAX_FILE_MB}MB per file · ≤3 thumbnails · 4–6 icons · 7+ first thumb + count`,
     errLoad: "Failed to load",
     errSave: "Failed to save",
+    errUpload: "Upload failed",
     errClip: "Clipboard unavailable",
   },
   zh: {
     title: "文本中转站",
-    sub: "三个中转框，跨设备同步；不点删除则一直保留各框内容。",
+    sub: "两个文本框 + 一个附件框（单文件最大 20MB），跨设备同步。",
     back: "返回工具箱",
     loginDesc: "请登录后使用文本中转站。",
     loginBtn: "登录 / 注册",
     slot: (n) => `中转 ${n}`,
+    slotAttach: "附件",
     copy: "复制",
-    clear: "删除",
+    addFile: "添加附件",
+    clear: "全部删除",
     saved: "已保存",
     saving: "保存中…",
+    uploading: "上传中…",
     loaded: "已加载",
     cleared: "已清空",
     copied: "已复制到剪贴板",
-    user: (n) => `@${n}`,
+    attachHint: `单文件最大 ${MAX_FILE_MB}MB · ≤3 张缩略图 · 4–6 个图标 · 7 个以上显示首图+数量`,
     errLoad: "加载失败",
     errSave: "保存失败",
+    errUpload: "上传失败",
     errClip: "无法访问剪贴板",
   },
   ja: {
     title: "テキスト中継",
-    sub: "3つの中継欄で端末間同期。削除するまで各欄を保持。",
+    sub: "テキスト2枠 + 添付1枠（各20MBまで）、端末間同期。",
     back: "ツールボックス",
     loginDesc: "テキスト中継を使うにはログインしてください。",
     loginBtn: "ログイン / 登録",
     slot: (n) => `中継 ${n}`,
+    slotAttach: "添付",
     copy: "コピー",
-    clear: "削除",
+    addFile: "ファイル追加",
+    clear: "すべて削除",
     saved: "保存済み",
     saving: "保存中…",
+    uploading: "アップロード中…",
     loaded: "読み込み済み",
     cleared: "削除しました",
     copied: "クリップボードにコピー",
-    user: (n) => `@${n}`,
+    attachHint: `1ファイル最大${MAX_FILE_MB}MB · 3枚以下はサムネ · 7枚超は先頭+件数`,
     errLoad: "読み込みに失敗",
     errSave: "保存に失敗",
+    errUpload: "アップロード失敗",
     errClip: "クリップボードを使用できません",
   },
 };
@@ -73,15 +88,24 @@ const dirtySlots = new Set();
 const baselineStatus = new Map();
 const flashTimers = new Map();
 const flashing = new Set();
+let attachFiles = [];
 
 const errBox = document.getElementById("errBox");
 const loginPanel = document.getElementById("loginPanel");
 const syncWorkspace = document.getElementById("syncWorkspace");
-const editorWrap = document.getElementById("editorWrap");
 const slotEls = [...document.querySelectorAll(".sync-slot")];
+const attachGrid = document.getElementById("attachGrid");
+const attachInput = document.getElementById("attachInput");
+const attachHint = document.getElementById("attachHint");
+const attachSlotEl = slotEls.find((s) => parseInt(s.dataset.slot, 10) === ATTACH_SLOT);
+const attachStatusEl = attachSlotEl?.querySelector("[data-attach-status]");
 
 function slotNum(el) {
   return parseInt(el.dataset.slot, 10);
+}
+
+function isAttachSlot(el) {
+  return el?.dataset?.type === "attach";
 }
 
 function slotInput(el) {
@@ -89,7 +113,7 @@ function slotInput(el) {
 }
 
 function slotStatusEl(el) {
-  return el.querySelector(".sync-status");
+  return isAttachSlot(el) ? attachStatusEl : el.querySelector(".sync-status");
 }
 
 function lineMetrics(ta) {
@@ -111,7 +135,18 @@ function fitInput(ta, { tail = false } = {}) {
 }
 
 function fitAllInputs(opts) {
-  slotEls.forEach((el) => fitInput(slotInput(el), opts));
+  slotEls.forEach((el) => {
+    if (isAttachSlot(el)) return;
+    fitInput(slotInput(el), opts);
+  });
+}
+
+function paintAttachGrid() {
+  const uid = currentUserId();
+  renderAttachGrid(attachGrid, attachFiles, {
+    readOnly: !uid,
+    onDelete: uid ? (id) => removeAttach(id) : undefined,
+  });
 }
 
 function applyI18n() {
@@ -121,9 +156,16 @@ function applyI18n() {
   document.getElementById("loginDesc").textContent = t.loginDesc;
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/syncnote/");
+  if (attachHint) attachHint.textContent = t.attachHint;
   slotEls.forEach((el) => {
-    const n = slotNum(el) + 1;
-    el.querySelector("[data-slot-label]").textContent = t.slot(n);
+    const n = slotNum(el);
+    if (isAttachSlot(el)) {
+      el.querySelector("[data-slot-label]").textContent = t.slotAttach;
+      el.querySelector(".sync-add-file").textContent = t.addFile;
+      el.querySelector(".sync-clear").textContent = t.clear;
+      return;
+    }
+    el.querySelector("[data-slot-label]").textContent = t.slot(n + 1);
     el.querySelector(".sync-copy").textContent = t.copy;
     el.querySelector(".sync-clear").textContent = t.clear;
   });
@@ -185,6 +227,15 @@ async function loadNotes() {
     slotEls.forEach((el) => {
       const slot = slotNum(el);
       const row = bySlot.get(slot) || { content: "", updatedAt: null };
+      if (isAttachSlot(el)) {
+        attachFiles = (row.files || []).map((f) => ({
+          ...f,
+          url: `${f.url}&user_id=${encodeURIComponent(uid)}`,
+        }));
+        paintAttachGrid();
+        setBaseline(el, loadedLabel(row.updatedAt));
+        return;
+      }
       const ta = slotInput(el);
       ta.value = row.content || "";
       dirtySlots.delete(slot);
@@ -193,7 +244,7 @@ async function loadNotes() {
     });
     const userLine = document.getElementById("userLine");
     userLine.hidden = false;
-    userLine.textContent = t.user(data.username || getUser()?.username || "");
+    userLine.textContent = `@${data.username || getUser()?.username || ""}`;
     paintToolUser();
   } catch (e) {
     showError(e.message || t.errLoad);
@@ -202,7 +253,7 @@ async function loadNotes() {
 
 async function saveSlot(el, { quiet = false } = {}) {
   const uid = currentUserId();
-  if (!uid) return;
+  if (!uid || isAttachSlot(el)) return;
   const slot = slotNum(el);
   if (!quiet && !flashing.has(slot)) setBaseline(el, t.saving);
   try {
@@ -241,14 +292,56 @@ async function clearSlot(el) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t.errSave);
-    const ta = slotInput(el);
-    ta.value = "";
+    if (isAttachSlot(el)) {
+      attachFiles = [];
+      paintAttachGrid();
+    } else {
+      const ta = slotInput(el);
+      ta.value = "";
+      fitInput(ta);
+    }
     dirtySlots.delete(slot);
-    fitInput(ta);
     flashStatus(el, t.cleared);
     setBaseline(el, "");
   } catch (e) {
     showError(e.message || t.errSave);
+  }
+}
+
+async function removeAttach(id) {
+  const uid = currentUserId();
+  if (!uid) return;
+  showError("");
+  try {
+    await deleteFile({ id, userId: uid });
+    attachFiles = attachFiles.filter((f) => f.id !== id);
+    paintAttachGrid();
+    flashStatus(attachSlotEl, t.cleared);
+  } catch (e) {
+    showError(e.message || t.errUpload);
+  }
+}
+
+async function handleAttachPick(fileList) {
+  const uid = currentUserId();
+  if (!uid || !fileList?.length) return;
+  showError("");
+  setBaseline(attachSlotEl, t.uploading);
+  try {
+    for (const file of fileList) {
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        throw new Error(`${file.name}: max ${MAX_FILE_MB}MB`);
+      }
+      const uploaded = await uploadFile({ file, purpose: "syncnote", slot: ATTACH_SLOT, userId: uid });
+      attachFiles.push(uploaded);
+    }
+    paintAttachGrid();
+    setBaseline(attachSlotEl, t.saved);
+  } catch (e) {
+    showError(e.message || t.errUpload);
+    renderBaseline(ATTACH_SLOT);
+  } finally {
+    attachInput.value = "";
   }
 }
 
@@ -268,6 +361,10 @@ function setGuestMode(on) {
   syncWorkspace.classList.toggle("sync-guest", on);
   loginPanel.hidden = !on;
   slotEls.forEach((el) => {
+    if (isAttachSlot(el)) {
+      el.querySelector(".sync-add-file").disabled = on;
+      return;
+    }
     const ta = slotInput(el);
     ta.readOnly = on;
     ta.tabIndex = on ? -1 : 0;
@@ -277,6 +374,7 @@ function setGuestMode(on) {
 function boot() {
   applyI18n();
   paintToolUser();
+  paintAttachGrid();
   fitAllInputs();
   const user = getUser();
   if (!user?.id) {
@@ -303,6 +401,15 @@ mountLangTabs(document.getElementById("langSlot"), {
 });
 
 slotEls.forEach((el) => {
+  if (isAttachSlot(el)) {
+    el.querySelector(".sync-add-file").addEventListener("click", () => attachInput.click());
+    attachInput.addEventListener("change", () => handleAttachPick([...attachInput.files]));
+    el.querySelector(".sync-clear").addEventListener("click", (e) => {
+      e.preventDefault();
+      clearSlot(el);
+    });
+    return;
+  }
   const ta = slotInput(el);
   ta.addEventListener("input", () => {
     fitInput(ta);
@@ -313,7 +420,6 @@ slotEls.forEach((el) => {
   el.querySelector(".sync-copy").addEventListener("click", (e) => copySlot(el, e));
   el.querySelector(".sync-clear").addEventListener("click", (e) => {
     e.preventDefault();
-    e.stopPropagation();
     clearSlot(el);
   });
 });
@@ -323,6 +429,7 @@ window.addEventListener("beforeunload", () => {
   const uid = currentUserId();
   if (!uid || !navigator.sendBeacon) return;
   dirtySlots.forEach((slot) => {
+    if (slot === ATTACH_SLOT) return;
     const el = slotEls.find((s) => slotNum(s) === slot);
     if (!el) return;
     navigator.sendBeacon(

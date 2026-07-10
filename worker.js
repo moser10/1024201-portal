@@ -24,6 +24,7 @@ export default {
         JSON.stringify({
           ok: true,
           hasDb: !!(env?.DB && typeof env.DB.prepare === "function"),
+          hasFiles: !!env?.FILES,
           hasResendKey: !!env?.RESEND_API_KEY,
           registerFlow: "pending_v2",
           worker: "1024201-portal",
@@ -100,6 +101,7 @@ const SUBDOMAIN_ROOT = {
   "lyrics.1024201.com": "/tools/lyrics/",
   "cli.1024201.com": "/tools/cli/",
   "address.1024201.com": "/tools/address/",
+  "showcase.1024201.com": "/tools/showcase/",
 };
 
 function maybeSubdomainRootRedirect(request) {

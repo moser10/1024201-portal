@@ -1,6 +1,18 @@
 import { corsHeaders, json, requireDb, ensureAppSchema, resolveUserId } from "./_shared.js";
 import { cleanLyricsText } from "./lyricsClean.js";
 import {
+  handleFileUpload,
+  handleFileGet,
+  handleFileDelete,
+  handleFileList,
+  handleShowcasePublish,
+  handleShowcaseGet,
+  handleShowcaseMine,
+  listUserFiles,
+  clearSyncnoteFiles,
+  ensureFilesSchema,
+} from "./r2files.js";
+import {
   ensureAddressReady,
   getAddressCountries,
   getAddressCities,
@@ -186,6 +198,28 @@ export async function onRequest(context) {
     return syncNoteClear(env, request, url);
   }
 
+  if (request.method === "POST" && action === "file_upload") {
+    return handleFileUpload(env, request, url);
+  }
+  if (request.method === "GET" && action === "file_get") {
+    return handleFileGet(env, request, url);
+  }
+  if (request.method === "POST" && action === "file_delete") {
+    return handleFileDelete(env, request, url);
+  }
+  if (request.method === "GET" && action === "file_list") {
+    return handleFileList(env, request, url);
+  }
+  if (request.method === "POST" && action === "showcase_publish") {
+    return handleShowcasePublish(env, request, url);
+  }
+  if (request.method === "GET" && action === "showcase_get") {
+    return handleShowcaseGet(env, request, url);
+  }
+  if (request.method === "GET" && action === "showcase_mine") {
+    return handleShowcaseMine(env, request, url);
+  }
+
   if (request.method === "GET" && action === "address_countries") {
     const db = requireDb(env);
     await ensureAddressReady(db, env, { waitUntil: (p) => waitUntil(p) });
@@ -253,9 +287,10 @@ async function buildIpIntel(request) {
   let mobile = false;
   let isp = org || "";
 
+  let timezone = "";
   try {
     const res = await fetch(
-      `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,country,regionName,city,isp,org,as,mobile,proxy,hosting`,
+      `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,country,regionName,city,isp,org,as,mobile,proxy,hosting,timezone`,
       { cf: { cacheTtl: 300 } }
     );
     if (res.ok) {
@@ -265,6 +300,7 @@ async function buildIpIntel(request) {
         proxy = !!ext.proxy;
         mobile = !!ext.mobile;
         isp = ext.isp || ext.org || isp;
+        timezone = ext.timezone || "";
       }
     }
   } catch {
@@ -281,11 +317,21 @@ async function buildIpIntel(request) {
   purity = Math.max(5, Math.min(99, purity));
 
   const parts = [city, region, country].filter(Boolean);
+  let localTime = null;
+  if (timezone) {
+    try {
+      localTime = new Date().toLocaleString("zh-CN", { timeZone: timezone, hour12: false });
+    } catch {
+      localTime = null;
+    }
+  }
   return {
     ip,
     city,
     region,
     country,
+    timezone,
+    localTime,
     label: parts.length ? parts.join(", ") : country || ip,
     asn,
     org,
@@ -966,6 +1012,7 @@ async function requireRegisteredUser(db, userId) {
 async function syncNoteGet(env, request, url) {
   const db = requireDb(env);
   await ensureAppSchema(db);
+  await ensureFilesSchema(db);
   const userId = await resolveUserId(request, env, url);
   const auth = await requireRegisteredUser(db, userId);
   if (!auth.ok) return json(auth.body, auth.status);
@@ -974,9 +1021,12 @@ async function syncNoteGet(env, request, url) {
     .bind(userId)
     .all();
   const bySlot = new Map(results.map((r) => [r.slot, r]));
+  const attachFiles = await listUserFiles(db, userId, "syncnote", 2);
   const slots = [0, 1, 2].map((slot) => {
     const row = bySlot.get(slot);
-    return { slot, content: row?.content ?? "", updatedAt: row?.updated_at ?? null };
+    const base = { slot, content: row?.content ?? "", updatedAt: row?.updated_at ?? null };
+    if (slot === 2) base.files = attachFiles;
+    return base;
   });
   return json({ slots, username: auth.user.username });
 }
@@ -1019,12 +1069,14 @@ async function syncNoteSave(env, request, url) {
 async function syncNoteClear(env, request, url) {
   const db = requireDb(env);
   await ensureAppSchema(db);
+  await ensureFilesSchema(db);
   const body = await request.json().catch(() => ({}));
   const userId = await resolveUserId(request, env, url, body);
   const slot = parseSlot(body, url);
   if (slot === null) return json({ error: "invalid_slot" }, 400);
   const auth = await requireRegisteredUser(db, userId);
   if (!auth.ok) return json(auth.body, auth.status);
+  if (slot === 2) await clearSyncnoteFiles(env, db, userId, 2);
   await db.prepare("DELETE FROM user_sync_notes WHERE user_id = ? AND slot = ?").bind(userId, slot).run();
   return json({ ok: true, slot });
 }

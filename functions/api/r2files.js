@@ -1,0 +1,343 @@
+import { json, requireDb, ensureAppSchema, resolveUserId } from "./_shared.js";
+
+export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const SYNCNOTE_MAX_FILES = 12;
+const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
+
+export async function ensureFilesSchema(db) {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS user_files (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        purpose TEXT NOT NULL,
+        slot INTEGER,
+        name TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        r2_key TEXT NOT NULL,
+        meta TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`
+    )
+    .run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_user_files_owner ON user_files(user_id, purpose, slot)`).run();
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS showcase_works (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        file_id TEXT NOT NULL,
+        watermark TEXT NOT NULL DEFAULT '',
+        stamp_enabled INTEGER NOT NULL DEFAULT 0,
+        stamp_label TEXT NOT NULL DEFAULT '',
+        views INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`
+    )
+    .run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_showcase_user ON showcase_works(user_id)`).run();
+}
+
+export function r2Key(userId, purpose, fileId, name) {
+  const safe = String(name || "file").replace(/[^\w.\-]+/g, "_").slice(0, 80);
+  return `u${userId}/${purpose}/${fileId}/${safe}`;
+}
+
+export function newFileId() {
+  return crypto.randomUUID();
+}
+
+export async function requireRegisteredUser(db, userId) {
+  if (!userId) return { ok: false, status: 403, body: { error: "login_required", needLogin: true } };
+  const row = await db.prepare("SELECT id, username FROM users WHERE id = ?").bind(userId).first();
+  if (!row) return { ok: false, status: 403, body: { error: "login_required", needLogin: true } };
+  return { ok: true, user: row };
+}
+
+function fileRow(r) {
+  let meta = {};
+  try {
+    meta = JSON.parse(r.meta || "{}");
+  } catch {
+    /* ignore */
+  }
+  return {
+    id: r.id,
+    name: r.name,
+    mime: r.mime,
+    size: r.size,
+    purpose: r.purpose,
+    slot: r.slot,
+    meta,
+    createdAt: r.created_at,
+    url: `/api/portal?action=file_get&id=${encodeURIComponent(r.id)}`,
+  };
+}
+
+export async function listUserFiles(db, userId, purpose, slot = null) {
+  let q = "SELECT * FROM user_files WHERE user_id = ? AND purpose = ?";
+  const binds = [userId, purpose];
+  if (slot !== null && slot !== undefined) {
+    q += " AND slot = ?";
+    binds.push(slot);
+  }
+  q += " ORDER BY created_at ASC";
+  const { results } = await db.prepare(q).bind(...binds).all();
+  return results.map(fileRow);
+}
+
+export async function handleFileUpload(env, request, url) {
+  const db = requireDb(env);
+  await ensureAppSchema(db);
+  await ensureFilesSchema(db);
+
+  if (!env.FILES) return json({ error: "storage_not_configured" }, 503);
+
+  const userId = await resolveUserId(request, env, url);
+  const auth = await requireRegisteredUser(db, userId);
+  if (!auth.ok) return json(auth.body, auth.status);
+
+  const purpose = url.searchParams.get("purpose") || "syncnote";
+  const slotRaw = url.searchParams.get("slot");
+  const slot = slotRaw !== null && slotRaw !== "" ? parseInt(slotRaw, 10) : null;
+
+  if (purpose === "syncnote") {
+    if (slot !== 2) return json({ error: "invalid_slot" }, 400);
+    const existing = await listUserFiles(db, userId, "syncnote", 2);
+    if (existing.length >= SYNCNOTE_MAX_FILES) return json({ error: "too_many_files", max: SYNCNOTE_MAX_FILES }, 413);
+  }
+
+  const form = await request.formData();
+  const file = form.get("file");
+  if (!file || typeof file === "string") return json({ error: "no_file" }, 400);
+
+  const mime = file.type || "application/octet-stream";
+  if (purpose === "showcase" && !IMAGE_MIMES.has(mime)) {
+    return json({ error: "images_only" }, 400);
+  }
+
+  const size = file.size || 0;
+  if (size <= 0 || size > MAX_FILE_BYTES) {
+    return json({ error: "file_too_large", maxMb: 20 }, 413);
+  }
+
+  const id = newFileId();
+  const name = file.name || "upload";
+  const key = r2Key(userId, purpose, id, name);
+  const meta = form.get("meta");
+  const metaStr = typeof meta === "string" ? meta : "{}";
+
+  await env.FILES.put(key, await file.arrayBuffer(), {
+    httpMetadata: { contentType: mime },
+    customMetadata: { userId: String(userId), purpose, fileId: id },
+  });
+
+  await db
+    .prepare(
+      `INSERT INTO user_files (id, user_id, purpose, slot, name, mime, size, r2_key, meta)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(id, userId, purpose, slot, name.slice(0, 200), mime, size, key, metaStr)
+    .run();
+
+  const row = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(id).first();
+  return json({ ok: true, file: fileRow(row) });
+}
+
+export async function handleFileGet(env, request, url) {
+  const db = requireDb(env);
+  await ensureFilesSchema(db);
+  if (!env.FILES) return json({ error: "storage_not_configured" }, 503);
+
+  const id = url.searchParams.get("id");
+  if (!id) return json({ error: "missing_id" }, 400);
+
+  const row = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(id).first();
+  if (!row) return json({ error: "not_found" }, 404);
+
+  if (row.purpose === "showcase") {
+    const obj = await env.FILES.get(row.r2_key);
+    if (!obj) return json({ error: "not_found" }, 404);
+    return new Response(obj.body, {
+      headers: {
+        "Content-Type": row.mime,
+        "Cache-Control": "public, max-age=86400",
+        "Content-Disposition": `inline; filename="${encodeURIComponent(row.name)}"`,
+      },
+    });
+  }
+
+  const userId = await resolveUserId(request, env, url);
+  if (userId !== row.user_id) return json({ error: "forbidden" }, 403);
+
+  const obj = await env.FILES.get(row.r2_key);
+  if (!obj) return json({ error: "not_found" }, 404);
+  return new Response(obj.body, {
+    headers: {
+      "Content-Type": row.mime,
+      "Cache-Control": "private, max-age=3600",
+      "Content-Disposition": `inline; filename="${encodeURIComponent(row.name)}"`,
+    },
+  });
+}
+
+export async function handleFileDelete(env, request, url) {
+  const db = requireDb(env);
+  await ensureAppSchema(db);
+  await ensureFilesSchema(db);
+  if (!env.FILES) return json({ error: "storage_not_configured" }, 503);
+
+  const body = await request.json().catch(() => ({}));
+  const userId = await resolveUserId(request, env, url, body);
+  const auth = await requireRegisteredUser(db, userId);
+  if (!auth.ok) return json(auth.body, auth.status);
+
+  const id = body.id || url.searchParams.get("id");
+  if (!id) return json({ error: "missing_id" }, 400);
+
+  const row = await db.prepare("SELECT * FROM user_files WHERE id = ? AND user_id = ?").bind(id, userId).first();
+  if (!row) return json({ error: "not_found" }, 404);
+
+  await env.FILES.delete(row.r2_key);
+  await db.prepare("DELETE FROM user_files WHERE id = ?").bind(id).run();
+  await db.prepare("DELETE FROM showcase_works WHERE file_id = ?").bind(id).run();
+  return json({ ok: true, id });
+}
+
+export async function handleFileList(env, request, url) {
+  const db = requireDb(env);
+  await ensureAppSchema(db);
+  await ensureFilesSchema(db);
+
+  const userId = await resolveUserId(request, env, url);
+  const auth = await requireRegisteredUser(db, userId);
+  if (!auth.ok) return json(auth.body, auth.status);
+
+  const purpose = url.searchParams.get("purpose") || "syncnote";
+  const slotRaw = url.searchParams.get("slot");
+  const slot = slotRaw !== null && slotRaw !== "" ? parseInt(slotRaw, 10) : null;
+  const files = await listUserFiles(db, userId, purpose, slot);
+  return json({ files });
+}
+
+export async function handleShowcasePublish(env, request, url) {
+  const db = requireDb(env);
+  await ensureAppSchema(db);
+  await ensureFilesSchema(db);
+
+  const body = await request.json().catch(() => ({}));
+  const userId = await resolveUserId(request, env, url, body);
+  const auth = await requireRegisteredUser(db, userId);
+  if (!auth.ok) return json(auth.body, auth.status);
+
+  const fileId = body.file_id;
+  if (!fileId) return json({ error: "missing_file" }, 400);
+
+  const file = await db.prepare("SELECT * FROM user_files WHERE id = ? AND user_id = ? AND purpose = ?")
+    .bind(fileId, userId, "showcase").first();
+  if (!file) return json({ error: "not_found" }, 404);
+
+  const workId = newFileId();
+  const title = String(body.title || "").slice(0, 120);
+  const watermark = String(body.watermark || "").slice(0, 80);
+  const stampEnabled = body.stamp_enabled ? 1 : 0;
+  const stampLabel = String(body.stamp_label || "").slice(0, 120);
+
+  await db
+    .prepare(
+      `INSERT INTO showcase_works (id, user_id, title, file_id, watermark, stamp_enabled, stamp_label)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(workId, userId, title, fileId, watermark, stampEnabled, stampLabel)
+    .run();
+
+  return json({
+    ok: true,
+    id: workId,
+    viewUrl: `/tools/showcase/view.html?id=${workId}`,
+    apiUrl: `/api/portal?action=showcase_get&id=${workId}`,
+  });
+}
+
+export async function handleShowcaseGet(env, request, url) {
+  const db = requireDb(env);
+  await ensureFilesSchema(db);
+
+  const id = url.searchParams.get("id");
+  if (!id) return json({ error: "missing_id" }, 400);
+
+  const work = await db
+    .prepare(
+      `SELECT w.*, u.username, f.name AS file_name, f.mime, f.size
+       FROM showcase_works w
+       JOIN users u ON u.id = w.user_id
+       JOIN user_files f ON f.id = w.file_id
+       WHERE w.id = ?`
+    )
+    .bind(id)
+    .first();
+  if (!work) return json({ error: "not_found" }, 404);
+
+  await db.prepare("UPDATE showcase_works SET views = views + 1 WHERE id = ?").bind(id).run();
+
+  return json({
+    id: work.id,
+    title: work.title,
+    watermark: work.watermark,
+    stampEnabled: !!work.stamp_enabled,
+    stampLabel: work.stamp_label,
+    author: work.username,
+    views: work.views + 1,
+    createdAt: work.created_at,
+    imageUrl: `/api/portal?action=file_get&id=${encodeURIComponent(work.file_id)}`,
+    fileName: work.file_name,
+    mime: work.mime,
+    size: work.size,
+  });
+}
+
+export async function handleShowcaseMine(env, request, url) {
+  const db = requireDb(env);
+  await ensureAppSchema(db);
+  await ensureFilesSchema(db);
+
+  const userId = await resolveUserId(request, env, url);
+  const auth = await requireRegisteredUser(db, userId);
+  if (!auth.ok) return json(auth.body, auth.status);
+
+  const { results } = await db
+    .prepare(
+      `SELECT w.id, w.title, w.watermark, w.stamp_enabled, w.stamp_label, w.views, w.created_at, f.id AS file_id
+       FROM showcase_works w
+       JOIN user_files f ON f.id = w.file_id
+       WHERE w.user_id = ?
+       ORDER BY w.created_at DESC
+       LIMIT 50`
+    )
+    .bind(userId)
+    .all();
+
+  return json({
+    works: results.map((w) => ({
+      id: w.id,
+      title: w.title,
+      views: w.views,
+      createdAt: w.created_at,
+      thumbUrl: `/api/portal?action=file_get&id=${encodeURIComponent(w.file_id)}`,
+      viewUrl: `/tools/showcase/view.html?id=${w.id}`,
+    })),
+  });
+}
+
+export async function clearSyncnoteFiles(env, db, userId, slot) {
+  if (!env.FILES) return;
+  const files = await listUserFiles(db, userId, "syncnote", slot);
+  for (const f of files) {
+    const row = await db.prepare("SELECT r2_key FROM user_files WHERE id = ?").bind(f.id).first();
+    if (row) await env.FILES.delete(row.r2_key);
+    await db.prepare("DELETE FROM user_files WHERE id = ?").bind(f.id).run();
+  }
+}

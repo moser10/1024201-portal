@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" class="feature-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ff375f">
+  <title>Work | 1024201</title>
+  <link rel="stylesheet" href="/js/langTabs.css">
+  <link rel="stylesheet" href="/js/featurePage.css">
+  <link rel="stylesheet" href="showcase.css">
+</head>
+<body class="feature-page sc-view-page" data-tool="showcase-view">
+  <div class="feature-shell">
+    <div class="feature-main">
+      <div class="feature-top">
+        <a class="feature-back" id="backLink" href="index.html">Portfolio</a>
+        <div id="langSlot"></div>
+      </div>
+      <div class="feature-card sc-view-card" id="viewCard" hidden>
+        <h1 id="workTitle"></h1>
+        <p class="sc-meta" id="workMeta"></p>
+        <div class="sc-image-wrap">
+          <img id="workImg" alt="" />
+        </div>
+        <p class="sc-views" id="workViews"></p>
+      </div>
+      <p class="err" id="errBox" hidden></p>
+    </div>
+  </div>
+  <link rel="modulepreload" href="/js/langTabs.js">
+  <script src="/tools/js/instantPaint.js"></script>
+  <script type="module" src="view.js?v=1"></script>
+</body>
+</html>

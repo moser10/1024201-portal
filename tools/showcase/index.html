@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" class="feature-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ff375f">
+  <title>Portfolio | 1024201</title>
+  <link rel="modulepreload" href="/js/langTabs.js">
+  <link rel="stylesheet" href="/js/langTabs.css">
+  <link rel="stylesheet" href="/js/featurePage.css">
+  <link rel="stylesheet" href="showcase.css">
+</head>
+<body class="feature-page" data-tool="showcase">
+  <div class="feature-shell">
+    <div class="feature-main">
+      <div class="feature-top">
+        <a class="feature-back" id="backLink" href="/tools/">Toolbox</a>
+        <div id="langSlot"></div>
+      </div>
+      <div class="feature-card sc-card">
+        <div class="feature-card-head">
+          <h1 id="pageTitle">Portfolio</h1>
+          <p class="sub" id="pageSub"></p>
+          <p class="tool-user" id="userLine" hidden></p>
+        </div>
+
+        <div class="sc-workspace" id="scWorkspace">
+          <form class="sc-form" id="uploadForm">
+            <label class="sc-label" id="lblTitle" for="titleIn">Title</label>
+            <input class="sc-input" id="titleIn" type="text" maxlength="120" autocomplete="off" />
+
+            <label class="sc-label" id="lblFile" for="fileIn">Image</label>
+            <input class="sc-input-file" id="fileIn" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required />
+
+            <label class="sc-label" id="lblWatermark" for="wmIn">Watermark text</label>
+            <input class="sc-input" id="wmIn" type="text" maxlength="80" placeholder="@yourname" autocomplete="off" />
+
+            <label class="sc-check">
+              <input type="checkbox" id="stampChk" />
+              <span id="stampLbl"></span>
+            </label>
+            <p class="sc-hint" id="stampHint"></p>
+
+            <button type="submit" class="btn-primary sc-submit" id="submitBtn">Upload & publish</button>
+          </form>
+
+          <div class="sc-mine" id="mineWrap" hidden>
+            <h2 class="sc-mine-title" id="mineTitle">My works</h2>
+            <ul class="sc-mine-list" id="mineList"></ul>
+          </div>
+
+          <div class="login-panel" id="loginPanel" hidden>
+            <p id="loginDesc"></p>
+            <a class="btn-primary btn-link" id="loginBtn" href="/game/register/">Sign in</a>
+          </div>
+        </div>
+        <p class="err" id="errBox" hidden></p>
+        <p class="sc-result" id="resultBox" hidden></p>
+      </div>
+    </div>
+  </div>
+  <script src="/tools/js/instantPaint.js"></script>
+  <script type="module" src="showcase.js?v=1"></script>
+</body>
+</html>
