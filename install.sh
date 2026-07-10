@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# New Mac bootstrap: clone repo, install Node (brew on macOS), wrangler, 1024 CLI.
+# Bootstrap: clone repo + setup (Node/wrangler/1024). macOS needs no sudo.
 #
-# One command:
-#   curl -fsSL https://raw.githubusercontent.com/moser10/1024201-portal/main/install.sh | bash -s -- ~/CodeProjects/1024
+#   cd ~ && curl -fsSL https://raw.githubusercontent.com/moser10/1024201-portal/main/install.sh | bash -s -- ~/CodeProjects/1024
 set -euo pipefail
 
 cd "${HOME:-/tmp}" 2>/dev/null || cd /tmp
@@ -11,21 +10,21 @@ REPO_URL="${PORTAL_REPO_URL:-https://github.com/moser10/1024201-portal.git}"
 TARGET="${1:-${PORTAL_INSTALL_DIR:-$HOME/CodeProjects/1024}}"
 
 if ! command -v git >/dev/null 2>&1; then
+  echo "✗ git not found." >&2
   if [ "$(uname -s)" = "Darwin" ]; then
-    echo "git not found — installing Xcode Command Line Tools ..."
+    echo "  Run once (needs password): xcode-select --install" >&2
     xcode-select --install 2>/dev/null || true
-    echo "Complete the CLT installer, then re-run this install command."
-    exit 2
+  else
+    echo "  Install git, then re-run this script." >&2
   fi
-  echo "git is required. Install git and re-run." >&2
-  exit 1
+  exit 2
 fi
 
 if [ ! -d "$TARGET/.git" ]; then
   echo "→ Cloning $REPO_URL → $TARGET"
   mkdir -p "$(dirname "$TARGET")"
   if [ -d "$TARGET" ] && [ -n "$(ls -A "$TARGET" 2>/dev/null)" ]; then
-    echo "Error: $TARGET is not empty. Run: rm -rf $TARGET" >&2
+    echo "✗ $TARGET is not empty. Run: rm -rf $TARGET" >&2
     exit 1
   fi
   mkdir -p "$TARGET"

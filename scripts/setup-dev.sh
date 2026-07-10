@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Dev environment: Node (Homebrew on macOS, nvm on Linux), wrangler, 1024 CLI.
+# Dev environment: Node (official binary on macOS, nvm on Linux), wrangler, 1024 CLI.
+# macOS: no Homebrew, no sudo — installs to ~/.local/node
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -7,6 +8,8 @@ cd "$ROOT"
 
 ZSH_MARKER="# 1024201-portal dev"
 SETUP_CMD="bash $ROOT/scripts/setup-dev.sh"
+NODE_VERSION="${PORTAL_NODE_VERSION:-22.14.0}"
+NODE_DIR="${HOME}/.local/node"
 
 die() {
   echo "" >&2
@@ -14,24 +17,19 @@ die() {
   exit 1
 }
 
-need_user() {
-  echo ""
-  echo "⚠ NEEDS YOU (one-time), then re-run:" >&2
-  echo "  $SETUP_CMD" >&2
-  echo "" >&2
-  echo "$*" >&2
-  exit 2
-}
-
 is_mac() { [ "$(uname -s)" = "Darwin" ]; }
 
-load_brew() {
-  if [ -x /opt/homebrew/bin/brew ]; then
-    # shellcheck disable=SC1091
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-  elif [ -x /usr/local/bin/brew ]; then
-    # shellcheck disable=SC1091
-    eval "$(/usr/local/bin/brew shellenv)"
+node_arch() {
+  case "$(uname -m)" in
+    arm64) echo "arm64" ;;
+    x86_64) echo "x64" ;;
+    *) die "Unsupported CPU: $(uname -m)" ;;
+  esac
+}
+
+use_local_node() {
+  if [ -x "${NODE_DIR}/bin/node" ]; then
+    export PATH="${NODE_DIR}/bin:${PATH}"
   fi
 }
 
@@ -40,53 +38,36 @@ verify_node() {
   local major
   major="$(node -p "process.versions.node.split('.')[0]")"
   if [ "$major" -lt 18 ]; then
-    die "Node.js >= 18 required (found $(node -v)). On Mac: brew upgrade node"
+    die "Node.js >= 18 required (found $(node -v))"
   fi
   echo "✓ Node $(node -v) · npm $(npm -v)"
 }
 
-ensure_mac_xcode_clt() {
-  xcode-select -p >/dev/null 2>&1 && return 0
-  echo "→ Xcode Command Line Tools missing; opening installer ..."
-  xcode-select --install 2>/dev/null || true
-  need_user "1. Complete the pop-up installer (git, compiler).
-2. When it finishes, run again:
-   $SETUP_CMD"
-}
-
-ensure_brew() {
-  load_brew
-  command -v brew >/dev/null 2>&1 && return 0
-
-  echo "→ Installing Homebrew ..."
-  ensure_mac_xcode_clt
-  if ! NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
-    need_user "Homebrew needs your Mac password (one-time). Run in Terminal:
-  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"
-Then:
-  $SETUP_CMD"
-  fi
-  load_brew
-  command -v brew >/dev/null 2>&1 || need_user "Homebrew installed. Open a **new** Terminal tab, then:
-  $SETUP_CMD"
-}
-
-ensure_node_mac() {
+ensure_node_mac_binary() {
+  use_local_node
   verify_node && return 0
 
-  ensure_brew
-  echo "→ brew install node ..."
-  if ! brew install node; then
-    die "brew install node failed. Try manually: brew doctor && brew install node"
-  fi
-  load_brew
-  verify_node || die "node not on PATH after brew install. Run: eval \"\$(/opt/homebrew/bin/brew shellenv)\""
+  local arch tarball tmp
+  arch="$(node_arch)"
+  tarball="node-v${NODE_VERSION}-darwin-${arch}"
+  tmp="$(mktemp -d)"
+
+  echo "→ Installing Node ${NODE_VERSION} → ${NODE_DIR} (no sudo, no Homebrew) ..."
+  curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${tarball}.tar.xz" -o "${tmp}/${tarball}.tar.xz"
+  rm -rf "${NODE_DIR}"
+  mkdir -p "${NODE_DIR}"
+  tar -xJf "${tmp}/${tarball}.tar.xz" -C "${NODE_DIR}" --strip-components=1
+  rm -rf "${tmp}"
+
+  export PATH="${NODE_DIR}/bin:${PATH}"
+  verify_node || die "Node binary install failed"
 }
 
 ensure_node_nvm() {
+  use_local_node
   verify_node && return 0
 
-  echo "→ Installing Node via nvm (Linux / non-brew) ..."
+  echo "→ Installing Node via nvm → ~/.nvm ..."
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
   if [ ! -s "$NVM_DIR/nvm.sh" ]; then
     curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
@@ -97,8 +78,8 @@ ensure_node_nvm() {
     nvm install
     nvm use
   else
-    nvm install 22
-    nvm use 22
+    nvm install "${NODE_VERSION%%.*}"
+    nvm use "${NODE_VERSION%%.*}"
   fi
   # shellcheck disable=SC1091
   . "$NVM_DIR/nvm.sh"
@@ -107,7 +88,7 @@ ensure_node_nvm() {
 
 ensure_node() {
   if is_mac; then
-    ensure_node_mac
+    ensure_node_mac_binary
   else
     ensure_node_nvm
   fi
@@ -116,19 +97,13 @@ ensure_node() {
 ensure_zshrc() {
   local zshrc="${HOME}/.zshrc"
   touch "$zshrc"
-  if grep -qF "$ZSH_MARKER" "$zshrc" 2>/dev/null; then
-    return 0
-  fi
+  grep -qF "$ZSH_MARKER" "$zshrc" 2>/dev/null && return 0
+
   if is_mac; then
     cat >>"$zshrc" <<'EOF'
 
 # 1024201-portal dev
-if [ -x /opt/homebrew/bin/brew ]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-elif [ -x /usr/local/bin/brew ]; then
-  eval "$(/usr/local/bin/brew shellenv)"
-fi
-export PATH="$HOME/.npm-global/bin:$PATH"
+export PATH="$HOME/.local/node/bin:$HOME/.npm-global/bin:$PATH"
 EOF
   else
     cat >>"$zshrc" <<'EOF'
@@ -152,11 +127,11 @@ ensure_npm_global() {
 
 main() {
   echo "=== 1024201 dev setup ($ROOT) ==="
-  is_mac && load_brew
+  use_local_node
 
   ensure_node
   ensure_zshrc
-  is_mac && load_brew
+  use_local_node
   ensure_npm_global
 
   echo "→ npm install (wrangler) ..."
@@ -171,14 +146,9 @@ main() {
   1024 --version
 
   echo ""
-  echo "✓ Done."
-  echo "  cd $ROOT"
-  echo "  source ~/.zshrc   # or new Terminal tab"
-  echo "  1024 --version"
-  echo ""
-  echo "Deploy:"
-  echo "  npx wrangler login"
-  echo "  npm run deploy"
+  echo "✓ Done — no sudo was required."
+  echo "  source ~/.zshrc   # or open a new Terminal tab"
+  echo "  cd $ROOT && npm run deploy"
 }
 
 main "$@"

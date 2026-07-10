@@ -75,22 +75,16 @@ npx wrangler secret put RESEND_API_KEY --name 1024201-portal
 npx wrangler deploy
 ```
 
-### 新电脑一键安装（macOS：Homebrew + Node + wrangler + 1024 CLI）
+### 新电脑一键安装（macOS：无需 sudo，官方 Node + wrangler + 1024 CLI）
 
 ```bash
 cd ~
 curl -fsSL https://raw.githubusercontent.com/moser10/1024201-portal/main/install.sh | bash -s -- ~/CodeProjects/1024
 ```
 
-macOS 顺序：`Xcode CLT`（若缺）→ `Homebrew` → `brew install node` → 项目依赖 → `1024` 命令。
+macOS 顺序：下载官方 Node 到 `~/.local/node`（**无需 Homebrew / sudo**）→ 项目依赖 → `1024` 命令。
 
-**若脚本退出码为 2**：按终端提示完成一次性操作（CLT 弹窗或 Homebrew 密码），然后：
-
-```bash
-bash ~/CodeProjects/1024/scripts/setup-dev.sh
-```
-
-或已克隆时：
+仅当系统没有 `git` 时，需一次性安装 Xcode Command Line Tools（`xcode-select --install`），然后重跑同一条 install 命令。
 
 ```bash
 git clone https://github.com/moser10/1024201-portal.git ~/CodeProjects/1024
