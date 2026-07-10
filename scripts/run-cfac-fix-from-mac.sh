@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Run entirely on your Mac. Uses /tmp/cfac_root_pass.txt, SSHs into the VPS,
-# installs the Reality pbk fix. Does not need the cloud agent to hold your password.
+# Mac one-shot: read password from a plain text file, SSH to VPS, fix Reality pbk.
+#
+# Password file (plain text, one line):
+#   /tmp/cfac_root_pass.txt
+# Put only the password in that file. No quotes. No python needed.
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/moser10/1024201-portal/cursor/fix-cfac-reality-link-7e94/scripts/run-cfac-fix-from-mac.sh | bash
 #
-# Does NOT delete /tmp/cfac_root_pass.txt.
+# Does NOT delete the password file.
 # Does NOT print the password or full vless:// link.
 
 set -euo pipefail
@@ -16,40 +19,40 @@ FIX_URL="${FIX_URL:-https://raw.githubusercontent.com/moser10/1024201-portal/cur
 AGENT_PUBKEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMKqcF6tUdX+HH0tPuKCiZ0XDFsDCUBlKbP3XfvQ0aSz cursor-cfac-agent'
 
 if [[ ! -f "$PASS_FILE" ]]; then
-  echo "ERROR: $PASS_FILE not found on this Mac." >&2
+  echo "ERROR: missing $PASS_FILE" >&2
+  echo "Create it with TextEdit/nano and put ONLY the CloudCone root password on one line." >&2
   exit 1
 fi
 if ! command -v expect >/dev/null 2>&1; then
-  echo "ERROR: expect not found (should be built into macOS)." >&2
+  echo "ERROR: expect not found" >&2
   exit 1
 fi
 
-python3 - <<'PY'
-from pathlib import Path
-p = Path("/tmp/cfac_root_pass.txt")
-raw = p.read_bytes()
-stripped = raw.decode("utf-8", errors="replace").strip()
-ends_nl = "yes" if raw.endswith(b"\n") or raw.endswith(b"\r\n") else "no"
-has_cr = "yes" if b"\r" in raw else "no"
-print("[check] pass_file_bytes=%d" % len(raw))
-print("[check] pass_len_after_strip=%d" % len(stripped))
-print("[check] ends_with_newline=%s" % ends_nl)
-print("[check] contains_cr=%s" % has_cr)
-if not stripped:
-    raise SystemExit("ERROR: password file empty after strip")
-if len(stripped) < 8:
-    print("[warn] password looks unusually short for CloudCone")
-PY
+# Length check only — never print password
+PASS_LEN="$(tr -d '\r\n' <"$PASS_FILE" | wc -c | tr -d ' ')"
+echo "[check] password_file=$PASS_FILE length=$PASS_LEN"
+if [[ "$PASS_LEN" -lt 1 ]]; then
+  echo "ERROR: password file is empty" >&2
+  exit 1
+fi
 
-PASS="$(python3 -c 'from pathlib import Path; print(Path("/tmp/cfac_root_pass.txt").read_text(encoding="utf-8").strip())')"
-export HOST PASS FIX_URL AGENT_PUBKEY
+export HOST PASS_FILE FIX_URL AGENT_PUBKEY
 
+# expect reads the password file itself (shell does not expand password chars)
 expect <<'EOF'
 set timeout 240
 set host $env(HOST)
-set pass $env(PASS)
+set pass_file $env(PASS_FILE)
 set fix_url $env(FIX_URL)
 set pubkey $env(AGENT_PUBKEY)
+
+set fh [open $pass_file r]
+set pass [string trim [read $fh]]
+close $fh
+if {$pass eq ""} {
+  puts stderr "ERROR: password file empty after trim"
+  exit 1
+}
 
 spawn ssh -tt \
   -o PreferredAuthentications=password \
@@ -82,13 +85,9 @@ expect {
   -re {root@.+:.*# } {}
   -re {(?:^|\r|\n)# } {}
   -re "(?i)Permission denied" {
-    puts stderr "ERROR: Permission denied — CloudCone password in the file does not match the server."
-    puts stderr "Rewrite the file with the NEW Access-page password using:"
-    puts stderr "  python3 - <<'PY'"
-    puts stderr "from pathlib import Path"
-    puts stderr "Path('/tmp/cfac_root_pass.txt').write_text(input('paste password then Enter: ').strip())"
-    puts stderr "print('saved len=', len(Path('/tmp/cfac_root_pass.txt').read_text().strip()))"
-    puts stderr "PY"
+    puts stderr "ERROR: server rejected the password in $pass_file"
+    puts stderr "This is NOT a script format issue. CloudCone root password does not match."
+    puts stderr "Fix on CloudCone Access page, then overwrite the txt and rerun."
     exit 2
   }
   timeout {
@@ -97,7 +96,7 @@ expect {
   }
 }
 
-puts "OK: logged in. Running Reality fix on VPS..."
+puts "OK: logged in. Running Reality fix..."
 
 send -- "mkdir -p /root/.ssh && chmod 700 /root/.ssh && touch /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys\r"
 expect -re {# }
@@ -106,7 +105,7 @@ expect -re {# }
 send -- "curl -fsSL '$fix_url' -o /root/fix-cfac-reality-link.sh && chmod +x /root/fix-cfac-reality-link.sh && bash /root/fix-cfac-reality-link.sh; echo FIX_EXIT:\$?\r"
 expect {
   -re "FIX_EXIT:0" {
-    puts "OK: Reality fix finished (exit 0)"
+    puts "OK: Reality fix finished"
   }
   -re "FIX_EXIT:\[1-9\]" {
     puts stderr "ERROR: fix script failed — see output above"
@@ -118,16 +117,15 @@ expect {
   }
 }
 expect -re {# }
-send -- "grep -q '^vless://' /root/cfac-node-info.txt && grep -q 'pbk=.\+' /root/cfac-node-info.txt && echo LINK_OK || echo LINK_BAD\r"
+send -- "grep -q '^vless://' /root/cfac-node-info.txt && grep pbk= /root/cfac-node-info.txt | grep -vq 'pbk=&' && echo LINK_OK || echo LINK_BAD\r"
 expect {
-  -re "LINK_OK" { puts "OK: /root/cfac-node-info.txt has vless link with non-empty pbk" }
+  -re "LINK_OK" { puts "OK: node info has vless link with pbk" }
   -re "LINK_BAD" { puts stderr "ERROR: info file link still bad"; exit 4 }
   timeout { puts stderr "ERROR: timed out checking info file"; exit 1 }
 }
 expect -re {# }
 send -- "exit\r"
 expect eof
-puts "DONE. On Mac, login again and run:  grep '^vless://' /root/cfac-node-info.txt"
-puts "Then paste that single line into Shadowrocket."
+puts "DONE. Next: ssh in and run:  grep '^vless://' /root/cfac-node-info.txt"
 exit 0
 EOF
