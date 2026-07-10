@@ -8,6 +8,7 @@ import {
   handleShowcasePublish,
   handleShowcaseGet,
   handleShowcaseMine,
+  handleShowcaseDelete,
   listUserFiles,
   clearSyncnoteFiles,
   ensureFilesSchema,
@@ -218,6 +219,9 @@ export async function onRequest(context) {
   }
   if (request.method === "GET" && action === "showcase_mine") {
     return handleShowcaseMine(env, request, url);
+  }
+  if (request.method === "POST" && action === "showcase_delete") {
+    return handleShowcaseDelete(env, request, url);
   }
 
   if (request.method === "GET" && action === "address_countries") {

@@ -4,6 +4,7 @@ import { currentUserId, loginHref } from "../js/quotaClient.js";
 import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
 import { uploadFile } from "../js/attachGrid.js";
 import { watermarkImage, fetchStampLine } from "../js/watermark.js";
+import { showSheet } from "/game/js/toast.js";
 
 const UI = {
   en: {
@@ -21,7 +22,13 @@ const UI = {
     submit: "Upload & publish",
     mineTitle: "My works",
     uploading: "Processing…",
-    done: "Published! Share link:",
+    published: "Published",
+    shareLbl: "Share link:",
+    delete: "Delete work",
+    deleteConfirm: "Delete this work and image? The share link will stop working.",
+    cancel: "Cancel",
+    confirm: "Delete",
+    deleted: "Deleted",
     err: "Upload failed",
     views: (n) => `${n} views`,
   },
@@ -40,7 +47,13 @@ const UI = {
     submit: "上传并发布",
     mineTitle: "我的作品",
     uploading: "处理中…",
-    done: "已发布，分享链接：",
+    published: "已发布",
+    shareLbl: "分享链接：",
+    delete: "删除作品",
+    deleteConfirm: "确定删除此作品及图片？删除后分享链接将失效。",
+    cancel: "取消",
+    confirm: "删除",
+    deleted: "已删除",
     err: "上传失败",
     views: (n) => `${n} 次浏览`,
   },
@@ -58,7 +71,13 @@ const UI = {
     submit: "アップロードして公開",
     mineTitle: "自分の作品",
     uploading: "処理中…",
-    done: "公開しました：",
+    published: "公開済み",
+    shareLbl: "共有リンク：",
+    delete: "作品を削除",
+    deleteConfirm: "この作品と画像を削除しますか？共有リンクは無効になります。",
+    cancel: "キャンセル",
+    confirm: "削除",
+    deleted: "削除しました",
     err: "アップロード失敗",
     views: (n) => `${n} 回表示`,
   },
@@ -66,6 +85,7 @@ const UI = {
 
 let lang = getPortalLang();
 let t = UI[lang] || UI.en;
+let lastWorkId = null;
 
 const form = document.getElementById("uploadForm");
 const errBox = document.getElementById("errBox");
@@ -89,12 +109,61 @@ function applyI18n() {
   document.getElementById("stampHint").textContent = t.stampHint;
   document.getElementById("submitBtn").textContent = t.submit;
   document.getElementById("mineTitle").textContent = t.mineTitle;
+  if (!resultBox.hidden && lastWorkId) {
+    renderPublished(resultBox.dataset.link || "");
+  }
 }
 
 function setGuest(on) {
   workspace.classList.toggle("sc-guest", on);
   loginPanel.hidden = !on;
   mineWrap.hidden = on;
+}
+
+function renderPublished(link) {
+  resultBox.dataset.link = link;
+  resultBox.innerHTML = `
+    <p class="sc-published-label">${esc(t.published)}</p>
+    <p class="sc-share-lbl">${esc(t.shareLbl)}</p>
+    <a class="sc-share-link" href="${esc(link)}">${esc(link)}</a>
+    <button type="button" class="sc-delete-btn" id="deleteBtn">${esc(t.delete)}</button>
+  `;
+  document.getElementById("deleteBtn")?.addEventListener("click", () => deleteWork(lastWorkId));
+}
+
+async function confirmDelete() {
+  return showSheet(t.deleteConfirm, [
+    { label: t.cancel, value: false },
+    { label: t.confirm, value: true, danger: true },
+  ]);
+}
+
+async function deleteWork(workId) {
+  if (!workId) return;
+  const uid = currentUserId();
+  if (!uid) return;
+  const ok = await confirmDelete();
+  if (!ok) return;
+
+  const res = await fetch("/api/portal?action=showcase_delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: uid, work_id: workId }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    errBox.textContent = data.error || t.err;
+    errBox.hidden = false;
+    return;
+  }
+
+  if (workId === lastWorkId) {
+    lastWorkId = null;
+    resultBox.hidden = true;
+    resultBox.innerHTML = "";
+  }
+  errBox.hidden = true;
+  await loadMine();
 }
 
 async function loadMine() {
@@ -112,18 +181,29 @@ async function loadMine() {
   mineList.innerHTML = works
     .map(
       (w) => `
-    <li><a href="${w.viewUrl}">
-      <img src="${w.thumbUrl}" alt="" loading="lazy" />
-      <span>${esc(w.title || w.id)} · ${t.views(w.views)}</span>
-    </a></li>`
+    <li class="sc-mine-item">
+      <a class="sc-mine-link" href="${esc(w.viewUrl)}">
+        <img src="${esc(w.thumbUrl)}" alt="" loading="lazy" />
+        <span>${esc(w.title || w.id)} · ${t.views(w.views)}</span>
+      </a>
+      <button type="button" class="sc-mine-del" data-id="${esc(w.id)}" aria-label="${esc(t.delete)}">×</button>
+    </li>`
     )
     .join("");
+
+  mineList.querySelectorAll(".sc-mine-del").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      deleteWork(btn.dataset.id);
+    });
+  });
 }
 
 function esc(s) {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;");
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
 }
 
 form.addEventListener("submit", async (e) => {
@@ -169,7 +249,8 @@ form.addEventListener("submit", async (e) => {
     if (!res.ok) throw new Error(data.error || t.err);
 
     const link = new URL(data.viewUrl, location.origin).href;
-    resultBox.innerHTML = `${t.done} <a href="${link}">${link}</a>`;
+    lastWorkId = data.id;
+    renderPublished(link);
     resultBox.hidden = false;
     form.reset();
     await loadMine();

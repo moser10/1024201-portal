@@ -101,14 +101,31 @@ export async function listUserFiles(db, userId, purpose, slot = null) {
   return results.map(fileRow);
 }
 
+async function bytesToBase64(u8) {
+  let bin = "";
+  const step = 0x8000;
+  for (let i = 0; i < u8.length; i += step) {
+    bin += String.fromCharCode(...u8.subarray(i, i + step));
+  }
+  return btoa(bin);
+}
+
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 async function writeChunks(db, fileId, bytes) {
   const total = bytes.byteLength;
   let idx = 0;
   for (let offset = 0; offset < total; offset += CHUNK_BYTES) {
-    const slice = bytes.slice(offset, Math.min(offset + CHUNK_BYTES, total));
+    const slice = bytes.subarray(offset, Math.min(offset + CHUNK_BYTES, total));
+    const b64 = await bytesToBase64(slice);
     await db
       .prepare(`INSERT INTO user_file_chunks (file_id, chunk_idx, data) VALUES (?, ?, ?)`)
-      .bind(fileId, idx, slice)
+      .bind(fileId, idx, b64)
       .run();
     idx += 1;
   }
@@ -120,13 +137,26 @@ async function readChunks(db, fileId) {
     .bind(fileId)
     .all();
   if (!results.length) return null;
-  const parts = results.map((r) => {
+  const parts = [];
+  for (const r of results) {
     const d = r.data;
-    if (d instanceof ArrayBuffer) return new Uint8Array(d);
-    if (d instanceof Uint8Array) return d;
-    if (typeof d === "string") return new Uint8Array([...d].map((c) => c.charCodeAt(0)));
-    return new Uint8Array(0);
-  });
+    if (typeof d === "string") {
+      parts.push(base64ToBytes(d));
+      continue;
+    }
+    if (d instanceof ArrayBuffer) {
+      parts.push(new Uint8Array(d));
+      continue;
+    }
+    if (d instanceof Uint8Array) {
+      parts.push(d);
+      continue;
+    }
+    if (ArrayBuffer.isView(d)) {
+      parts.push(new Uint8Array(d.buffer, d.byteOffset, d.byteLength));
+    }
+  }
+  if (!parts.length) return null;
   const len = parts.reduce((n, p) => n + p.byteLength, 0);
   const out = new Uint8Array(len);
   let pos = 0;
@@ -216,6 +246,7 @@ export async function handleFileGet(env, request, url) {
   return new Response(body, {
     headers: {
       "Content-Type": row.mime,
+      "Content-Length": String(body.byteLength),
       "Cache-Control": cache,
       "Content-Disposition": `inline; filename="${encodeURIComponent(row.name)}"`,
     },
@@ -377,4 +408,29 @@ export async function clearSyncnoteFiles(env, db, userId, slot) {
     await deleteChunks(db, f.id);
     await db.prepare("DELETE FROM user_files WHERE id = ?").bind(f.id).run();
   }
+}
+
+export async function handleShowcaseDelete(env, request, url) {
+  const db = requireDb(env);
+  await ensureAppSchema(db);
+  await ensureFilesSchema(db);
+
+  const body = await request.json().catch(() => ({}));
+  const userId = await resolveUserId(request, env, url, body);
+  const auth = await requireRegisteredUser(db, userId);
+  if (!auth.ok) return json(auth.body, auth.status);
+
+  const workId = body.work_id || body.id;
+  if (!workId) return json({ error: "missing_id" }, 400);
+
+  const work = await db
+    .prepare("SELECT * FROM showcase_works WHERE id = ? AND user_id = ?")
+    .bind(workId, userId)
+    .first();
+  if (!work) return json({ error: "not_found" }, 404);
+
+  await deleteChunks(db, work.file_id);
+  await db.prepare("DELETE FROM user_files WHERE id = ?").bind(work.file_id).run();
+  await db.prepare("DELETE FROM showcase_works WHERE id = ?").bind(workId).run();
+  return json({ ok: true, id: workId });
 }
