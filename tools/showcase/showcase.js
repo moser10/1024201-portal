@@ -101,6 +101,44 @@ const progressBox = document.getElementById("progressBox");
 const fileInput = document.getElementById("fileIn");
 const fileName = document.getElementById("fileName");
 const fileDrop = document.getElementById("fileDrop");
+const titleIn = document.getElementById("titleIn");
+const wmIn = document.getElementById("wmIn");
+const stampChk = document.getElementById("stampChk");
+
+const FORM_PREFS_KEY = "sc-showcase-form-prefs";
+
+function readFormPrefs() {
+  return {
+    title: titleIn.value,
+    watermark: wmIn.value,
+    stampEnabled: stampChk.checked,
+  };
+}
+
+function saveFormPrefs() {
+  try {
+    localStorage.setItem(FORM_PREFS_KEY, JSON.stringify(readFormPrefs()));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadFormPrefs() {
+  try {
+    const raw = localStorage.getItem(FORM_PREFS_KEY);
+    if (!raw) return;
+    const prefs = JSON.parse(raw);
+    if (typeof prefs.title === "string") titleIn.value = prefs.title;
+    if (typeof prefs.watermark === "string") wmIn.value = prefs.watermark;
+    if (typeof prefs.stampEnabled === "boolean") stampChk.checked = prefs.stampEnabled;
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearFileOnly() {
+  setFile(null);
+}
 
 function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
@@ -118,7 +156,12 @@ function applyI18n() {
   document.getElementById("submitBtn").textContent = t.submit;
   document.getElementById("mineTitle").textContent = t.mineTitle;
   if (!resultBox.hidden && lastWorkId) {
-    renderPublished(resultBox.dataset.link || "");
+    renderPublished(resultBox.dataset.link || "", {
+      title: resultBox.dataset.title || "",
+      watermark: resultBox.dataset.watermark || "",
+      stampEnabled: resultBox.dataset.stampEnabled === "1",
+      stampLabel: resultBox.dataset.stampLabel || "",
+    });
   }
 }
 
@@ -139,8 +182,12 @@ function setFile(file) {
   fileName.textContent = file.name;
 }
 
-function renderPublished(link) {
+function renderPublished(link, meta = {}) {
   resultBox.dataset.link = link;
+  resultBox.dataset.title = meta.title || "";
+  resultBox.dataset.watermark = meta.watermark || "";
+  resultBox.dataset.stampEnabled = meta.stampEnabled ? "1" : "0";
+  resultBox.dataset.stampLabel = meta.stampLabel || "";
   resultBox.innerHTML = `
     <p class="sc-published-label">${esc(t.published)}</p>
     <p class="sc-share-lbl">${esc(t.shareLbl)}</p>
@@ -252,6 +299,10 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+titleIn.addEventListener("input", saveFormPrefs);
+wmIn.addEventListener("input", saveFormPrefs);
+stampChk.addEventListener("change", saveFormPrefs);
+
 fileInput.addEventListener("change", (e) => setFile(e.target.files?.[0] || null));
 
 fileDrop.addEventListener("dragover", (e) => {
@@ -285,9 +336,9 @@ form.addEventListener("submit", async (e) => {
   btn.textContent = t.uploading;
 
   try {
-    const title = document.getElementById("titleIn").value.trim();
-    const watermark = document.getElementById("wmIn").value.trim();
-    const stampEnabled = document.getElementById("stampChk").checked;
+    const title = titleIn.value.trim();
+    const watermark = wmIn.value.trim();
+    const stampEnabled = stampChk.checked;
     const stampLine = stampEnabled ? await fetchStampTime() : "";
     const processed = await watermarkImage(file, { text: watermark, stampLine, titleLine: title });
 
@@ -295,7 +346,7 @@ form.addEventListener("submit", async (e) => {
       file: processed,
       purpose: "showcase",
       userId: uid,
-      meta: { watermark, stampLine, title },
+      meta: { watermark, stampLine, title, stampEnabled },
     });
 
     const res = await fetch("/api/portal?action=showcase_publish", {
@@ -315,10 +366,10 @@ form.addEventListener("submit", async (e) => {
 
     const link = new URL(data.viewUrl, location.origin).href;
     lastWorkId = data.id;
-    renderPublished(link);
+    renderPublished(link, { title, watermark, stampEnabled, stampLabel: stampLine });
     resultBox.hidden = false;
-    form.reset();
-    setFile(null);
+    saveFormPrefs();
+    clearFileOnly();
     await loadMine();
   } catch (err) {
     errBox.textContent = err.message || t.err;
@@ -339,6 +390,7 @@ mountLangTabs(document.getElementById("langSlot"), {
 });
 
 function boot() {
+  loadFormPrefs();
   applyI18n();
   paintToolUser();
   const user = getUser();
