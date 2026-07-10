@@ -72,8 +72,17 @@ npx wrangler secret put RESEND_API_KEY --name 1024201-portal
 ## 部署
 
 ```bash
-npx wrangler deploy
+npm run deploy
 ```
+
+**Wrangler 参数说明（已在 wrangler 4.107 本机 `wrangler deploy --help` / `d1 execute --help` 核对）：**
+
+| 命令 | 自动确认 |
+|------|----------|
+| `wrangler deploy` | **无** `--yes` 参数；已有 `wrangler.toml` 时直接部署，不需交互 |
+| `wrangler d1 execute ...` | 用 **`-y`**（`--yes` 别名）跳过 D1 执行确认 |
+
+部署时若 D1 仍提示 yes/no，是 post-deploy 里的 `d1 execute -y`，不是 `deploy --yes`。
 
 ### 新电脑一键安装（macOS：无需 sudo，官方 Node + wrangler + 1024 CLI）
 

@@ -13,7 +13,7 @@ function warn(step, e) {
 
 try {
   wranglerExec(
-    'd1 execute one-sentence-novel --remote --yes --command "DELETE FROM tool_usage_quota; DELETE FROM tool_pdf_quota;"',
+    'd1 execute one-sentence-novel --remote -y --command "DELETE FROM tool_usage_quota; DELETE FROM tool_pdf_quota;"',
     { cwd: root, inherit: true }
   );
 } catch (e) {

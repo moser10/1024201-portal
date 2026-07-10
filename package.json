@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "predeploy": "node scripts/predeploy-check.mjs",
-    "deploy": "npm run predeploy && WRANGLER_CI=1 wrangler deploy --yes && WRANGLER_CI=1 node scripts/post-deploy.mjs",
-    "deploy:worker": "WRANGLER_CI=1 wrangler deploy --yes",
+    "deploy": "npm run predeploy && wrangler deploy && node scripts/post-deploy.mjs",
+    "deploy:worker": "wrangler deploy",
     "postdeploy": "node scripts/post-deploy.mjs",
     "check": "node scripts/predeploy-check.mjs",
     "setup": "npm install && npm link ./cli",
