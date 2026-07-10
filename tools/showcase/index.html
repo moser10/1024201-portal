@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#ff375f">
+  <meta name="theme-color" content="#5e5ce6">
   <title>Portfolio | 1024201</title>
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css">
@@ -29,8 +29,13 @@
             <label class="sc-label" id="lblTitle" for="titleIn">Title</label>
             <input class="sc-input" id="titleIn" type="text" maxlength="120" autocomplete="off" />
 
-            <label class="sc-label" id="lblFile" for="fileIn">Image</label>
-            <input class="sc-input-file" id="fileIn" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required />
+            <label class="sc-file-drop" id="fileDrop">
+              <input type="file" id="fileIn" accept="image/jpeg,image/png,image/webp,image/gif" hidden required />
+              <span class="sc-file-icon" aria-hidden="true">🖼</span>
+              <span id="pickLabel">Choose image</span>
+              <span class="sc-file-hint" id="pickHint">JPG · PNG · WebP · GIF</span>
+            </label>
+            <p class="sc-file-name" id="fileName" hidden></p>
 
             <label class="sc-label" id="lblWatermark" for="wmIn">Watermark text</label>
             <input class="sc-input" id="wmIn" type="text" maxlength="80" placeholder="@yourname" autocomplete="off" />
@@ -56,11 +61,12 @@
             <a class="btn-primary btn-link" id="loginBtn" href="/game/register/">Sign in</a>
           </div>
         </div>
+        <div class="sc-progress" id="progressBox" hidden></div>
         <p class="err" id="errBox" hidden></p>
       </div>
     </div>
   </div>
   <script src="/tools/js/instantPaint.js"></script>
-  <script type="module" src="showcase.js?v=2"></script>
+  <script type="module" src="showcase.js?v=3"></script>
 </body>
 </html>

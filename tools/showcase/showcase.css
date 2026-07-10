@@ -23,8 +23,48 @@
   border-radius: 10px;
   font-size: 15px;
 }
-.sc-input-file {
-  font-size: 14px;
+.sc-file-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed #c7c7cc;
+  border-radius: 14px;
+  padding: 24px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.sc-file-drop:hover,
+.sc-file-drop.dragover {
+  border-color: #007aff;
+  background: #f8fbff;
+}
+.sc-file-icon { font-size: 26px; line-height: 1; }
+.sc-file-hint { font-size: 11px; color: #8e8e93; }
+.sc-file-name {
+  font-size: 12px;
+  color: #3a3a3c;
+  margin: -4px 0 4px;
+  word-break: break-all;
+}
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: #007aff;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 .sc-check {
   display: flex;
@@ -112,16 +152,25 @@
   text-decoration: none;
 }
 .sc-share-link:hover { text-decoration: underline; }
-.sc-delete-btn {
-  margin-top: 12px;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  background: #fce8e8;
-  color: #9b3d3d;
+.sc-progress { margin-top: 10px; }
+.sc-progress .loading-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #636366;
+}
+.sc-progress .loading-bar {
+  height: 4px;
+  border-radius: 0;
+  background: #e5e5ea;
+  overflow: hidden;
+}
+.sc-progress .loading-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 0;
+  background: #007aff;
+  transition: width 0.4s ease-out;
 }
 .sc-view-only {
   margin: 0;

@@ -3,8 +3,9 @@ import { getUser } from "/game/js/store.js";
 import { currentUserId, loginHref } from "../js/quotaClient.js";
 import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
 import { uploadFile } from "../js/attachGrid.js";
-import { watermarkImage, fetchStampLine } from "../js/watermark.js";
+import { watermarkImage, fetchStampTime } from "../js/watermark.js";
 import { showSheet } from "/game/js/toast.js";
+import { mountProgress } from "../lyrics/loading.js";
 
 const UI = {
   en: {
@@ -14,21 +15,22 @@ const UI = {
     loginDesc: "Sign in to upload portfolio works.",
     loginBtn: "Sign in / Register",
     lblTitle: "Title",
-    lblFile: "Image (max 5MB)",
+    pickFile: "Choose image",
+    pickHint: "JPG · PNG · WebP · GIF · max 5MB",
     lblWatermark: "Watermark text",
     stampLbl: "Add upload-time stamp",
     stampHint:
-      "Uses timezone inferred from your upload IP location. If you use a proxy or VPN, the time may not match where you actually are.",
+      "Shows upload time only (timezone from your IP). With VPN/proxy the time may be inaccurate.",
     submit: "Upload & publish",
     mineTitle: "My works",
     uploading: "Processing…",
+    deleting: "Deleting…",
     published: "Published",
     shareLbl: "Share link:",
     delete: "Delete work",
     deleteConfirm: "Delete this work and image? The share link will stop working.",
     cancel: "Cancel",
     confirm: "Delete",
-    deleted: "Deleted",
     err: "Upload failed",
     views: (n) => `${n} views`,
   },
@@ -39,21 +41,21 @@ const UI = {
     loginDesc: "请登录后上传作品。",
     loginBtn: "登录 / 注册",
     lblTitle: "作品标题",
-    lblFile: "图片（最大 5MB）",
+    pickFile: "选择图片",
+    pickHint: "JPG · PNG · WebP · GIF · 最大 5MB",
     lblWatermark: "水印文字",
     stampLbl: "添加时间戳",
-    stampHint:
-      "时间按上传 IP 所在地时区生成。若使用代理或 VPN，显示时间可能与真实所在地不一致。",
+    stampHint: "仅显示上传时间（按 IP 时区）。使用代理或 VPN 时，时间可能不准确。",
     submit: "上传并发布",
     mineTitle: "我的作品",
     uploading: "处理中…",
+    deleting: "删除中…",
     published: "已发布",
     shareLbl: "分享链接：",
     delete: "删除作品",
     deleteConfirm: "确定删除此作品及图片？删除后分享链接将失效。",
     cancel: "取消",
     confirm: "删除",
-    deleted: "已删除",
     err: "上传失败",
     views: (n) => `${n} 次浏览`,
   },
@@ -64,20 +66,21 @@ const UI = {
     loginDesc: "ログインして作品をアップロード。",
     loginBtn: "ログイン / 登録",
     lblTitle: "タイトル",
-    lblFile: "画像（最大5MB）",
+    pickFile: "画像を選択",
+    pickHint: "JPG · PNG · WebP · GIF · 最大5MB",
     lblWatermark: "透かし文字",
     stampLbl: "タイムスタンプを追加",
-    stampHint: "アップロードIPのタイムゾーンを使用。VPN利用時は実際の場所と異なる場合があります。",
+    stampHint: "アップロード時刻のみ表示（IPのタイムゾーン）。VPN利用時は不正確な場合があります。",
     submit: "アップロードして公開",
     mineTitle: "自分の作品",
     uploading: "処理中…",
+    deleting: "削除中…",
     published: "公開済み",
     shareLbl: "共有リンク：",
     delete: "作品を削除",
     deleteConfirm: "この作品と画像を削除しますか？共有リンクは無効になります。",
     cancel: "キャンセル",
     confirm: "削除",
-    deleted: "削除しました",
     err: "アップロード失敗",
     views: (n) => `${n} 回表示`,
   },
@@ -94,6 +97,10 @@ const loginPanel = document.getElementById("loginPanel");
 const workspace = document.getElementById("scWorkspace");
 const mineWrap = document.getElementById("mineWrap");
 const mineList = document.getElementById("mineList");
+const progressBox = document.getElementById("progressBox");
+const fileInput = document.getElementById("fileIn");
+const fileName = document.getElementById("fileName");
+const fileDrop = document.getElementById("fileDrop");
 
 function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
@@ -103,7 +110,8 @@ function applyI18n() {
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/showcase/");
   document.getElementById("lblTitle").textContent = t.lblTitle;
-  document.getElementById("lblFile").textContent = t.lblFile;
+  document.getElementById("pickLabel").textContent = t.pickFile;
+  document.getElementById("pickHint").textContent = t.pickHint;
   document.getElementById("lblWatermark").textContent = t.lblWatermark;
   document.getElementById("stampLbl").textContent = t.stampLbl;
   document.getElementById("stampHint").textContent = t.stampHint;
@@ -120,15 +128,24 @@ function setGuest(on) {
   mineWrap.hidden = on;
 }
 
+function setFile(file) {
+  if (!file) {
+    fileName.hidden = true;
+    fileName.textContent = "";
+    fileInput.value = "";
+    return;
+  }
+  fileName.hidden = false;
+  fileName.textContent = file.name;
+}
+
 function renderPublished(link) {
   resultBox.dataset.link = link;
   resultBox.innerHTML = `
     <p class="sc-published-label">${esc(t.published)}</p>
     <p class="sc-share-lbl">${esc(t.shareLbl)}</p>
     <a class="sc-share-link" href="${esc(link)}">${esc(link)}</a>
-    <button type="button" class="sc-delete-btn" id="deleteBtn">${esc(t.delete)}</button>
   `;
-  document.getElementById("deleteBtn")?.addEventListener("click", () => deleteWork(lastWorkId));
 }
 
 async function confirmDelete() {
@@ -145,25 +162,54 @@ async function deleteWork(workId) {
   const ok = await confirmDelete();
   if (!ok) return;
 
-  const res = await fetch("/api/portal?action=showcase_delete", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: uid, work_id: workId }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    errBox.textContent = data.error || t.err;
-    errBox.hidden = false;
-    return;
-  }
+  const mineItem = mineList.querySelector(`.sc-mine-del[data-id="${CSS.escape(workId)}"]`)?.closest(".sc-mine-item");
+  const hidePublished = workId === lastWorkId;
+  const publishedSnapshot = hidePublished ? { link: resultBox.dataset.link || "", html: resultBox.innerHTML } : null;
 
-  if (workId === lastWorkId) {
+  if (hidePublished) {
     lastWorkId = null;
     resultBox.hidden = true;
     resultBox.innerHTML = "";
   }
-  errBox.hidden = true;
-  await loadMine();
+  if (mineItem) mineItem.hidden = true;
+
+  let prog = null;
+  const progTimer = setTimeout(() => {
+    prog = mountProgress(progressBox, { label: t.deleting, estimatedMs: 5000 });
+  }, 2000);
+
+  try {
+    const res = await fetch("/api/portal?action=showcase_delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: uid, work_id: workId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || t.err);
+
+    if (mineItem) mineItem.remove();
+    errBox.hidden = true;
+
+    const mineRes = await fetch(`/api/portal?action=showcase_mine&user_id=${encodeURIComponent(uid)}`);
+    const mineData = await mineRes.json();
+    const works = mineRes.ok ? mineData.works || [] : [];
+    mineWrap.hidden = !works.length;
+    if (!works.length) mineList.innerHTML = "";
+  } catch (err) {
+    if (mineItem) mineItem.hidden = false;
+    if (publishedSnapshot) {
+      lastWorkId = workId;
+      resultBox.innerHTML = publishedSnapshot.html;
+      resultBox.dataset.link = publishedSnapshot.link;
+      resultBox.hidden = false;
+    }
+    errBox.textContent = err.message || t.err;
+    errBox.hidden = false;
+    await loadMine();
+  } finally {
+    clearTimeout(progTimer);
+    prog?.done();
+  }
 }
 
 async function loadMine() {
@@ -206,6 +252,24 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+fileInput.addEventListener("change", (e) => setFile(e.target.files?.[0] || null));
+
+fileDrop.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  fileDrop.classList.add("dragover");
+});
+fileDrop.addEventListener("dragleave", () => fileDrop.classList.remove("dragover"));
+fileDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  fileDrop.classList.remove("dragover");
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  fileInput.files = dt.files;
+  setFile(file);
+});
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   errBox.hidden = true;
@@ -213,7 +277,7 @@ form.addEventListener("submit", async (e) => {
   const uid = currentUserId();
   if (!uid) return;
 
-  const file = document.getElementById("fileIn").files?.[0];
+  const file = fileInput.files?.[0];
   if (!file) return;
 
   const btn = document.getElementById("submitBtn");
@@ -221,16 +285,17 @@ form.addEventListener("submit", async (e) => {
   btn.textContent = t.uploading;
 
   try {
+    const title = document.getElementById("titleIn").value.trim();
     const watermark = document.getElementById("wmIn").value.trim();
     const stampEnabled = document.getElementById("stampChk").checked;
-    const stampLine = stampEnabled ? await fetchStampLine() : "";
-    const processed = await watermarkImage(file, { text: watermark, stampLine });
+    const stampLine = stampEnabled ? await fetchStampTime() : "";
+    const processed = await watermarkImage(file, { text: watermark, stampLine, titleLine: title });
 
     const uploaded = await uploadFile({
       file: processed,
       purpose: "showcase",
       userId: uid,
-      meta: { watermark, stampLine },
+      meta: { watermark, stampLine, title },
     });
 
     const res = await fetch("/api/portal?action=showcase_publish", {
@@ -239,7 +304,7 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify({
         user_id: uid,
         file_id: uploaded.id,
-        title: document.getElementById("titleIn").value.trim(),
+        title,
         watermark,
         stamp_enabled: stampEnabled,
         stamp_label: stampLine,
@@ -253,6 +318,7 @@ form.addEventListener("submit", async (e) => {
     renderPublished(link);
     resultBox.hidden = false;
     form.reset();
+    setFile(null);
     await loadMine();
   } catch (err) {
     errBox.textContent = err.message || t.err;

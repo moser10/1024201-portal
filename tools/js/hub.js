@@ -9,14 +9,16 @@ const LYRICS_ICON = `
     <span class="en">Lyrics</span>
   </div>`;
 
+const SHOWCASE_ICON = `<svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><defs><clipPath id="sc-half"><polygon points="0,24 24,24 24,0"/></clipPath></defs><g clip-path="url(#sc-half)"><g transform="translate(12,12) scale(1.55) translate(-12,-10)"><path fill="#fff" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2M8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></g></g></svg>`;
+
 const TOOLS = [
   {
     id: "showcase",
     title: { zh: "作品展示", en: "Portfolio", ja: "作品展示" },
     sub: { zh: "水印保护 · 分享展示", en: "Watermark · share safely", ja: "透かし付き展示" },
     href: "showcase/",
-    gradient: "linear-gradient(135deg, #ff375f 0%, #ff9f0a 100%)",
-    icon: `<svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="#fff" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2M8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg>`,
+    gradient: "linear-gradient(135deg, #5e5ce6 0%, #bf5af2 100%)",
+    icon: SHOWCASE_ICON,
   },
   {
     id: "syncnote",

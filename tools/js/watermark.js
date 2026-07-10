@@ -45,7 +45,42 @@ function stampPalette(brightness) {
     : { text: "rgba(255,255,255,0.88)", shadow: "rgba(0,0,0,0.55)" };
 }
 
-export async function watermarkImage(file, { text = "", stampLine = "" } = {}) {
+function drawStampBlock(ctx, w, h, { stampLine = "", titleLine = "" } = {}) {
+  const lines = [];
+  if (titleLine?.trim()) {
+    lines.push({ text: titleLine.trim(), fs: Math.max(10, Math.round(w / 52)) });
+  }
+  if (stampLine?.trim()) {
+    lines.push({ text: stampLine.trim(), fs: Math.max(11, Math.round(w / 48)) });
+  }
+  if (!lines.length) return;
+
+  const pad = Math.max(10, Math.round(w * 0.012));
+  const gap = Math.max(3, Math.round(lines[0].fs * 0.35));
+  const measured = lines.map((line) => {
+    ctx.font = `500 ${line.fs}px system-ui, -apple-system, sans-serif`;
+    return { ...line, tw: ctx.measureText(line.text).width };
+  });
+  const blockW = Math.max(...measured.map((l) => l.tw));
+  const blockH = measured.reduce((sum, l, i) => sum + l.fs + (i ? gap : 0), 0);
+  const corner = regionBrightness(ctx, w - blockW - pad * 2, h - blockH - pad * 2, blockW + pad, blockH + pad);
+  const palette = stampPalette(corner);
+
+  let y = h - pad;
+  for (const line of measured) {
+    const textX = w - pad - line.tw;
+    ctx.save();
+    ctx.font = `500 ${line.fs}px system-ui, -apple-system, sans-serif`;
+    ctx.shadowColor = palette.shadow;
+    ctx.shadowBlur = 3;
+    ctx.fillStyle = palette.text;
+    ctx.fillText(line.text, textX, y);
+    ctx.restore();
+    y -= line.fs + gap;
+  }
+}
+
+export async function watermarkImage(file, { text = "", stampLine = "", titleLine = "" } = {}) {
   const img = await loadImageFromFile(file);
   const maxEdge = 2400;
   let w = img.naturalWidth;
@@ -84,22 +119,7 @@ export async function watermarkImage(file, { text = "", stampLine = "" } = {}) {
     ctx.restore();
   }
 
-  if (stampLine?.trim()) {
-    const fs = Math.max(11, Math.round(w / 48));
-    ctx.font = `500 ${fs}px system-ui, -apple-system, sans-serif`;
-    const pad = Math.max(10, Math.round(w * 0.012));
-    const tw = ctx.measureText(stampLine).width;
-    const textX = w - pad - tw;
-    const textY = h - pad;
-    const corner = regionBrightness(ctx, textX - pad, textY - fs - pad, tw + pad * 2, fs + pad * 2);
-    const palette = stampPalette(corner);
-    ctx.save();
-    ctx.shadowColor = palette.shadow;
-    ctx.shadowBlur = 3;
-    ctx.fillStyle = palette.text;
-    ctx.fillText(stampLine, textX, textY);
-    ctx.restore();
-  }
+  drawStampBlock(ctx, w, h, { stampLine, titleLine });
 
   const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, 0.9));
@@ -109,18 +129,18 @@ export async function watermarkImage(file, { text = "", stampLine = "" } = {}) {
   return new File([blob], `${base}-wm.${ext}`, { type: mime });
 }
 
-export async function fetchStampLine() {
+/** Time only (uses upload IP timezone via geo API, no location text). */
+export async function fetchStampTime() {
   try {
     const res = await fetch("/api/portal?action=geo");
     const geo = await res.json();
-    const loc = geo.label || geo.country || "";
-    const time = geo.localTime || "";
-    const tz = geo.timezone || "";
-    const parts = [];
-    if (loc) parts.push(loc);
-    if (time) parts.push(tz ? `${time} (${tz})` : time);
-    return parts.join(" · ");
+    return geo.localTime || "";
   } catch {
     return "";
   }
+}
+
+/** @deprecated use fetchStampTime */
+export async function fetchStampLine() {
+  return fetchStampTime();
 }
