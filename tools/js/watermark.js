@@ -38,6 +38,21 @@ function watermarkPalette(brightness) {
     : { fill: "rgba(255,255,255,0.34)", stroke: "rgba(0,0,0,0.2)" };
 }
 
+/** Tile step from measured text width + 4–8 char gaps (avoids end/start overlap). */
+function watermarkTileStep(ctx, text, fontSize) {
+  const label = String(text || "").trim();
+  ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+  const textW = ctx.measureText(label).width;
+  const charCount = Math.max(1, [...label].length);
+  const charW = textW / charCount;
+  const gapChars = Math.min(8, Math.max(4, 6));
+  const gapW = charW * gapChars;
+  return {
+    stepX: textW + gapW,
+    stepY: fontSize * 2.4 + gapW * 0.35,
+  };
+}
+
 function stampPalette(brightness) {
   const light = brightness > 140;
   return light
@@ -101,19 +116,20 @@ export async function watermarkImage(file, { text = "", stampLine = "", titleLin
 
   if (text?.trim()) {
     const fontSize = Math.max(14, Math.round(w / 22));
+    const label = text.trim();
     const palette = watermarkPalette(overall);
     ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
     ctx.fillStyle = palette.fill;
     ctx.strokeStyle = palette.stroke;
     ctx.lineWidth = 1;
-    const step = fontSize * 5;
+    const { stepX, stepY } = watermarkTileStep(ctx, label, fontSize);
     ctx.save();
     ctx.translate(w / 2, h / 2);
     ctx.rotate(-Math.PI / 7);
-    for (let y = -h; y < h; y += step) {
-      for (let x = -w; x < w; x += step * 1.8) {
-        ctx.strokeText(text, x, y);
-        ctx.fillText(text, x, y);
+    for (let y = -h; y < h; y += stepY) {
+      for (let x = -w; x < w; x += stepX) {
+        ctx.strokeText(label, x, y);
+        ctx.fillText(label, x, y);
       }
     }
     ctx.restore();
