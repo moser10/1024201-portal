@@ -63,6 +63,32 @@ npx wrangler secret put RESEND_API_KEY --name 1024201-portal
 
 验证：`https://www.1024201.com/api/health` → `"hasResendKey": true`
 
+## 文件存储 Secret（VPS）
+
+配置 VPS 文件服务后（见 `STORAGE.md`）：
+
+```bash
+npx wrangler secret put FILE_STORE_URL --name 1024201-portal
+npx wrangler secret put FILE_STORE_SECRET --name 1024201-portal
+```
+
+验证：`/api/health` → `"fileStore": { "enabled": true, ... }`
+
+## Cloud Agent 自动部署
+
+Cursor **Cloud Agent** 在本仓库里可以 `git pull` / `git push`（已配置 GitHub 凭据），但 **`wrangler deploy` 需要 Cloudflare API Token**。
+
+在 Cursor → **Cloud Agents → Environment**（或该 Agent 运行设置）添加 Secret：
+
+| 变量 | 说明 |
+|------|------|
+| `CLOUDFLARE_API_TOKEN` | Custom Token：Workers Scripts Edit + D1 Edit + Workers Routes Edit |
+| `CLOUDFLARE_ACCOUNT_ID` | `d491b3cd3a9b579a90dd6dededac5537`（可选，账号固定时可省略） |
+
+添加后 Agent 即可在云端执行 `npm run deploy`。Worker 业务 Secret（`RESEND_API_KEY`、`FILE_STORE_*`）仍在 Cloudflare 控制台 / `wrangler secret put` 配置，**不会**随 deploy 丢失。
+
+未配置 Token 时：Agent 只改代码并 push，部署仍需你在 Mac 上 `git pull && npm run deploy`。
+
 ## 部署时切勿删除密钥
 
 - **禁止**在 `wrangler.toml` 添加 `[vars]` 或明文 `RESEND_API_KEY`

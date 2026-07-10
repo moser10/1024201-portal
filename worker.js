@@ -5,6 +5,7 @@ import * as room from "./functions/api/room.js";
 import * as admin from "./functions/api/admin.js";
 import * as portal from "./functions/api/portal.js";
 import { refreshAddressData } from "./functions/api/address.js";
+import { fileStoreStatus } from "./functions/api/vpsStore.js";
 
 const API_ROUTES = {
   "/api/lines": lines,
@@ -25,6 +26,7 @@ export default {
           ok: true,
           hasDb: !!(env?.DB && typeof env.DB.prepare === "function"),
           hasResendKey: !!env?.RESEND_API_KEY,
+          fileStore: fileStoreStatus(env),
           registerFlow: "pending_v2",
           worker: "1024201-portal",
           host: new URL(request.url).hostname,

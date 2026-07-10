@@ -1,59 +1,71 @@
-# 存储说明（仅 D1 免费，不用 R2）
+# 存储架构
 
-本项目**不使用 R2**，附件与作品图片分块存入 **D1**，无需绑卡、无需开通 R2。
+二进制文件（作品展示图片、中转站附件）可存 **VPS**；元数据（用户、作品记录、配额）仍在 **D1**。
 
-## Cloudflare D1 免费额度
+## 模式对比
 
-| 项目 | 免费额度 |
-|------|----------|
-| 总存储 | 约 **5 GB**（按 **数据库实例** 计，非按域名） |
-| 读 | 约 500 万行/天 |
-| 写 | 约 10 万行/天 |
+| 模式 | 条件 | 二进制 | 元数据 |
+|------|------|--------|--------|
+| D1 分块（默认） | 未配置 VPS Secret | `user_file_chunks` 表 | `user_files` 表 |
+| VPS（推荐） | 已配置 `FILE_STORE_URL` + `FILE_STORE_SECRET` | VPS 磁盘 | `user_files.backend = 'vps'` |
 
-**多个域名是否共享？** 若两个域名指向**同一个 Worker** 且绑定**同一个 D1 `database_id`**（本项目即 `one-sentence-novel`），则**共享这 5 GB**。只有新建了另一个 D1 数据库并单独绑定，才会有第二个 5 GB 配额。
+**新上传**在 VPS 配置好后自动走 VPS；**旧文件**仍从 D1 分块读取，无需迁移即可共存。
 
-若文件存储压力变大，可考虑把**二进制文件**迁到 VPS（Nginx + 本地磁盘或对象存储），Worker 只保留元数据与鉴权；D1 继续存用户/配额等小表。
+## D1 5GB 与多域名
 
-## 本项目限制
+5 GB 按 **D1 数据库实例** 计算。本项目所有子域共用 Worker + 同一 `database_id`，因此 **共享 5 GB**，不是每个域名各 5 GB。
 
-| 项目 | 限制 |
-|------|------|
-| 单文件 | **5 MB**（D1 不宜存超大文件） |
-| 中转站附件 | 每用户附件槽最多 **12** 个文件 |
-| 作品展示 | 仅图片，单张 **5 MB** |
+## VPS 安装（一次性）
 
-### 能存多少人？（粗算）
+在 VPS 上（root）：
 
-- D1 总容量 5 GB，还要留给游戏、用户、歌词配额等元数据
-- 若 **仅文件** 占 3 GB，人均 5 MB ≈ **600 张图**
-- 实际建议控制总量，避免把 D1 塞满
+```bash
+FILE_STORE_SECRET="$(openssl rand -hex 32)"
+curl -fsSL https://raw.githubusercontent.com/moser10/1024201-portal/main/vps/filestore/install.sh | bash -s --
+# 记下输出的 SECRET
+```
 
-## API Token 权限
+用 Nginx 反代并配 TLS（见 `vps/filestore/nginx-snippet.conf`），例如：
 
-| 权限 | 需要 |
-|------|------|
-| **D1 → Edit** | ✅ |
-| **Workers Scripts → Edit** | ✅ |
-| **Workers Routes → Edit** | ✅ |
-| Workers R2 Storage | ❌ 不需要 |
-| R2 Catalog / SQL | ❌ 不需要 |
+- `https://files.你的域名.com` → `127.0.0.1:3921`
 
-## 部署
+## Worker Secret（Mac 本机）
 
 ```bash
 cd ~/CodeProjects/1024
-git pull
+npx wrangler secret put FILE_STORE_URL --name 1024201-portal
+# 输入: https://files.你的域名.com
+
+npx wrangler secret put FILE_STORE_SECRET --name 1024201-portal
+# 输入: 与 VPS install 时相同的 SECRET
+
 npm run deploy
 ```
 
-验证：`curl -s https://1024201.com/api/health` → `"hasDb": true`
+验证：
 
-## 个人云盘（100–200 MB/人，7 天滚动清空）
+```bash
+curl -s https://1024201.com/api/health
+# 应含 "fileStore": { "enabled": true, "url": "https://..." }
+```
 
-D1 免费 **不适合** 做人均上百 MB 的网盘。若要做：
+## 限制（当前）
 
-- **推荐 VPS 60 GB**：人均 200 MB 约 300 人，按账号 `上传时间+7天` 删
-- 不要放 D1（5 GB 很快满）
-- 也不要放 R2（需绑卡）
+| 项目 | 限制 |
+|------|------|
+| 单文件 | **5 MB** |
+| 中转站附件 | 每用户最多 **12** 个 |
+| VPS 目录 | 默认 `/var/lib/1024-files` |
 
-作品展示 + 中转站小附件用 **D1 即可**；大容量个人盘放 **VPS**。
+## API Token（Cloudflare）
+
+| 权限 | 需要 |
+|------|------|
+| D1 → Edit | ✅ |
+| Workers Scripts → Edit | ✅ |
+| Workers Routes → Edit | ✅ |
+| R2 | ❌ 不需要 |
+
+## 个人云盘扩展（后续）
+
+VPS 60 GB 可按账号 `上传时间+7天` 滚动清理，人均 100–200 MB；实现时在 VPS 侧加 cron 即可，D1 仍只存索引。

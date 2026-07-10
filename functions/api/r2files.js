@@ -1,4 +1,5 @@
 import { json, requireDb, ensureAppSchema, resolveUserId } from "./_shared.js";
+import { vpsStoreEnabled, vpsPut, vpsGet, vpsDelete } from "./vpsStore.js";
 
 /** D1 免费存储：单文件上限（整库免费约 5GB，不宜过大） */
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -26,6 +27,9 @@ export async function ensureFilesSchema(db) {
   const { results: cols } = await db.prepare("PRAGMA table_info(user_files)").all();
   if (!cols.some((c) => c.name === "meta")) {
     await db.prepare(`ALTER TABLE user_files ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'`).run().catch(() => {});
+  }
+  if (!cols.some((c) => c.name === "backend")) {
+    await db.prepare(`ALTER TABLE user_files ADD COLUMN backend TEXT NOT NULL DEFAULT 'd1'`).run().catch(() => {});
   }
 
   await db
@@ -171,6 +175,33 @@ async function deleteChunks(db, fileId) {
   await db.prepare(`DELETE FROM user_file_chunks WHERE file_id = ?`).bind(fileId).run();
 }
 
+function fileBackend(row) {
+  return row?.backend === "vps" ? "vps" : "d1";
+}
+
+async function readFileBody(env, db, row) {
+  if (fileBackend(row) === "vps" && vpsStoreEnabled(env)) {
+    return vpsGet(env, row.id, row.user_id);
+  }
+  return readChunks(db, row.id);
+}
+
+async function writeFileBody(env, db, row, bytes) {
+  if (fileBackend(row) === "vps") {
+    await vpsPut(env, { fileId: row.id, userId: row.user_id, bytes, mime: row.mime });
+    return;
+  }
+  await writeChunks(db, row.id, bytes);
+}
+
+async function deleteFileBody(env, db, row) {
+  if (fileBackend(row) === "vps" && vpsStoreEnabled(env)) {
+    await vpsDelete(env, row.id, row.user_id);
+    return;
+  }
+  await deleteChunks(db, row.id);
+}
+
 export async function handleFileUpload(env, request, url) {
   const db = requireDb(env);
   await ensureAppSchema(db);
@@ -209,19 +240,26 @@ export async function handleFileUpload(env, request, url) {
   const meta = form.get("meta");
   const metaStr = typeof meta === "string" ? meta : "{}";
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const backend = vpsStoreEnabled(env) ? "vps" : "d1";
 
   await db
     .prepare(
-      `INSERT INTO user_files (id, user_id, purpose, slot, name, mime, size, meta)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO user_files (id, user_id, purpose, slot, name, mime, size, meta, backend)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .bind(id, userId, purpose, slot, name.slice(0, 200), mime, size, metaStr)
+    .bind(id, userId, purpose, slot, name.slice(0, 200), mime, size, metaStr, backend)
     .run();
 
-  await writeChunks(db, id, bytes);
+  const row = { id, user_id: userId, mime };
+  try {
+    await writeFileBody(env, db, row, bytes);
+  } catch {
+    await db.prepare("DELETE FROM user_files WHERE id = ?").bind(id).run();
+    return json({ error: "storage_failed" }, 500);
+  }
 
-  const row = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(id).first();
-  return json({ ok: true, file: fileRow(row) });
+  const saved = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(id).first();
+  return json({ ok: true, file: fileRow(saved), backend });
 }
 
 export async function handleFileGet(env, request, url) {
@@ -239,7 +277,7 @@ export async function handleFileGet(env, request, url) {
     if (userId !== row.user_id) return json({ error: "forbidden" }, 403);
   }
 
-  const body = await readChunks(db, id);
+  const body = await readFileBody(env, db, row);
   if (!body) return json({ error: "not_found" }, 404);
 
   const cache = row.purpose === "showcase" ? "public, max-age=86400" : "private, max-age=3600";
@@ -269,7 +307,7 @@ export async function handleFileDelete(env, request, url) {
   const row = await db.prepare("SELECT * FROM user_files WHERE id = ? AND user_id = ?").bind(id, userId).first();
   if (!row) return json({ error: "not_found" }, 404);
 
-  await deleteChunks(db, id);
+  await deleteFileBody(env, db, row);
   await db.prepare("DELETE FROM user_files WHERE id = ?").bind(id).run();
   await db.prepare("DELETE FROM showcase_works WHERE file_id = ?").bind(id).run();
   return json({ ok: true, id });
@@ -405,7 +443,8 @@ export async function handleShowcaseMine(env, request, url) {
 export async function clearSyncnoteFiles(env, db, userId, slot) {
   const files = await listUserFiles(db, userId, "syncnote", slot);
   for (const f of files) {
-    await deleteChunks(db, f.id);
+    const row = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(f.id).first();
+    if (row) await deleteFileBody(env, db, row);
     await db.prepare("DELETE FROM user_files WHERE id = ?").bind(f.id).run();
   }
 }
@@ -429,7 +468,8 @@ export async function handleShowcaseDelete(env, request, url) {
     .first();
   if (!work) return json({ error: "not_found" }, 404);
 
-  await deleteChunks(db, work.file_id);
+  const fileRowData = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(work.file_id).first();
+  if (fileRowData) await deleteFileBody(env, db, fileRowData);
   await db.prepare("DELETE FROM user_files WHERE id = ?").bind(work.file_id).run();
   await db.prepare("DELETE FROM showcase_works WHERE id = ?").bind(workId).run();
   return json({ ok: true, id: workId });
