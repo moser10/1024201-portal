@@ -4,6 +4,10 @@ import { vpsStoreEnabled, vpsPut, vpsGet, vpsDelete } from "./vpsStore.js";
 /** D1 免费存储：单文件上限（整库免费约 5GB，不宜过大） */
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const SYNCNOTE_MAX_FILES = 12;
+/** 中转站附件槽总容量上限 */
+export const SYNCNOTE_STORAGE_BYTES = SYNCNOTE_MAX_FILES * MAX_FILE_BYTES;
+/** 作品展示总容量上限 */
+export const SHOWCASE_STORAGE_BYTES = 30 * MAX_FILE_BYTES;
 const CHUNK_BYTES = 48 * 1024;
 const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
 
@@ -311,6 +315,29 @@ export async function handleFileDelete(env, request, url) {
   await db.prepare("DELETE FROM user_files WHERE id = ?").bind(id).run();
   await db.prepare("DELETE FROM showcase_works WHERE file_id = ?").bind(id).run();
   return json({ ok: true, id });
+}
+
+export async function handleFileStorageQuota(env, request, url) {
+  const db = requireDb(env);
+  await ensureAppSchema(db);
+  await ensureFilesSchema(db);
+
+  const userId = await resolveUserId(request, env, url);
+  const auth = await requireRegisteredUser(db, userId);
+  if (!auth.ok) return json(auth.body, auth.status);
+
+  const purpose = url.searchParams.get("purpose") || "syncnote";
+  const limit =
+    purpose === "showcase" ? SHOWCASE_STORAGE_BYTES : purpose === "syncnote" ? SYNCNOTE_STORAGE_BYTES : MAX_FILE_BYTES;
+
+  const row = await db
+    .prepare(`SELECT COALESCE(SUM(size), 0) AS used FROM user_files WHERE user_id = ? AND purpose = ?`)
+    .bind(userId, purpose)
+    .first();
+  const used = row?.used || 0;
+  const remaining = Math.max(0, limit - used);
+
+  return json({ purpose, used, limit, remaining });
 }
 
 export async function handleFileList(env, request, url) {

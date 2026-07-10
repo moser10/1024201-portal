@@ -3,6 +3,8 @@ import { getUser } from "/game/js/store.js";
 import { currentUserId, loginHref } from "../js/quotaClient.js";
 import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
 import { renderAttachGrid, uploadFile, deleteFile } from "../js/attachGrid.js";
+import { fetchFileStorage, paintStorageMeta } from "../js/storageQuota.js";
+import { showToast } from "/game/js/toast.js";
 
 const MAX_LINES = 3;
 const FLASH_MS = 2200;
@@ -27,7 +29,8 @@ const UI = {
     loaded: "Loaded",
     cleared: "Cleared",
     copied: "Copied to clipboard",
-    attachHint: `Max ${MAX_FILE_MB}MB per file · ≤3 thumbnails · 4–6 icons · 7+ first thumb + count`,
+    storageDesc: `Max ${MAX_FILE_MB}MB per file`,
+    storageLeft: (mb) => `${mb} left`,
     errLoad: "Failed to load",
     errSave: "Failed to save",
     errUpload: "Upload failed",
@@ -50,7 +53,8 @@ const UI = {
     loaded: "已加载",
     cleared: "已清空",
     copied: "已复制到剪贴板",
-    attachHint: `单文件最大 ${MAX_FILE_MB}MB · ≤3 张缩略图 · 4–6 个图标 · 7 个以上显示首图+数量`,
+    storageDesc: `单文件最大 ${MAX_FILE_MB}MB`,
+    storageLeft: (mb) => `剩余 ${mb}`,
     errLoad: "加载失败",
     errSave: "保存失败",
     errUpload: "上传失败",
@@ -73,7 +77,8 @@ const UI = {
     loaded: "読み込み済み",
     cleared: "削除しました",
     copied: "クリップボードにコピー",
-    attachHint: `1ファイル最大${MAX_FILE_MB}MB · 3枚以下はサムネ · 7枚超は先頭+件数`,
+    storageDesc: `1ファイル最大 ${MAX_FILE_MB}MB`,
+    storageLeft: (mb) => `残り ${mb}`,
     errLoad: "読み込みに失敗",
     errSave: "保存に失敗",
     errUpload: "アップロード失敗",
@@ -96,9 +101,9 @@ const syncWorkspace = document.getElementById("syncWorkspace");
 const slotEls = [...document.querySelectorAll(".sync-slot")];
 const attachGrid = document.getElementById("attachGrid");
 const attachInput = document.getElementById("attachInput");
-const attachHint = document.getElementById("attachHint");
+const attachDesc = document.getElementById("attachDesc");
+const attachSpace = document.getElementById("attachSpace");
 const attachSlotEl = slotEls.find((s) => parseInt(s.dataset.slot, 10) === ATTACH_SLOT);
-const attachStatusEl = attachSlotEl?.querySelector("[data-attach-status]");
 
 function slotNum(el) {
   return parseInt(el.dataset.slot, 10);
@@ -113,7 +118,7 @@ function slotInput(el) {
 }
 
 function slotStatusEl(el) {
-  return isAttachSlot(el) ? attachStatusEl : el.querySelector(".sync-status");
+  return el.querySelector(".sync-status");
 }
 
 function lineMetrics(ta) {
@@ -156,7 +161,7 @@ function applyI18n() {
   document.getElementById("loginDesc").textContent = t.loginDesc;
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/syncnote/");
-  if (attachHint) attachHint.textContent = t.attachHint;
+  if (attachDesc) attachDesc.textContent = t.storageDesc;
   slotEls.forEach((el) => {
     const n = slotNum(el);
     if (isAttachSlot(el)) {
@@ -215,6 +220,20 @@ function savedLabel(updatedAt) {
   return updatedAt ? `${t.saved} · ${updatedAt}` : t.saved;
 }
 
+async function refreshAttachStorage() {
+  const uid = currentUserId();
+  if (!uid) {
+    if (attachSpace) attachSpace.textContent = "";
+    return;
+  }
+  try {
+    const data = await fetchFileStorage(uid, "syncnote");
+    paintStorageMeta({ descEl: attachDesc, spaceEl: attachSpace, t, data });
+  } catch {
+    if (attachSpace) attachSpace.textContent = "";
+  }
+}
+
 async function loadNotes() {
   const uid = currentUserId();
   if (!uid) return;
@@ -233,7 +252,7 @@ async function loadNotes() {
           url: `${f.url}&user_id=${encodeURIComponent(uid)}`,
         }));
         paintAttachGrid();
-        setBaseline(el, loadedLabel(row.updatedAt));
+        await refreshAttachStorage();
         return;
       }
       const ta = slotInput(el);
@@ -295,14 +314,16 @@ async function clearSlot(el) {
     if (isAttachSlot(el)) {
       attachFiles = [];
       paintAttachGrid();
+      await refreshAttachStorage();
+      showToast(t.cleared);
     } else {
       const ta = slotInput(el);
       ta.value = "";
       fitInput(ta);
+      flashStatus(el, t.cleared);
+      setBaseline(el, "");
     }
     dirtySlots.delete(slot);
-    flashStatus(el, t.cleared);
-    setBaseline(el, "");
   } catch (e) {
     showError(e.message || t.errSave);
   }
@@ -316,7 +337,8 @@ async function removeAttach(id) {
     await deleteFile({ id, userId: uid });
     attachFiles = attachFiles.filter((f) => f.id !== id);
     paintAttachGrid();
-    flashStatus(attachSlotEl, t.cleared);
+    await refreshAttachStorage();
+    showToast(t.cleared);
   } catch (e) {
     showError(e.message || t.errUpload);
   }
@@ -326,7 +348,6 @@ async function handleAttachPick(fileList) {
   const uid = currentUserId();
   if (!uid || !fileList?.length) return;
   showError("");
-  setBaseline(attachSlotEl, t.uploading);
   try {
     for (const file of fileList) {
       if (file.size > MAX_FILE_MB * 1024 * 1024) {
@@ -336,10 +357,10 @@ async function handleAttachPick(fileList) {
       attachFiles.push(uploaded);
     }
     paintAttachGrid();
-    setBaseline(attachSlotEl, t.saved);
+    await refreshAttachStorage();
+    showToast(t.saved);
   } catch (e) {
     showError(e.message || t.errUpload);
-    renderBaseline(ATTACH_SLOT);
   } finally {
     attachInput.value = "";
   }
@@ -382,7 +403,10 @@ function boot() {
     return;
   }
   setGuestMode(false);
-  deferWork(loadNotes);
+  deferWork(async () => {
+    await loadNotes();
+    await refreshAttachStorage();
+  });
 }
 
 mountLangTabs(document.getElementById("langSlot"), {
@@ -391,6 +415,7 @@ mountLangTabs(document.getElementById("langSlot"), {
     lang = next;
     t = UI[lang] || UI.en;
     applyI18n();
+    refreshAttachStorage();
     baselineStatus.forEach((msg, slot) => {
       if (!flashing.has(slot)) {
         const el = slotEls.find((s) => slotNum(s) === slot);

@@ -128,6 +128,21 @@
   color: #fff;
   font-weight: 600;
 }
+.sync-slot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #8e8e93;
+  line-height: 1.45;
+}
+.sync-slot-desc { font-weight: 400; }
+.sync-slot-space {
+  font-weight: 700;
+  color: #1c1c1e;
+}
 .sync-slot--attach .sync-attach-zone {
   border: 1px dashed #c7c7cc;
   border-radius: 10px;
@@ -136,11 +151,6 @@
   min-height: 88px;
 }
 .sync-attach-input { display: none; }
-.sync-attach-hint {
-  font-size: 11px;
-  color: #8e8e93;
-  margin: 8px 0 0;
-}
 .attach-grid {
   display: flex;
   flex-wrap: wrap;
@@ -225,3 +235,22 @@
   margin-top: 8px;
   flex-shrink: 0;
 }
+#app-toast-root {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 400;
+  pointer-events: none;
+}
+.app-toast {
+  background: rgba(28, 28, 30, 0.92);
+  color: #fff;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.app-toast.show { opacity: 1; transform: translateY(0); }

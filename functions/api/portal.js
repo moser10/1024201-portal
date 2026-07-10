@@ -9,6 +9,7 @@ import {
   handleShowcaseGet,
   handleShowcaseMine,
   handleShowcaseDelete,
+  handleFileStorageQuota,
   listUserFiles,
   clearSyncnoteFiles,
   ensureFilesSchema,
@@ -210,6 +211,9 @@ export async function onRequest(context) {
   }
   if (request.method === "GET" && action === "file_list") {
     return handleFileList(env, request, url);
+  }
+  if (request.method === "GET" && action === "file_storage") {
+    return handleFileStorageQuota(env, request, url);
   }
   if (request.method === "POST" && action === "showcase_publish") {
     return handleShowcasePublish(env, request, url);

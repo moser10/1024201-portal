@@ -48,12 +48,14 @@
               </section>
               <section class="sync-slot sync-slot--attach" data-slot="2" data-type="attach">
                 <h2 class="sync-slot-label" data-slot-label="2"></h2>
+                <p class="sync-slot-meta">
+                  <span class="sync-slot-desc" id="attachDesc"></span>
+                  <span class="sync-slot-space" id="attachSpace"></span>
+                </p>
                 <div class="sync-attach-zone" id="attachZone">
                   <input type="file" id="attachInput" class="sync-attach-input" multiple hidden />
                   <div class="attach-grid" id="attachGrid"></div>
-                  <p class="sync-attach-hint" id="attachHint"></p>
                 </div>
-                <p class="sync-status" data-attach-status></p>
                 <div class="sync-actions">
                   <button type="button" class="btn-secondary sync-add-file"></button>
                   <button type="button" class="btn-danger sync-clear"></button>
@@ -73,6 +75,6 @@
     </div>
   </div>
   <script src="/tools/js/instantPaint.js"></script>
-  <script type="module" src="syncnote.js?v=5"></script>
+  <script type="module" src="syncnote.js?v=6"></script>
 </body>
 </html>

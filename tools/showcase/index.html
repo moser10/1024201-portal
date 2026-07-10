@@ -29,6 +29,11 @@
             <label class="sc-label" id="lblTitle" for="titleIn">Title</label>
             <input class="sc-input" id="titleIn" type="text" maxlength="120" autocomplete="off" />
 
+            <p class="sc-storage-meta">
+              <span class="sc-storage-desc" id="storageDesc"></span>
+              <span class="sc-storage-space" id="storageSpace"></span>
+            </p>
+
             <label class="sc-file-drop" id="fileDrop">
               <input type="file" id="fileIn" accept="image/jpeg,image/png,image/webp,image/gif" hidden required />
               <span class="sc-file-icon" aria-hidden="true">🖼</span>
@@ -67,6 +72,6 @@
     </div>
   </div>
   <script src="/tools/js/instantPaint.js"></script>
-  <script type="module" src="showcase.js?v=5"></script>
+  <script type="module" src="showcase.js?v=6"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@ import { uploadFile } from "../js/attachGrid.js";
 import { watermarkImage, fetchStampTime } from "../js/watermark.js";
 import { showSheet } from "/game/js/toast.js";
 import { mountProgress } from "../lyrics/loading.js";
+import { fetchFileStorage, paintStorageMeta } from "../js/storageQuota.js";
 
 const UI = {
   en: {
@@ -33,6 +34,8 @@ const UI = {
     confirm: "Delete",
     err: "Upload failed",
     views: (n) => `${n} views`,
+    storageDesc: "Max 5MB per image",
+    storageLeft: (mb) => `${mb} left`,
   },
   zh: {
     title: "作品展示",
@@ -58,6 +61,8 @@ const UI = {
     confirm: "删除",
     err: "上传失败",
     views: (n) => `${n} 次浏览`,
+    storageDesc: "单张最大 5MB",
+    storageLeft: (mb) => `剩余 ${mb}`,
   },
   ja: {
     title: "作品展示",
@@ -83,6 +88,8 @@ const UI = {
     confirm: "削除",
     err: "アップロード失敗",
     views: (n) => `${n} 回表示`,
+    storageDesc: "1枚最大 5MB",
+    storageLeft: (mb) => `残り ${mb}`,
   },
 };
 
@@ -104,6 +111,8 @@ const fileDrop = document.getElementById("fileDrop");
 const titleIn = document.getElementById("titleIn");
 const wmIn = document.getElementById("wmIn");
 const stampChk = document.getElementById("stampChk");
+const storageDesc = document.getElementById("storageDesc");
+const storageSpace = document.getElementById("storageSpace");
 
 const FORM_PREFS_KEY = "sc-showcase-form-prefs";
 
@@ -140,6 +149,20 @@ function clearFileOnly() {
   setFile(null);
 }
 
+async function refreshShowcaseStorage() {
+  const uid = currentUserId();
+  if (!uid) {
+    if (storageSpace) storageSpace.textContent = "";
+    return;
+  }
+  try {
+    const data = await fetchFileStorage(uid, "showcase");
+    paintStorageMeta({ descEl: storageDesc, spaceEl: storageSpace, t, data });
+  } catch {
+    if (storageSpace) storageSpace.textContent = "";
+  }
+}
+
 function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
   document.getElementById("pageSub").textContent = t.sub;
@@ -155,6 +178,7 @@ function applyI18n() {
   document.getElementById("stampHint").textContent = t.stampHint;
   document.getElementById("submitBtn").textContent = t.submit;
   document.getElementById("mineTitle").textContent = t.mineTitle;
+  if (storageDesc) storageDesc.textContent = t.storageDesc;
   if (!resultBox.hidden && lastWorkId) {
     renderPublished(resultBox.dataset.link || "", {
       title: resultBox.dataset.title || "",
@@ -242,6 +266,7 @@ async function deleteWork(workId) {
     const works = mineRes.ok ? mineData.works || [] : [];
     mineWrap.hidden = !works.length;
     if (!works.length) mineList.innerHTML = "";
+    await refreshShowcaseStorage();
   } catch (err) {
     if (mineItem) mineItem.hidden = false;
     if (publishedSnapshot) {
@@ -371,6 +396,7 @@ form.addEventListener("submit", async (e) => {
     saveFormPrefs();
     clearFileOnly();
     await loadMine();
+    await refreshShowcaseStorage();
   } catch (err) {
     errBox.textContent = err.message || t.err;
     errBox.hidden = false;
@@ -386,6 +412,7 @@ mountLangTabs(document.getElementById("langSlot"), {
     lang = next;
     t = UI[lang] || UI.en;
     applyI18n();
+    refreshShowcaseStorage();
   },
 });
 
@@ -399,7 +426,10 @@ function boot() {
     return;
   }
   setGuest(false);
-  deferWork(loadMine);
+  deferWork(async () => {
+    await loadMine();
+    await refreshShowcaseStorage();
+  });
 }
 
 boot();
