@@ -105,11 +105,11 @@ async function renderLyrics({ withProgress = false } = {}) {
 
   let progress;
   if (withProgress) {
-    const { mountProgress } = await import("./loading.js");
+    const { mountProgress, estimateEtaMs } = await import("./loading.js");
     bodyEl.textContent = "";
     progress = mountProgress(loadingHost, {
       label: t.translating,
-      indeterminate: true,
+      estimatedMs: estimateEtaMs(8),
     });
   } else {
     bodyEl.textContent = t.translating;
@@ -182,10 +182,10 @@ async function loadLyrics() {
     titleEl.textContent = cached.title;
   }
 
-  const { mountProgress } = await import("./loading.js");
+  const { mountProgress, estimateEtaMs } = await import("./loading.js");
   const progress = mountProgress(loadingHost, {
     label: t.loading,
-    indeterminate: true,
+    estimatedMs: estimateEtaMs(5),
   });
 
   try {

@@ -4,6 +4,7 @@
 import { readFileSync, statSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { buildAddressSeedStatements } from "./address-seed-sql.mjs";
+import { cleanLyricsText } from "../functions/api/lyricsClean.js";
 
 const root = process.cwd();
 const MAX_ASSET_BYTES = 25 * 1024 * 1024;
@@ -89,12 +90,24 @@ function checkWranglerToml() {
   }
 }
 
+function checkLyricsClean() {
+  const raw = "[00:12.00]海鸥飞过\n吉他：张三\n未经著作权人许可不得翻唱\n天空很蓝";
+  const out = cleanLyricsText(raw);
+  if (!out.includes("海鸥飞过") || !out.includes("天空很蓝")) {
+    fail("cleanLyricsText removed lyric body");
+  }
+  if (out.includes("吉他") || out.includes("未经著作权")) {
+    fail("cleanLyricsText should strip credits and legal boilerplate");
+  }
+}
+
 function main() {
   console.log("predeploy-check …");
   checkAssetsIgnore();
   checkAssetSizes();
   checkWranglerToml();
   checkAddressSeedSql();
+  checkLyricsClean();
 
   if (errors.length) {
     console.error("predeploy-check FAILED:");

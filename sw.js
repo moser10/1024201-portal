@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v54";
+const CACHE = "1042-pwa-v55";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png", "/icons/favicon-32.png"];
 
 self.addEventListener("install", (event) => {

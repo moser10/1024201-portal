@@ -1,4 +1,5 @@
 import { corsHeaders, json, requireDb, ensureAppSchema, resolveUserId } from "./_shared.js";
+import { cleanLyricsText } from "./lyricsClean.js";
 import {
   ensureAddressReady,
   getAddressCountries,
@@ -65,7 +66,6 @@ export async function onRequest(context) {
     const gate = await gateToolUse(db, request, "lyrics", userId);
     if (!gate.ok) return json(gate.body, gate.status);
     const rows = await searchLyricsMulti(title, artist);
-    const enriched = await enrichLyricsResults(rows);
     const queryKey = lyricsQueryKey(title, artist);
     const now = Date.now();
     if (shouldCountLyricsRefresh(gate.q, queryKey, now)) {
@@ -74,7 +74,7 @@ export async function onRequest(context) {
     }
     gate.q.last_refresh_query = queryKey;
     await saveToolQuota(db, gate.key, "lyrics", gate.q);
-    return json({ results: enriched, ...toolQuotaPayload(gate.q, userId) });
+    return json({ results: rows, ...toolQuotaPayload(gate.q, userId) });
   }
 
   if (request.method === "GET" && action === "lyrics_quota") {
@@ -412,9 +412,8 @@ async function searchLrclibVariants(title, artist) {
   const artists = artist ? expandArtistTerms(artist) : [];
 
   if (title && artist) {
-    for (const a of artists) {
-      tasks.push(fetchLrclibSearch({ track_name: title, artist_name: a }));
-    }
+    const primary = artists[0] || artist;
+    tasks.push(fetchLrclibSearch({ track_name: title, artist_name: primary }));
     tasks.push(fetchLrclibSearch({ q: `${title} ${artist}` }));
   } else if (artist) {
     for (const a of artists) {
@@ -456,15 +455,7 @@ async function fetchNetease(path) {
 }
 
 function stripLrcTags(lrc) {
-  if (!lrc) return "";
-  return String(lrc)
-    .replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !/^(作词|作曲|编曲|制作人)\s*[:：]/.test(line))
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return cleanLyricsText(lrc);
 }
 
 async function fetchNeteaseLyricsRaw(songId) {
@@ -479,7 +470,7 @@ async function searchNetease(title, artist) {
   const songs = data?.result?.songs || [];
   const expanded = artist ? expandArtistTerms(artist) : [];
   const both = !!(title && artist);
-  const matched = [];
+  const out = [];
 
   for (const s of songs) {
     const artistName = (s.ar || []).map((a) => a.name).join("/") || "";
@@ -493,27 +484,21 @@ async function searchNetease(title, artist) {
       duration: Math.round((s.dt || 0) / 1000),
     });
     if (both && !matchesBoth(mapped, title, artist, expanded)) continue;
-    matched.push({ s, artistName });
-    if (matched.length >= 12) break;
+    out.push({
+      id: `ncm-${s.id}`,
+      source: "netease",
+      trackName: s.name,
+      artistName,
+      albumName: s.al?.name || "",
+      releaseDate: s.al?.publishTime ? new Date(s.al.publishTime).toISOString().slice(0, 4) : "",
+      plainLyrics: "",
+      syncedLyrics: "",
+      duration: Math.round((s.dt || 0) / 1000),
+    });
+    if (out.length >= 12) break;
   }
 
-  return Promise.all(
-    matched.map(async ({ s, artistName }) => {
-      const rawLrc = await fetchNeteaseLyricsRaw(s.id);
-      const plainLyrics = stripLrcTags(rawLrc);
-      return {
-        id: `ncm-${s.id}`,
-        source: "netease",
-        trackName: s.name,
-        artistName,
-        albumName: s.al?.name || "",
-        releaseDate: s.al?.publishTime ? new Date(s.al.publishTime).toISOString().slice(0, 4) : "",
-        plainLyrics,
-        syncedLyrics: rawLrc || "",
-        duration: Math.round((s.dt || 0) / 1000),
-      };
-    })
-  );
+  return out;
 }
 
 async function getNeteaseLyricsRow(ncmId) {
@@ -592,7 +577,7 @@ function mapResultRow(r) {
     album: r.albumName || r.album || "",
     year: (r.releaseDate || "").slice(0, 4),
     duration: r.duration || null,
-    lyrics: r.plainLyrics || stripSynced(r.syncedLyrics) || "",
+    lyrics: cleanLyricsText(r.plainLyrics || stripSynced(r.syncedLyrics) || ""),
     source: String(id).startsWith("dz-") ? "deezer" : String(id).startsWith("ncm-") ? "netease" : "lrclib",
   };
 }
@@ -623,11 +608,25 @@ function scoreResult(row, titleQ, artistQ, expandedArtists) {
 async function searchLyricsMulti(title, artist) {
   const expanded = artist ? expandArtistTerms(artist) : [];
   const both = !!(title && artist);
-  const [lrclib, deezer, netease] = await Promise.all([
-    searchLrclibVariants(title, artist),
-    searchDeezer(title, artist),
-    searchNetease(title, artist),
-  ]);
+  const isChinese = /[\u4e00-\u9fff]/.test(`${title}${artist}`);
+
+  let lrclib;
+  let deezer;
+  let netease;
+
+  if (both && isChinese) {
+    [netease, lrclib] = await Promise.all([
+      searchNetease(title, artist),
+      searchLrclibVariants(title, artist),
+    ]);
+    deezer = [];
+  } else {
+    [lrclib, deezer, netease] = await Promise.all([
+      searchLrclibVariants(title, artist),
+      searchDeezer(title, artist),
+      searchNetease(title, artist),
+    ]);
+  }
 
   const map = new Map();
   for (const raw of [...netease, ...lrclib, ...deezer]) {
@@ -766,13 +765,14 @@ async function fetchLyricsHit(title, artist) {
 }
 
 function formatLyricsRow(row) {
+  const raw = row.plainLyrics || stripSynced(row.syncedLyrics) || "";
   return {
     id: row.id,
     title: row.trackName || row.name || "",
     artist: row.artistName || row.artist || "",
     album: row.albumName || row.album || "",
     year: row.releaseDate?.slice(0, 4) || "",
-    lyrics: row.plainLyrics || stripSynced(row.syncedLyrics) || "",
+    lyrics: cleanLyricsText(raw),
   };
 }
 

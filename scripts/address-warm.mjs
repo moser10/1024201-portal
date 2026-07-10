@@ -19,7 +19,7 @@ const COLUMN_MIGRATIONS = [
 function ensureAddressColumns() {
   for (const sql of COLUMN_MIGRATIONS) {
     try {
-      wranglerExec(`d1 execute ${ADDRESS_DB} --remote --command=${JSON.stringify(sql)}`, { cwd: root });
+      wranglerExec(`d1 execute ${ADDRESS_DB} --remote --yes --command=${JSON.stringify(sql)}`, { cwd: root });
     } catch {
       /* column already exists */
     }
@@ -40,7 +40,7 @@ export function warmAddressRemote() {
       const file = join(tmp, `batch-${i}.sql`);
       writeFileSync(file, chunks[i].join("\n"));
       console.log(`address-warm: batch ${i + 1}/${chunks.length} …`);
-      wranglerExec(`d1 execute ${ADDRESS_DB} --remote --file=${JSON.stringify(file)}`, { cwd: root, inherit: true });
+      wranglerExec(`d1 execute ${ADDRESS_DB} --remote --yes --file=${JSON.stringify(file)}`, { cwd: root, inherit: true });
       unlinkSync(file);
     }
   } finally {

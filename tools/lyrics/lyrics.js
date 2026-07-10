@@ -286,10 +286,10 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
 
   searchBtn.disabled = true;
   searchBtn.textContent = t.searching;
-  const { mountProgress } = await import("./loading.js");
+  const { mountProgress, estimateEtaMs } = await import("./loading.js");
   const progress = mountProgress(loadingHost, {
     label: t.searching,
-    indeterminate: true,
+    estimatedMs: estimateEtaMs(6),
   });
 
   try {

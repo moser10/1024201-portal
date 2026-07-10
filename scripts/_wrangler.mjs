@@ -17,7 +17,7 @@ export function wranglerExec(args, opts = {}) {
       stdio: opts.inherit ? "inherit" : "pipe",
       encoding: opts.inherit ? undefined : "utf8",
       cwd: root,
-      env: { ...process.env, ...opts.env },
+      env: { ...process.env, WRANGLER_CI: "1", ...opts.env },
     });
   } catch (e) {
     const detail = [e.stdout, e.stderr].filter(Boolean).join("\n").trim();
