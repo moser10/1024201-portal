@@ -35,17 +35,23 @@ ensure_node() {
     return 0
   fi
 
-  echo "Node.js not found. Installing via nvm ..."
+  echo "Node.js not found. Installing via nvm (may take 1–3 minutes) ..."
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
   if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+    echo "→ Downloading nvm ..."
     curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+    echo "→ nvm installed."
+  else
+    echo "→ nvm already present."
   fi
   # shellcheck disable=SC1091
   . "$NVM_DIR/nvm.sh"
   if [ -f "$ROOT/.nvmrc" ]; then
+    echo "→ Installing Node from .nvmrc ($(cat "$ROOT/.nvmrc")) ..."
     nvm install
     nvm use
   else
+    echo "→ Installing Node 22 ..."
     nvm install 22
     nvm use 22
   fi
