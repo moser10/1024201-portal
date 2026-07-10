@@ -7,6 +7,7 @@ Type=simple
 Environment=CFAC_SUB_PORT=8880
 Environment=CFAC_VPS_IP=199.255.96.31
 Environment=CFAC_DB=/etc/x-ui/x-ui.db
+ExecStartPre=/usr/bin/python3 /usr/local/cfac-sub/srbuild.py
 ExecStart=/usr/bin/python3 /usr/local/cfac-sub/cfac-sub-server.py
 Restart=on-failure
 RestartSec=3
