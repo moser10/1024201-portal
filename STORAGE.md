@@ -54,7 +54,7 @@ curl -s https://1024201.com/api/health
 | 项目 | 限制 |
 |------|------|
 | 单文件 | **5 MB** |
-| 中转站附件 | 每用户最多 **12** 个 |
+| 中转站附件 | 每用户最多 **3** 张图片 |
 | VPS 目录 | 默认 `/var/lib/1024-files` |
 
 ## API Token（Cloudflare）

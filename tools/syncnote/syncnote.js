@@ -2,9 +2,9 @@ import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser } from "/game/js/store.js";
 import { currentUserId, loginHref } from "../js/quotaClient.js";
 import { paintToolUser, deferWork } from "../js/toolPageBoot.js";
-import { renderAttachGrid, uploadFile, deleteFile } from "../js/attachGrid.js";
+import { renderAttachGrid, uploadFile, deleteFile, downloadFileEntry, SYNCNOTE_MAX_ATTACH } from "../js/attachGrid.js";
 import { fetchFileStorage, paintStorageMeta } from "../js/storageQuota.js";
-import { showToast } from "/game/js/toast.js";
+import { showToast, showSheet } from "/game/js/toast.js";
 
 const MAX_LINES = 3;
 const FLASH_MS = 2200;
@@ -21,7 +21,13 @@ const UI = {
     slot: (n) => `Relay ${n}`,
     slotAttach: "Attachments",
     copy: "Copy",
-    addFile: "Add file",
+    addFile: "Add image",
+    downloadAll: "Download all",
+    downloadOk: "OK",
+    downloadEmpty: "No images to download",
+    downloadDone: (n) =>
+      `${n} image(s) saved to your device’s default Downloads folder.\n\niPhone/iPad: Files app → Downloads\nMac: ~/Downloads\nAndroid: Downloads`,
+    maxImages: `Up to ${SYNCNOTE_MAX_ATTACH} images`,
     clear: "Delete all",
     saved: "Saved",
     saving: "Saving…",
@@ -29,11 +35,12 @@ const UI = {
     loaded: "Loaded",
     cleared: "Cleared",
     copied: "Copied to clipboard",
-    storageDesc: `Max ${MAX_FILE_MB}MB per file`,
+    storageDesc: `Up to ${SYNCNOTE_MAX_ATTACH} images · max ${MAX_FILE_MB}MB each`,
     storageLeft: (mb) => `${mb} left`,
     errLoad: "Failed to load",
     errSave: "Failed to save",
     errUpload: "Upload failed",
+    errUploadImage: "Images only",
     errClip: "Clipboard unavailable",
   },
   zh: {
@@ -45,7 +52,13 @@ const UI = {
     slot: (n) => `中转 ${n}`,
     slotAttach: "附件",
     copy: "复制",
-    addFile: "添加附件",
+    addFile: "添加图片",
+    downloadAll: "全部下载",
+    downloadOk: "知道了",
+    downloadEmpty: "没有可下载的图片",
+    downloadDone: (n) =>
+      `已下载 ${n} 张图片到系统默认「下载」文件夹。\n\niPhone/iPad：文件 App → 下载\nMac：下载文件夹\nAndroid：Download 目录`,
+    maxImages: `最多 ${SYNCNOTE_MAX_ATTACH} 张图片`,
     clear: "全部删除",
     saved: "已保存",
     saving: "保存中…",
@@ -53,11 +66,12 @@ const UI = {
     loaded: "已加载",
     cleared: "已清空",
     copied: "已复制到剪贴板",
-    storageDesc: `单文件最大 ${MAX_FILE_MB}MB`,
+    storageDesc: `最多 ${SYNCNOTE_MAX_ATTACH} 张图片 · 单文件最大 ${MAX_FILE_MB}MB`,
     storageLeft: (mb) => `剩余 ${mb}`,
     errLoad: "加载失败",
     errSave: "保存失败",
     errUpload: "上传失败",
+    errUploadImage: "仅支持图片",
     errClip: "无法访问剪贴板",
   },
   ja: {
@@ -69,7 +83,13 @@ const UI = {
     slot: (n) => `中継 ${n}`,
     slotAttach: "添付",
     copy: "コピー",
-    addFile: "ファイル追加",
+    addFile: "画像を追加",
+    downloadAll: "すべてダウンロード",
+    downloadOk: "OK",
+    downloadEmpty: "ダウンロードする画像がありません",
+    downloadDone: (n) =>
+      `${n} 枚を端末の既定のダウンロードフォルダに保存しました。\n\niPhone/iPad：ファイル → ダウンロード\nMac：ダウンロード\nAndroid：Download`,
+    maxImages: `最大 ${SYNCNOTE_MAX_ATTACH} 枚`,
     clear: "すべて削除",
     saved: "保存済み",
     saving: "保存中…",
@@ -77,11 +97,12 @@ const UI = {
     loaded: "読み込み済み",
     cleared: "削除しました",
     copied: "クリップボードにコピー",
-    storageDesc: `1ファイル最大 ${MAX_FILE_MB}MB`,
+    storageDesc: `最大 ${SYNCNOTE_MAX_ATTACH} 枚 · 各 ${MAX_FILE_MB}MB まで`,
     storageLeft: (mb) => `残り ${mb}`,
     errLoad: "読み込みに失敗",
     errSave: "保存に失敗",
     errUpload: "アップロード失敗",
+    errUploadImage: "画像のみ対応",
     errClip: "クリップボードを使用できません",
   },
 };
@@ -150,8 +171,11 @@ function paintAttachGrid() {
   const uid = currentUserId();
   renderAttachGrid(attachGrid, attachFiles, {
     readOnly: !uid,
+    userId: uid,
     onDelete: uid ? (id) => removeAttach(id) : undefined,
   });
+  const addBtn = attachSlotEl?.querySelector(".sync-add-file");
+  if (addBtn) addBtn.disabled = !uid || attachFiles.length >= SYNCNOTE_MAX_ATTACH;
 }
 
 function applyI18n() {
@@ -167,7 +191,7 @@ function applyI18n() {
     if (isAttachSlot(el)) {
       el.querySelector("[data-slot-label]").textContent = t.slotAttach;
       el.querySelector(".sync-add-file").textContent = t.addFile;
-      el.querySelector(".sync-clear").textContent = t.clear;
+      el.querySelector(".sync-download-all").textContent = t.downloadAll;
       return;
     }
     el.querySelector("[data-slot-label]").textContent = t.slot(n + 1);
@@ -247,9 +271,9 @@ async function loadNotes() {
       const slot = slotNum(el);
       const row = bySlot.get(slot) || { content: "", updatedAt: null };
       if (isAttachSlot(el)) {
-        attachFiles = (row.files || []).map((f) => ({
+        attachFiles = (row.files || []).slice(0, SYNCNOTE_MAX_ATTACH).map((f) => ({
           ...f,
-          url: `${f.url}&user_id=${encodeURIComponent(uid)}`,
+          url: f.url,
         }));
         paintAttachGrid();
         await refreshAttachStorage();
@@ -344,18 +368,49 @@ async function removeAttach(id) {
   }
 }
 
+async function downloadAllAttach() {
+  const uid = currentUserId();
+  if (!uid) return;
+  const images = attachFiles.filter((f) => String(f.mime || "").startsWith("image/"));
+  if (!images.length) {
+    await showSheet(t.downloadEmpty, [{ label: t.downloadOk, value: true }]);
+    return;
+  }
+  showError("");
+  try {
+    for (const f of images) {
+      await downloadFileEntry(f, uid);
+      await new Promise((r) => setTimeout(r, 280));
+    }
+    await showSheet(t.downloadDone(images.length), [{ label: t.downloadOk, value: true }]);
+  } catch (e) {
+    showError(e.message || t.errUpload);
+  }
+}
+
 async function handleAttachPick(fileList) {
   const uid = currentUserId();
   if (!uid || !fileList?.length) return;
+  const room = SYNCNOTE_MAX_ATTACH - attachFiles.length;
+  if (room <= 0) {
+    showError(t.maxImages);
+    attachInput.value = "";
+    return;
+  }
   showError("");
   try {
-    for (const file of fileList) {
+    const picks = [...fileList].slice(0, room);
+    for (const file of picks) {
+      if (!file.type?.startsWith("image/")) {
+        throw new Error(t.errUploadImage);
+      }
       if (file.size > MAX_FILE_MB * 1024 * 1024) {
         throw new Error(`${file.name}: max ${MAX_FILE_MB}MB`);
       }
       const uploaded = await uploadFile({ file, purpose: "syncnote", slot: ATTACH_SLOT, userId: uid });
       attachFiles.push(uploaded);
     }
+    attachFiles = attachFiles.slice(0, SYNCNOTE_MAX_ATTACH);
     paintAttachGrid();
     await refreshAttachStorage();
     showToast(t.saved);
@@ -384,6 +439,7 @@ function setGuestMode(on) {
   slotEls.forEach((el) => {
     if (isAttachSlot(el)) {
       el.querySelector(".sync-add-file").disabled = on;
+      el.querySelector(".sync-download-all").disabled = on;
       return;
     }
     const ta = slotInput(el);
@@ -429,9 +485,9 @@ slotEls.forEach((el) => {
   if (isAttachSlot(el)) {
     el.querySelector(".sync-add-file").addEventListener("click", () => attachInput.click());
     attachInput.addEventListener("change", () => handleAttachPick([...attachInput.files]));
-    el.querySelector(".sync-clear").addEventListener("click", (e) => {
+    el.querySelector(".sync-download-all").addEventListener("click", (e) => {
       e.preventDefault();
-      clearSlot(el);
+      downloadAllAttach();
     });
     return;
   }

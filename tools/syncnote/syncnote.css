@@ -254,3 +254,42 @@
   transition: opacity 0.2s, transform 0.2s;
 }
 .app-toast.show { opacity: 1; transform: translateY(0); }
+.app-sheet-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 300;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.app-sheet-mask.show { opacity: 1; }
+.app-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border-radius: 14px 14px 0 0;
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+}
+.app-sheet-text {
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  text-align: center;
+  white-space: pre-line;
+}
+.app-sheet-actions { display: flex; gap: 10px; }
+.app-sheet-btn {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #e5e5ea;
+  color: #007aff;
+}

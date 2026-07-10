@@ -3,7 +3,7 @@ import { vpsStoreEnabled, vpsPut, vpsGet, vpsDelete } from "./vpsStore.js";
 
 /** D1 免费存储：单文件上限（整库免费约 5GB，不宜过大） */
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
-export const SYNCNOTE_MAX_FILES = 12;
+export const SYNCNOTE_MAX_FILES = 3;
 /** 中转站附件槽总容量上限 */
 export const SYNCNOTE_STORAGE_BYTES = SYNCNOTE_MAX_FILES * MAX_FILE_BYTES;
 /** 作品展示总容量上限 */
@@ -231,6 +231,9 @@ export async function handleFileUpload(env, request, url) {
 
   const mime = file.type || "application/octet-stream";
   if (purpose === "showcase" && !IMAGE_MIMES.has(mime)) {
+    return json({ error: "images_only" }, 400);
+  }
+  if (purpose === "syncnote" && slot === 2 && !IMAGE_MIMES.has(mime)) {
     return json({ error: "images_only" }, 400);
   }
 

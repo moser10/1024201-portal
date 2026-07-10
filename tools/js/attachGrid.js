@@ -1,4 +1,6 @@
-/** Attachment grid display: ≤3 thumbs, 4–6 icons, >6 first thumb + count */
+/** Attachment grid — syncnote: up to 3 image thumbnails */
+
+export const SYNCNOTE_MAX_ATTACH = 3;
 
 export function isImageMime(mime) {
   return String(mime || "").startsWith("image/");
@@ -8,52 +10,44 @@ export function fileIconSvg() {
   return `<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6m-1 1v5h5M8 13h8v2H8v-2m0 4h5v2H8v-2"/></svg>`;
 }
 
+function fileUrl(f, userId) {
+  const base = f.url || `/api/portal?action=file_get&id=${encodeURIComponent(f.id)}`;
+  if (!userId || base.includes("user_id=")) return base;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}user_id=${encodeURIComponent(userId)}`;
+}
+
 /**
  * @param {HTMLElement} host
  * @param {Array<{id,name,mime,url,size}>} files
- * @param {{ onDelete?: (id)=>void, readOnly?: boolean }} opts
+ * @param {{ onDelete?: (id)=>void, readOnly?: boolean, userId?: number|string }} opts
  */
 export function renderAttachGrid(host, files, opts = {}) {
   if (!host) return;
-  const list = files || [];
-  const n = list.length;
+  const list = (files || []).slice(0, SYNCNOTE_MAX_ATTACH);
   host.innerHTML = "";
 
-  if (!n) {
+  if (!list.length) {
     host.classList.add("attach-grid--empty");
     return;
   }
   host.classList.remove("attach-grid--empty");
 
-  if (n > 6) {
-    const first = list[0];
-    const cell = document.createElement("div");
-    cell.className = "attach-cell attach-cell--stack";
-    cell.innerHTML = thumbInner(first, true) + `<span class="attach-stack-count">+${n - 1}</span>`;
-    if (!opts.readOnly && opts.onDelete) bindDelete(cell, first.id, opts.onDelete);
-    host.appendChild(cell);
-    return;
-  }
-
-  const mode = n <= 3 ? "thumb" : "icon";
   for (const f of list) {
     const cell = document.createElement("div");
-    cell.className = `attach-cell attach-cell--${mode}`;
-    cell.innerHTML = mode === "thumb" ? thumbInner(f, false) : iconInner(f);
+    cell.className = "attach-cell attach-cell--thumb";
+    cell.innerHTML = thumbInner(f, opts.userId);
     if (!opts.readOnly && opts.onDelete) bindDelete(cell, f.id, opts.onDelete);
     host.appendChild(cell);
   }
 }
 
-function thumbInner(f, stack) {
+function thumbInner(f, userId) {
   if (isImageMime(f.mime)) {
-    return `<img class="attach-thumb" src="${esc(f.url)}" alt="${esc(f.name)}" loading="lazy" />`;
+    const src = fileUrl(f, userId);
+    return `<img class="attach-thumb" src="${esc(src)}" alt="${esc(f.name)}" loading="lazy" decoding="async" />`;
   }
   return `<div class="attach-file-badge">${fileIconSvg()}<span>${esc(shortName(f.name))}</span></div>`;
-}
-
-function iconInner(f) {
-  return `<div class="attach-icon" title="${esc(f.name)}">${fileIconSvg()}<span>${esc(shortName(f.name))}</span></div>`;
 }
 
 function bindDelete(cell, id, onDelete) {
@@ -102,4 +96,22 @@ export async function deleteFile({ id, userId }) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "delete_failed");
   return data;
+}
+
+export async function downloadFileEntry(file, userId) {
+  const url = fileUrl(file, userId);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("download_failed");
+  const blob = await res.blob();
+  const name = file.name || `image-${file.id?.slice(0, 8) || "file"}.jpg`;
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = name;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+  return name;
 }
