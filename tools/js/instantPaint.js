@@ -17,14 +17,14 @@
       ja: { pageTitle: "音楽", pageSub: "Deezerチャート · 30秒プレビュー", backLink: "ツールボックス" },
     },
     syncnote: {
-      en: { pageTitle: "Text Relay", pageSub: "Two text fields + attachments (5MB, D1)", backLink: "Toolbox" },
-      zh: { pageTitle: "文本中转站", pageSub: "两个文本框 + 附件（5MB/个，D1 免费存储）", backLink: "返回工具箱" },
-      ja: { pageTitle: "テキスト中継", pageSub: "テキスト2枠 + 添付（5MB・D1）", backLink: "ツールボックス" },
+      en: { pageTitle: "Text Relay", pageSub: "", backLink: "Toolbox" },
+      zh: { pageTitle: "文本中转站", pageSub: "", backLink: "返回工具箱" },
+      ja: { pageTitle: "テキスト中継", pageSub: "", backLink: "ツールボックス" },
     },
     showcase: {
-      en: { pageTitle: "Portfolio", pageSub: "Watermark images for designers & photographers", backLink: "Toolbox" },
-      zh: { pageTitle: "作品展示", pageSub: "设计/摄影作品加水印展示，降低被白嫖风险", backLink: "返回工具箱" },
-      ja: { pageTitle: "作品展示", pageSub: "透かし付きで作品を公開", backLink: "ツールボックス" },
+      en: { pageTitle: "Portfolio", pageSub: "", backLink: "Toolbox" },
+      zh: { pageTitle: "作品展示", pageSub: "", backLink: "返回工具箱" },
+      ja: { pageTitle: "作品展示", pageSub: "", backLink: "ツールボックス" },
     },
     "showcase-view": {
       en: { backLink: "Portfolio" },

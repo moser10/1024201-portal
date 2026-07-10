@@ -22,6 +22,10 @@ export function storageLeftLabel(t, remaining) {
 }
 
 export function paintStorageMeta({ descEl, spaceEl, t, data }) {
-  if (descEl) descEl.textContent = t.storageDesc || "";
+  if (descEl) {
+    const desc = t.storageDesc || "";
+    descEl.textContent = desc;
+    descEl.hidden = !desc;
+  }
   if (spaceEl && data) spaceEl.textContent = storageLeftLabel(t, data.remaining ?? 0);
 }

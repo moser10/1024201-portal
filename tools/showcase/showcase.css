@@ -28,6 +28,7 @@
   line-height: 1.45;
 }
 .sc-storage-desc { font-weight: 400; }
+.sc-storage-desc[hidden] { display: none; }
 .sc-storage-space {
   font-weight: 700;
   color: #1c1c1e;
@@ -55,7 +56,14 @@
   border-color: #007aff;
   background: #f8fbff;
 }
-.sc-file-icon { font-size: 26px; line-height: 1; }
+.sc-file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #007aff;
+  line-height: 0;
+}
+.sc-file-icon svg { display: block; }
 .sc-file-hint { font-size: 11px; color: #8e8e93; }
 .sc-file-name {
   font-size: 12px;

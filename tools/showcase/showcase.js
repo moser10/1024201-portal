@@ -11,13 +11,13 @@ import { fetchFileStorage, paintStorageMeta } from "../js/storageQuota.js";
 const UI = {
   en: {
     title: "Portfolio",
-    sub: "Show design or photo work with watermark — harder to steal, still easy to share.",
+    sub: "",
     back: "Toolbox",
     loginDesc: "Sign in to upload portfolio works.",
     loginBtn: "Sign in / Register",
     lblTitle: "Title",
     pickFile: "Choose image",
-    pickHint: "JPG · PNG · WebP · GIF · max 5MB",
+    pickHint: "",
     lblWatermark: "Watermark text",
     stampLbl: "Add upload-time stamp",
     stampHint:
@@ -34,18 +34,18 @@ const UI = {
     confirm: "Delete",
     err: "Upload failed",
     views: (n) => `${n} views`,
-    storageDesc: "Max 5MB per image",
+    storageDesc: "",
     storageLeft: (mb) => `${mb} left`,
   },
   zh: {
     title: "作品展示",
-    sub: "设计/摄影用户上传带水印作品，方便展示、降低被白嫖风险。",
+    sub: "",
     back: "返回工具箱",
     loginDesc: "请登录后上传作品。",
     loginBtn: "登录 / 注册",
     lblTitle: "作品标题",
     pickFile: "选择图片",
-    pickHint: "JPG · PNG · WebP · GIF · 最大 5MB",
+    pickHint: "",
     lblWatermark: "水印文字",
     stampLbl: "添加时间戳",
     stampHint: "仅显示上传时间（按 IP 时区）。使用代理或 VPN 时，时间可能不准确。",
@@ -61,18 +61,18 @@ const UI = {
     confirm: "删除",
     err: "上传失败",
     views: (n) => `${n} 次浏览`,
-    storageDesc: "单张最大 5MB",
+    storageDesc: "",
     storageLeft: (mb) => `剩余 ${mb}`,
   },
   ja: {
     title: "作品展示",
-    sub: "デザイン・写真を透かし付きで公開。",
+    sub: "",
     back: "ツールボックス",
     loginDesc: "ログインして作品をアップロード。",
     loginBtn: "ログイン / 登録",
     lblTitle: "タイトル",
     pickFile: "画像を選択",
-    pickHint: "JPG · PNG · WebP · GIF · 最大5MB",
+    pickHint: "",
     lblWatermark: "透かし文字",
     stampLbl: "タイムスタンプを追加",
     stampHint: "アップロード時刻のみ表示（IPのタイムゾーン）。VPN利用時は不正確な場合があります。",
@@ -88,7 +88,7 @@ const UI = {
     confirm: "削除",
     err: "アップロード失敗",
     views: (n) => `${n} 回表示`,
-    storageDesc: "1枚最大 5MB",
+    storageDesc: "",
     storageLeft: (mb) => `残り ${mb}`,
   },
 };
@@ -165,20 +165,31 @@ async function refreshShowcaseStorage() {
 
 function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
-  document.getElementById("pageSub").textContent = t.sub;
+  const subEl = document.getElementById("pageSub");
+  if (subEl) {
+    subEl.textContent = t.sub || "";
+    subEl.hidden = !t.sub;
+  }
   document.getElementById("backLink").textContent = t.back;
   document.getElementById("loginDesc").textContent = t.loginDesc;
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/showcase/");
   document.getElementById("lblTitle").textContent = t.lblTitle;
   document.getElementById("pickLabel").textContent = t.pickFile;
-  document.getElementById("pickHint").textContent = t.pickHint;
+  const pickHintEl = document.getElementById("pickHint");
+  if (pickHintEl) {
+    pickHintEl.textContent = t.pickHint || "";
+    pickHintEl.hidden = !t.pickHint;
+  }
   document.getElementById("lblWatermark").textContent = t.lblWatermark;
   document.getElementById("stampLbl").textContent = t.stampLbl;
   document.getElementById("stampHint").textContent = t.stampHint;
   document.getElementById("submitBtn").textContent = t.submit;
   document.getElementById("mineTitle").textContent = t.mineTitle;
-  if (storageDesc) storageDesc.textContent = t.storageDesc;
+  if (storageDesc) {
+    storageDesc.textContent = t.storageDesc || "";
+    storageDesc.hidden = !t.storageDesc;
+  }
   if (!resultBox.hidden && lastWorkId) {
     renderPublished(resultBox.dataset.link || "", {
       title: resultBox.dataset.title || "",

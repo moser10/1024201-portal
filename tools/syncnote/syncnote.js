@@ -14,7 +14,7 @@ const MAX_FILE_MB = 5;
 const UI = {
   en: {
     title: "Text Relay",
-    sub: "Two text fields + one attachment box (5MB each, D1), synced across devices.",
+    sub: "",
     back: "Toolbox",
     loginDesc: "Sign in to use Text Relay.",
     loginBtn: "Sign in / Register",
@@ -35,7 +35,7 @@ const UI = {
     loaded: "Loaded",
     cleared: "Cleared",
     copied: "Copied to clipboard",
-    storageDesc: `Up to ${SYNCNOTE_MAX_ATTACH} images · max ${MAX_FILE_MB}MB each`,
+    storageDesc: "",
     storageLeft: (mb) => `${mb} left`,
     errLoad: "Failed to load",
     errSave: "Failed to save",
@@ -45,7 +45,7 @@ const UI = {
   },
   zh: {
     title: "文本中转站",
-    sub: "两个文本框 + 一个附件框（单文件最大 5MB，D1 免费存储），跨设备同步。",
+    sub: "",
     back: "返回工具箱",
     loginDesc: "请登录后使用文本中转站。",
     loginBtn: "登录 / 注册",
@@ -66,7 +66,7 @@ const UI = {
     loaded: "已加载",
     cleared: "已清空",
     copied: "已复制到剪贴板",
-    storageDesc: `最多 ${SYNCNOTE_MAX_ATTACH} 张图片 · 单文件最大 ${MAX_FILE_MB}MB`,
+    storageDesc: "",
     storageLeft: (mb) => `剩余 ${mb}`,
     errLoad: "加载失败",
     errSave: "保存失败",
@@ -76,7 +76,7 @@ const UI = {
   },
   ja: {
     title: "テキスト中継",
-    sub: "テキスト2枠 + 添付1枠（各5MB・D1）、端末間同期。",
+    sub: "",
     back: "ツールボックス",
     loginDesc: "テキスト中継を使うにはログインしてください。",
     loginBtn: "ログイン / 登録",
@@ -97,7 +97,7 @@ const UI = {
     loaded: "読み込み済み",
     cleared: "削除しました",
     copied: "クリップボードにコピー",
-    storageDesc: `最大 ${SYNCNOTE_MAX_ATTACH} 枚 · 各 ${MAX_FILE_MB}MB まで`,
+    storageDesc: "",
     storageLeft: (mb) => `残り ${mb}`,
     errLoad: "読み込みに失敗",
     errSave: "保存に失敗",
@@ -180,23 +180,30 @@ function paintAttachGrid() {
 
 function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
-  document.getElementById("pageSub").textContent = t.sub;
+  const subEl = document.getElementById("pageSub");
+  if (subEl) {
+    subEl.textContent = t.sub || "";
+    subEl.hidden = !t.sub;
+  }
   document.getElementById("backLink").textContent = t.back;
   document.getElementById("loginDesc").textContent = t.loginDesc;
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/syncnote/");
-  if (attachDesc) attachDesc.textContent = t.storageDesc;
+  if (attachDesc) {
+    attachDesc.textContent = t.storageDesc || "";
+    attachDesc.hidden = !t.storageDesc;
+  }
   slotEls.forEach((el) => {
     const n = slotNum(el);
     if (isAttachSlot(el)) {
-      el.querySelector("[data-slot-label]").textContent = t.slotAttach;
-      el.querySelector(".sync-add-file").textContent = t.addFile;
-      el.querySelector(".sync-download-all").textContent = t.downloadAll;
+      el.querySelector("[data-slot-label]")?.textContent = t.slotAttach;
+      el.querySelector(".sync-add-file")?.textContent = t.addFile;
+      el.querySelector(".sync-download-all")?.textContent = t.downloadAll;
       return;
     }
-    el.querySelector("[data-slot-label]").textContent = t.slot(n + 1);
-    el.querySelector(".sync-copy").textContent = t.copy;
-    el.querySelector(".sync-clear").textContent = t.clear;
+    el.querySelector("[data-slot-label]")?.textContent = t.slot(n + 1);
+    el.querySelector(".sync-copy")?.textContent = t.copy;
+    el.querySelector(".sync-clear")?.textContent = t.clear;
   });
 }
 
@@ -483,9 +490,9 @@ mountLangTabs(document.getElementById("langSlot"), {
 
 slotEls.forEach((el) => {
   if (isAttachSlot(el)) {
-    el.querySelector(".sync-add-file").addEventListener("click", () => attachInput.click());
+    el.querySelector(".sync-add-file")?.addEventListener("click", () => attachInput.click());
     attachInput.addEventListener("change", () => handleAttachPick([...attachInput.files]));
-    el.querySelector(".sync-download-all").addEventListener("click", (e) => {
+    el.querySelector(".sync-download-all")?.addEventListener("click", (e) => {
       e.preventDefault();
       downloadAllAttach();
     });
