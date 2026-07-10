@@ -7,3 +7,8 @@ scripts/.address-seed*.sql
 # 本地交接上下文（含 VPS IP/面板路径，勿上传）
 .1024_context.md
 .vps_context.md
+
+# Mac deploy watcher (local only)
+.deploy-watcher-last
+.deploy-watcher.log
+.deploy-watcher.pid
