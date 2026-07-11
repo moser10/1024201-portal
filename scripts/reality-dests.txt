@@ -1,0 +1,16 @@
+# Curated Reality dest candidates (TLS1.3 + HTTP/2 required).
+# Format: dest_host:443|client_sni|note
+# Only enable one active dest on the server at a time; client SNI must match.
+# Rotate with: python3 /root/cfac-rotate-reality-dest.py --pick <name>
+#
+# Prefer large CDN / collaboration endpoints. "Meeting-like" helps narrative,
+# but GFW fingerprinting is not defeated by domain choice alone.
+
+www.microsoft.com:443|www.microsoft.com|default stable
+microsoft.com:443|www.microsoft.com|alt microsoft apex rarely used as sni
+gateway.icloud.com:443|gateway.icloud.com|apple gateway common reality target
+www.cloudflare.com:443|www.cloudflare.com|cdn landing
+dl.google.com:443|dl.google.com|google downloads
+teams.microsoft.com:443|teams.microsoft.com|teams web (verify TLS1.3/h2 from VPS first)
+zoom.us:443|zoom.us|zoom marketing edge (verify first)
+www.yahoo.com:443|www.yahoo.com|large portal (verify first)
