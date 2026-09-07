@@ -101,11 +101,8 @@ function renderLogin(errorMsg = "") {
     <div class="login-wrap">
       <div class="card login-card">
         <div class="title-row">
-          <img class="site-logo" src="/icons/icon-192.png" width="36" height="36" alt="1024201">
-          <div>
-            <p class="brand">1024201</p>
-            <h1>管理后台</h1>
-          </div>
+          <img class="site-logo" src="/icons/icon-192.png" width="44" height="44" alt="">
+          <h1>管理后台</h1>
         </div>
         <p class="sub">门户与游戏数据管理。会话 12 小时有效。</p>
         ${errorMsg ? `<div class="banner" style="margin-bottom:14px">${esc(errorMsg)}</div>` : ""}
@@ -510,11 +507,10 @@ function paintShell() {
     <div class="wrap">
       <div class="topbar">
         <div class="title-row">
-          <img class="site-logo" src="/icons/icon-192.png" width="40" height="40" alt="1024201">
-          <div>
-            <p class="brand">1024201</p>
+          <img class="site-logo" src="/icons/icon-192.png" width="48" height="48" alt="">
+          <div class="title-text">
             <h1>管理后台</h1>
-            <p class="sub">已登录为 ${esc(state.me.username)}</p>
+            <p class="user-line">${esc(state.me.username)}</p>
           </div>
         </div>
         <div class="topbar-actions">
