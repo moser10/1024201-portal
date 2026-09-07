@@ -100,8 +100,13 @@ function renderLogin(errorMsg = "") {
   app.innerHTML = `
     <div class="login-wrap">
       <div class="card login-card">
-        <p class="brand">1024201</p>
-        <h1>管理后台</h1>
+        <div class="title-row">
+          <img class="site-logo" src="/icons/icon-192.png" width="36" height="36" alt="1024201">
+          <div>
+            <p class="brand">1024201</p>
+            <h1>管理后台</h1>
+          </div>
+        </div>
         <p class="sub">门户与游戏数据管理。会话 12 小时有效。</p>
         ${errorMsg ? `<div class="banner" style="margin-bottom:14px">${esc(errorMsg)}</div>` : ""}
         <form id="loginForm" autocomplete="off">
@@ -504,10 +509,13 @@ function paintShell() {
   app.innerHTML = `
     <div class="wrap">
       <div class="topbar">
-        <div>
-          <p class="brand">1024201</p>
-          <h1>管理后台</h1>
-          <p class="sub">已登录为 ${esc(state.me.username)}${state.me.adminmail ? ` · ${esc(state.me.adminmail)}` : ""}</p>
+        <div class="title-row">
+          <img class="site-logo" src="/icons/icon-192.png" width="40" height="40" alt="1024201">
+          <div>
+            <p class="brand">1024201</p>
+            <h1>管理后台</h1>
+            <p class="sub">已登录为 ${esc(state.me.username)}</p>
+          </div>
         </div>
         <div class="topbar-actions">
           <button type="button" class="btn btn-ghost btn-small" id="logoutBtn">退出</button>
