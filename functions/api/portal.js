@@ -324,6 +324,17 @@ async function buildIpIntel(request) {
   if (mobile) purity -= 6;
   purity = Math.max(5, Math.min(99, purity));
 
+  // Heat scale by magnitude (low % → cool green, high % → hot red/purple/black).
+  const purityLevel =
+    purity < 12.5 ? "g1" : // 深绿
+    purity < 25 ? "g2" : // 浅绿
+    purity < 37.5 ? "y1" : // 浅黄
+    purity < 50 ? "y2" : // 深黄
+    purity < 62.5 ? "or" : // 橘
+    purity < 75 ? "rd" : // 红
+    purity < 87.5 ? "pu" : // 紫
+    "bk"; // 黑
+
   const parts = [city, region, country].filter(Boolean);
   let localTime = null;
   if (timezone) {
@@ -349,7 +360,7 @@ async function buildIpIntel(request) {
     mobile,
     networkType,
     purity,
-    purityLevel: purity >= 75 ? "high" : purity >= 45 ? "mid" : "low",
+    purityLevel,
   };
 }
 

@@ -102,9 +102,15 @@
             min-width: 42px; padding: 3px 8px; border-radius: 6px;
             font-size: 11px; font-weight: 700; color: #fff;
         }
-        .purity-pill.high { background: #34c759; }
-        .purity-pill.mid { background: #ff9f0a; }
-        .purity-pill.low { background: #ff3b30; }
+        /* 8-step: 深绿 → 浅绿 → 浅黄 → 深黄 → 橘 → 红 → 紫 → 黑（低%绿，高%红黑） */
+        .purity-pill.g1 { background: #0d5c3d; }
+        .purity-pill.g2 { background: #5bb974; }
+        .purity-pill.y1 { background: #ffe566; color: #3d3200; }
+        .purity-pill.y2 { background: #e6a800; color: #1a1400; }
+        .purity-pill.or { background: #f08500; }
+        .purity-pill.rd { background: #e53935; }
+        .purity-pill.pu { background: #7b1fa2; }
+        .purity-pill.bk { background: #111111; }
 
         .zone-date {
             font-size: 12px;
@@ -494,7 +500,12 @@
             const tagsEl = document.getElementById('ipTags');
             locEl.classList.remove('is-loading');
             locEl.innerHTML = `${buildLocationHtml(data, t)}<div class="ip-sub">${data.ip || ''}</div>`;
-            const purityCls = data.purityLevel === 'high' ? 'high' : data.purityLevel === 'mid' ? 'mid' : 'low';
+            const allowed = new Set(['g1','g2','y1','y2','or','rd','pu','bk']);
+            let purityCls = allowed.has(data.purityLevel) ? data.purityLevel : '';
+            if (!purityCls) {
+                const p = Number(data.purity) || 0;
+                purityCls = p < 12.5 ? 'g1' : p < 25 ? 'g2' : p < 37.5 ? 'y1' : p < 50 ? 'y2' : p < 62.5 ? 'or' : p < 75 ? 'rd' : p < 87.5 ? 'pu' : 'bk';
+            }
             const tags = `<span class="ip-tag">${netLabel(data, t)}</span><span class="purity-pill ${purityCls}">${t.purity} ${data.purity}%</span>`;
             tagsEl.innerHTML = tags;
             tagsEl.hidden = false;

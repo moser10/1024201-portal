@@ -235,16 +235,31 @@ function userRowHtml(u, i) {
 }
 
 function roomRowHtml(r, i) {
+  const closed = !!r.room_closed;
+  const status = closed
+    ? `<span class="badge badge-warn">已关闭</span>`
+    : `<span class="badge badge-ok">进行中</span>`;
+  const novel = r.has_novel
+    ? `<span class="badge badge-ok">有内容</span>`
+    : `<span class="badge">空</span>`;
+  const roomBtn = closed
+    ? `<button type="button" class="btn btn-ghost btn-small restore-room" data-id="${r.id}">恢复房间</button>`
+    : `<button type="button" class="btn btn-ghost btn-small close-room" data-id="${r.id}">关闭房间</button>`;
   return `
-    <tr data-room-id="${r.id}">
+    <tr data-room-id="${r.id}" class="${closed ? "is-closed" : ""}">
       <td>${i + 1}</td>
       <td>${esc(r.display_name)}</td>
       <td>${esc(r.full_name)}</td>
       <td>${esc(r.owner_name)}</td>
       <td><code>${esc(r.invite_code)}</code></td>
       <td>${esc(r.created_at || "—")}</td>
+      <td>${status}</td>
+      <td>${novel}</td>
       <td>
-        <button type="button" class="btn btn-danger btn-small del-room" data-id="${r.id}">删除</button>
+        <div class="row-actions">
+          ${roomBtn}
+          <button type="button" class="btn btn-danger btn-small del-novel" data-id="${r.id}">删除小说</button>
+        </div>
       </td>
     </tr>`;
 }
@@ -274,6 +289,7 @@ function panelRooms() {
   return `
     <div class="card" data-panel="rooms">
       <h2>游戏房间</h2>
+      <p class="panel-hint">关闭房间不会删除小说，可随时恢复；删除小说会清空写书内容且不可恢复。</p>
       <div class="toolbar">
         <input class="search" id="roomSearch" type="search" placeholder="搜索书名 / 邀请码 / 房主" value="${esc(state.roomQ)}">
         <button type="button" class="btn btn-ghost btn-small" id="roomSearchBtn">搜索</button>
@@ -282,7 +298,7 @@ function panelRooms() {
         ${
           state.rooms.length
             ? `<table>
-          <thead><tr><th>#</th><th>显示名</th><th>全称</th><th>房主</th><th>邀请码</th><th>创建时间</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>显示名</th><th>全称</th><th>房主</th><th>邀请码</th><th>创建时间</th><th>房间</th><th>小说</th><th>操作</th></tr></thead>
           <tbody>${state.rooms.map((r, i) => roomRowHtml(r, i)).join("")}</tbody>
         </table>`
             : `<p class="empty">没有匹配的房间</p>`
@@ -425,21 +441,67 @@ function bindDashboardEvents() {
     };
   });
 
-  document.querySelectorAll(".del-room").forEach((btn) => {
+  document.querySelectorAll(".close-room").forEach((btn) => {
     btn.onclick = async () => {
       const row = btn.closest("tr");
       const name = row?.querySelector("td:nth-child(2)")?.textContent || "";
       const ok = await confirmDialog({
-        title: "删除房间",
-        message: `确定删除房间「${name}」及全部写书内容？`,
-        confirmText: "删除",
-        danger: true,
+        title: "关闭房间",
+        message: `关闭「${name}」后玩家无法进入，小说内容会保留，可随时恢复。`,
+        confirmText: "关闭房间",
+        danger: false,
       });
       if (!ok) return;
       btn.disabled = true;
       try {
         await api("delete_room", { method: "POST", body: JSON.stringify({ story_id: Number(btn.dataset.id) }) });
-        toast("房间已删除");
+        toast("房间已关闭，小说仍保留");
+        await refreshQuiet();
+      } catch (e) {
+        btn.disabled = false;
+        toast(e.message);
+      }
+    };
+  });
+
+  document.querySelectorAll(".restore-room").forEach((btn) => {
+    btn.onclick = async () => {
+      const row = btn.closest("tr");
+      const name = row?.querySelector("td:nth-child(2)")?.textContent || "";
+      const ok = await confirmDialog({
+        title: "恢复房间",
+        message: `恢复「${name}」后玩家可再次进入，已保留的小说内容不变。`,
+        confirmText: "恢复",
+        danger: false,
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      try {
+        await api("restore_room", { method: "POST", body: JSON.stringify({ story_id: Number(btn.dataset.id) }) });
+        toast("房间已恢复");
+        await refreshQuiet();
+      } catch (e) {
+        btn.disabled = false;
+        toast(e.message);
+      }
+    };
+  });
+
+  document.querySelectorAll(".del-novel").forEach((btn) => {
+    btn.onclick = async () => {
+      const row = btn.closest("tr");
+      const name = row?.querySelector("td:nth-child(2)")?.textContent || "";
+      const ok = await confirmDialog({
+        title: "删除小说",
+        message: `确定清空「${name}」的全部写书内容？此操作不可恢复。房间本身不会因此被删掉。`,
+        confirmText: "删除小说",
+        danger: true,
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      try {
+        await api("delete_novel", { method: "POST", body: JSON.stringify({ story_id: Number(btn.dataset.id) }) });
+        toast("小说内容已删除");
         await refreshQuiet();
       } catch (e) {
         btn.disabled = false;

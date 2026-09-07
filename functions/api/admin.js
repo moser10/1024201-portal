@@ -141,6 +141,33 @@ async function deleteRoomCompletely(db, storyId) {
   await db.prepare("DELETE FROM stories WHERE id = ?").bind(storyId).run();
 }
 
+/** Soft-close room: players cannot join/play; novel content is preserved for restore. */
+async function closeRoom(db, storyId) {
+  const story = await db.prepare("SELECT id, room_deleted_at FROM stories WHERE id = ?").bind(storyId).first();
+  if (!story) throw Object.assign(new Error("房间不存在"), { status: 404 });
+  if (story.room_deleted_at) return;
+  await db.prepare("UPDATE stories SET room_deleted_at = datetime('now') WHERE id = ?").bind(storyId).run();
+  await db.prepare("DELETE FROM room_presence WHERE story_id = ?").bind(storyId).run();
+}
+
+async function restoreRoom(db, storyId) {
+  const story = await db.prepare("SELECT id, room_deleted_at FROM stories WHERE id = ?").bind(storyId).first();
+  if (!story) throw Object.assign(new Error("房间不存在"), { status: 404 });
+  if (!story.room_deleted_at) return;
+  await db.prepare("UPDATE stories SET room_deleted_at = NULL WHERE id = ?").bind(storyId).run();
+}
+
+/** Permanently wipe novel writing content; room shell / members stay. */
+async function deleteNovelContent(db, storyId) {
+  const story = await db.prepare("SELECT id FROM stories WHERE id = ?").bind(storyId).first();
+  if (!story) throw Object.assign(new Error("小说不存在"), { status: 404 });
+  await db.prepare("DELETE FROM content_stream WHERE story_id = ?").bind(storyId).run();
+  await db
+    .prepare("UPDATE stories SET chapters_json = NULL, writing_state_json = NULL WHERE id = ?")
+    .bind(storyId)
+    .run();
+}
+
 async function deleteUserCompletely(db, userId) {
   if (userId === null || userId === undefined || !Number.isFinite(Number(userId))) {
     throw new Error("无效用户 ID");
@@ -304,7 +331,9 @@ export async function onRequest(context) {
 
     if (request.method === "GET" && action === "overview") {
       const users = await db.prepare("SELECT COUNT(*) AS n FROM users").first();
-      const rooms = await db.prepare("SELECT COUNT(*) AS n FROM stories").first();
+      const rooms = await db
+        .prepare("SELECT COUNT(*) AS n FROM stories WHERE room_deleted_at IS NULL")
+        .first();
       const pending = await db.prepare("SELECT COUNT(*) AS n FROM pending_registrations").first().catch(() => ({ n: 0 }));
       return json({
         users: users?.n || 0,
@@ -377,8 +406,11 @@ export async function onRequest(context) {
         const like = `%${q}%`;
         ({ results } = await db
           .prepare(
-            `SELECT s.id, s.game_id, s.title, s.invite_code,
+            `SELECT s.id, s.game_id, s.title, s.invite_code, s.room_deleted_at,
                     datetime(s.created_at, 'localtime') AS created_at,
+                    CASE WHEN s.chapters_json IS NOT NULL AND length(s.chapters_json) > 2 THEN 1
+                         WHEN EXISTS (SELECT 1 FROM content_stream c WHERE c.story_id = s.id AND c.type = 'book' AND c.status = 'active') THEN 1
+                         ELSE 0 END AS has_novel,
                     u.username AS owner_name
              FROM stories s JOIN users u ON s.owner_id = u.id
              WHERE s.title LIKE ? OR s.invite_code LIKE ? OR u.username LIKE ?
@@ -390,8 +422,11 @@ export async function onRequest(context) {
       } else {
         ({ results } = await db
           .prepare(
-            `SELECT s.id, s.game_id, s.title, s.invite_code,
+            `SELECT s.id, s.game_id, s.title, s.invite_code, s.room_deleted_at,
                     datetime(s.created_at, 'localtime') AS created_at,
+                    CASE WHEN s.chapters_json IS NOT NULL AND length(s.chapters_json) > 2 THEN 1
+                         WHEN EXISTS (SELECT 1 FROM content_stream c WHERE c.story_id = s.id AND c.type = 'book' AND c.status = 'active') THEN 1
+                         ELSE 0 END AS has_novel,
                     u.username AS owner_name
              FROM stories s JOIN users u ON s.owner_id = u.id
              ORDER BY s.id DESC
@@ -402,6 +437,8 @@ export async function onRequest(context) {
       return json({
         rooms: results.map((r) => ({
           ...r,
+          room_closed: !!r.room_deleted_at,
+          has_novel: !!r.has_novel,
           display_name: gameLabel(r.game_id, r.title),
           full_name: r.game_id === "osn" ? "One Sentence Novel" : r.title,
         })),
@@ -419,7 +456,25 @@ export async function onRequest(context) {
       if (story_id === null || story_id === undefined || !Number.isFinite(Number(story_id))) {
         return json({ error: "无效房间 ID" }, 400);
       }
-      await deleteRoomCompletely(db, Number(story_id));
+      await closeRoom(db, Number(story_id));
+      return json({ success: true, closed: true });
+    }
+
+    if (request.method === "POST" && action === "restore_room") {
+      const { story_id } = await request.json();
+      if (story_id === null || story_id === undefined || !Number.isFinite(Number(story_id))) {
+        return json({ error: "无效房间 ID" }, 400);
+      }
+      await restoreRoom(db, Number(story_id));
+      return json({ success: true, restored: true });
+    }
+
+    if (request.method === "POST" && action === "delete_novel") {
+      const { story_id } = await request.json();
+      if (story_id === null || story_id === undefined || !Number.isFinite(Number(story_id))) {
+        return json({ error: "无效小说 ID" }, 400);
+      }
+      await deleteNovelContent(db, Number(story_id));
       return json({ success: true });
     }
 

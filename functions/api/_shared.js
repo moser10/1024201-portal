@@ -37,6 +37,7 @@ export async function ensureAppSchema(db) {
   await ensureColumn(db, "stories", "game_id", "ALTER TABLE stories ADD COLUMN game_id TEXT NOT NULL DEFAULT 'osn'");
   await ensureColumn(db, "stories", "chapters_json", "ALTER TABLE stories ADD COLUMN chapters_json TEXT");
   await ensureColumn(db, "stories", "writing_state_json", "ALTER TABLE stories ADD COLUMN writing_state_json TEXT");
+  await ensureColumn(db, "stories", "room_deleted_at", "ALTER TABLE stories ADD COLUMN room_deleted_at TEXT");
   await ensureColumn(db, "users", "password_hash", "ALTER TABLE users ADD COLUMN password_hash TEXT");
   await ensureColumn(db, "users", "password_plain", "ALTER TABLE users ADD COLUMN password_plain TEXT");
   await ensureColumn(

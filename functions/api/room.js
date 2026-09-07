@@ -27,6 +27,10 @@ function trimEdges(text) {
   return typeof text === "string" ? text.replace(/^\s+|\s+$/g, "") : "";
 }
 
+function roomIsClosed(story) {
+  return !!(story && story.room_deleted_at);
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -64,8 +68,32 @@ export async function onRequest(context) {
       const name = title?.trim();
       if (!name || !owner_id) return json({ error: "书名和房主不能为空" }, 400);
 
-      const exist = await db.prepare("SELECT id, owner_id, invite_code, title FROM stories WHERE title = ?").bind(name).first();
+      const exist = await db
+        .prepare("SELECT id, owner_id, invite_code, title, room_deleted_at FROM stories WHERE title = ?")
+        .bind(name)
+        .first();
       if (exist) {
+        if (roomIsClosed(exist)) {
+          // Closed rooms keep the novel; title stays reserved unless novel shell is reclaimed by owner repair path.
+          if (exist.owner_id === owner_id) {
+            await db.prepare("UPDATE stories SET room_deleted_at = NULL WHERE id = ?").bind(exist.id).run();
+            await db
+              .prepare(
+                "INSERT INTO story_members (story_id, user_id, role, status) VALUES (?, ?, 'owner', 'active') ON CONFLICT(story_id, user_id) DO UPDATE SET role = 'owner', status = 'active'"
+              )
+              .bind(exist.id, owner_id)
+              .run();
+            return json({
+              success: true,
+              story_id: exist.id,
+              invite_code: exist.invite_code,
+              title: exist.title,
+              restored: true,
+            });
+          }
+          const recommend = await generateUniqueName(db, name, "stories", "title");
+          return json({ error: "书名已被占用（房间已关闭，小说仍保留）", recommend }, 400);
+        }
         const owned = await hasActiveOwner(db, exist.id, exist.owner_id);
         if (!owned && exist.owner_id === owner_id) {
           await db
@@ -116,8 +144,12 @@ export async function onRequest(context) {
     if (request.method === "POST" && action === "update_title") {
       const { story_id, user_id, title } = await request.json();
       const name = title?.trim();
-      const story = await db.prepare("SELECT owner_id, title FROM stories WHERE id = ?").bind(story_id).first();
+      const story = await db
+        .prepare("SELECT owner_id, title, room_deleted_at FROM stories WHERE id = ?")
+        .bind(story_id)
+        .first();
       if (!story || story.owner_id !== user_id) return json({ error: "仅房主可修改书名" }, 403);
+      if (roomIsClosed(story)) return json({ error: "房间已关闭" }, 403);
       if (name === story.title) return json({ success: true, title: name });
 
       const dup = await db.prepare("SELECT id FROM stories WHERE title = ? AND id != ?").bind(name, story_id).first();
@@ -138,7 +170,7 @@ export async function onRequest(context) {
         .prepare(
           `SELECT s.id AS story_id, s.title
            FROM story_members sm JOIN stories s ON sm.story_id = s.id
-           WHERE sm.user_id = ? AND sm.status = 'pending'`
+           WHERE sm.user_id = ? AND sm.status = 'pending' AND s.room_deleted_at IS NULL`
         )
         .bind(userId)
         .all();
@@ -149,7 +181,7 @@ export async function onRequest(context) {
            FROM stories s
            JOIN story_members sm ON sm.story_id = s.id AND sm.status = 'pending'
            JOIN users u ON sm.user_id = u.id
-           WHERE s.owner_id = ?`
+           WHERE s.owner_id = ? AND s.room_deleted_at IS NULL`
         )
         .bind(userId)
         .all();
@@ -180,7 +212,7 @@ export async function onRequest(context) {
            FROM stories s
            JOIN users u ON s.owner_id = u.id
            LEFT JOIN story_members sm ON sm.story_id = s.id AND sm.user_id = ?
-           WHERE s.title LIKE ? LIMIT 20`
+           WHERE s.room_deleted_at IS NULL AND s.title LIKE ? LIMIT 20`
         )
         .bind(userId || null, `%${q}%`)
         .all();
@@ -190,8 +222,12 @@ export async function onRequest(context) {
     if (request.method === "POST" && action === "join_by_code") {
       const { invite_code, user_id } = await request.json();
       const code = invite_code?.trim().toUpperCase();
-      const story = await db.prepare("SELECT id, title FROM stories WHERE invite_code = ?").bind(code).first();
+      const story = await db
+        .prepare("SELECT id, title, room_deleted_at FROM stories WHERE invite_code = ?")
+        .bind(code)
+        .first();
       if (!story) return json({ error: "邀请码无效" }, 404);
+      if (roomIsClosed(story)) return json({ error: "房间已关闭" }, 403);
 
       const member = await isMember(db, story.id, user_id);
       if (member?.status === "active") return json({ error: "你已在该房间中", already_in: true, story });
@@ -209,8 +245,12 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "request_join") {
       const { story_id, user_id } = await request.json();
-      const story = await db.prepare("SELECT id, title FROM stories WHERE id = ?").bind(story_id).first();
+      const story = await db
+        .prepare("SELECT id, title, room_deleted_at FROM stories WHERE id = ?")
+        .bind(story_id)
+        .first();
       if (!story) return json({ error: "房间不存在" }, 404);
+      if (roomIsClosed(story)) return json({ error: "房间已关闭" }, 403);
 
       const member = await isMember(db, story_id, user_id);
       if (member?.status === "active") return json({ error: "你已在该房间中", already_in: true });
@@ -245,8 +285,9 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "approve_join") {
       const { story_id, owner_id, user_id } = await request.json();
-      const story = await db.prepare("SELECT owner_id FROM stories WHERE id = ?").bind(story_id).first();
+      const story = await db.prepare("SELECT owner_id, room_deleted_at FROM stories WHERE id = ?").bind(story_id).first();
       if (!story || story.owner_id !== owner_id) return json({ error: "仅房主可审批" }, 403);
+      if (roomIsClosed(story)) return json({ error: "房间已关闭" }, 403);
 
       await db
         .prepare("UPDATE story_members SET status = 'active' WHERE story_id = ? AND user_id = ?")
@@ -269,8 +310,9 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "pull_user") {
       const { story_id, owner_id, user_id } = await request.json();
-      const story = await db.prepare("SELECT owner_id FROM stories WHERE id = ?").bind(story_id).first();
+      const story = await db.prepare("SELECT owner_id, room_deleted_at FROM stories WHERE id = ?").bind(story_id).first();
       if (!story || story.owner_id !== owner_id) return json({ error: "仅房主可拉人" }, 403);
+      if (roomIsClosed(story)) return json({ error: "房间已关闭" }, 403);
 
       const member = await isMember(db, story_id, user_id);
       if (member?.status === "active") return json({ error: "该用户已在房间中", already_in: true });
@@ -288,6 +330,8 @@ export async function onRequest(context) {
       const { story_id, user_id } = await request.json();
       const member = await isMember(db, story_id, user_id);
       if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
+      const closedHb = await db.prepare("SELECT room_deleted_at FROM stories WHERE id = ?").bind(story_id).first();
+      if (!closedHb || roomIsClosed(closedHb)) return json({ error: "房间已关闭" }, 403);
       await touchPresence(db, story_id, user_id);
 
       const online = await getOnlineMembers(db, story_id);
@@ -314,6 +358,8 @@ export async function onRequest(context) {
       const { story_id, user_id } = await request.json();
       const member = await isMember(db, story_id, user_id);
       if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
+      const closedCh = await db.prepare("SELECT room_deleted_at FROM stories WHERE id = ?").bind(story_id).first();
+      if (!closedCh || roomIsClosed(closedCh)) return json({ error: "房间已关闭" }, 403);
 
       const { results } = await db
         .prepare(
@@ -362,7 +408,7 @@ export async function onRequest(context) {
         .prepare(
           `SELECT s.id, s.title, s.invite_code, sm.role, sm.status
            FROM story_members sm JOIN stories s ON sm.story_id = s.id
-           WHERE sm.user_id = ? AND sm.status = 'active'`
+           WHERE sm.user_id = ? AND sm.status = 'active' AND s.room_deleted_at IS NULL`
         )
         .bind(userId)
         .all();
@@ -374,6 +420,13 @@ export async function onRequest(context) {
       const userId = url.searchParams.get("user_id");
       const member = await isMember(db, storyId, userId);
       if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
+
+      const closedCheck = await db
+        .prepare("SELECT room_deleted_at FROM stories WHERE id = ?")
+        .bind(storyId)
+        .first();
+      if (!closedCheck) return json({ error: "房间不存在" }, 404);
+      if (roomIsClosed(closedCheck)) return json({ error: "房间已关闭" }, 403);
 
       await touchPresence(db, storyId, userId);
       await cleanupInactiveChat(db, storyId);
@@ -468,6 +521,10 @@ export async function onRequest(context) {
 
       const member = await isMember(db, story_id, user_id);
       if (!member || member.status !== "active") return json({ error: "你不在该房间中" }, 403);
+
+      const closedPub = await db.prepare("SELECT room_deleted_at FROM stories WHERE id = ?").bind(story_id).first();
+      if (!closedPub) return json({ error: "房间不存在" }, 404);
+      if (roomIsClosed(closedPub)) return json({ error: "房间已关闭" }, 403);
 
       if (isBook) {
         const penalty = await db

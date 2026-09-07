@@ -105,6 +105,28 @@ input:focus, .search:focus { outline: none; border-color: var(--blue); box-shado
 .btn-danger { background: var(--red); color: #fff; }
 .btn-small { padding: 7px 10px; font-size: 12px; border-radius: 8px; }
 
+.panel-hint {
+  margin: -4px 0 14px;
+  color: var(--muted, #6e6e73);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #ececf0;
+  color: #3a3a3c;
+  white-space: nowrap;
+}
+.badge-ok { background: #e8f8ee; color: #1b7a3d; }
+.badge-warn { background: #fff4e5; color: #9a5b00; }
+tr.is-closed td { color: #8e8e93; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
 .topbar {
   display: flex;
   align-items: flex-start;
