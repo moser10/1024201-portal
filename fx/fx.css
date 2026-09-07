@@ -44,6 +44,9 @@ body.feature-page {
   margin-bottom: 8px;
   flex-shrink: 0;
 }
+.updated.stale {
+  color: #8e8e93;
+}
 
 .rate-list {
   list-style: none;

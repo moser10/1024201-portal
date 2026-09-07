@@ -42,7 +42,7 @@ export async function onRequest(context) {
 
   if (request.method === "GET" && action === "rates") {
     const base = url.searchParams.get("base")?.toUpperCase() || "USD";
-    return getCachedRates(base, waitUntil);
+    return getCachedRates(env, base, waitUntil);
   }
 
   if (request.method === "GET" && action === "tracks") {
@@ -978,36 +978,115 @@ async function gateToolUse(db, request, tool, userId) {
 
 const RATES_TTL_SEC = 30 * 60;
 const RATE_SYMBOLS = "USD,CNY,GBP,EUR,JPY,THB,SEK,INR,HKD,AUD,MXN,BRL";
+/** Frankfurter moved off .app; /v1 keeps legacy response shape. ECB has no weekend updates. */
+const FRANKFURTER_LATEST = "https://api.frankfurter.dev/v1/latest";
 
-async function getCachedRates(base, waitUntil) {
-  const cache = caches.default;
-  const cacheKey = new Request(`https://rates.1024201.internal/?base=${encodeURIComponent(base)}`);
-  const hit = await cache.match(cacheKey);
-  if (hit) {
-    const data = await hit.json();
-    return json(data);
+async function ensureRatesSchema(db) {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS fx_rates_last (
+        base TEXT PRIMARY KEY,
+        payload TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`
+    )
+    .run();
+}
+
+async function readLastRates(db, base) {
+  try {
+    await ensureRatesSchema(db);
+    const row = await db.prepare("SELECT payload FROM fx_rates_last WHERE base = ?").bind(base).first();
+    if (!row?.payload) return null;
+    const data = JSON.parse(row.payload);
+    if (!data?.rates || typeof data.rates !== "object") return null;
+    return data;
+  } catch {
+    return null;
   }
+}
 
+async function writeLastRates(db, base, payload) {
+  try {
+    await ensureRatesSchema(db);
+    await db
+      .prepare(
+        `INSERT INTO fx_rates_last (base, payload, updated_at)
+         VALUES (?, ?, datetime('now'))
+         ON CONFLICT(base) DO UPDATE SET
+           payload = excluded.payload,
+           updated_at = excluded.updated_at`
+      )
+      .bind(base, JSON.stringify(payload))
+      .run();
+  } catch {
+    /* ignore durable write failures */
+  }
+}
+
+function ratesPayloadValid(data) {
+  return !!(data?.base && data?.rates && typeof data.rates === "object" && Object.keys(data.rates).length > 0);
+}
+
+async function fetchFreshRates(base) {
   const symbols = RATE_SYMBOLS.split(",").filter((s) => s !== base).join(",");
-  const apiUrl = `https://api.frankfurter.app/latest?from=${encodeURIComponent(base)}&to=${symbols}`;
-  const res = await fetch(apiUrl);
-  if (!res.ok) return json({ error: "汇率服务暂不可用" }, 502);
+  const apiUrl = `${FRANKFURTER_LATEST}?from=${encodeURIComponent(base)}&to=${symbols}`;
+  const res = await fetch(apiUrl, { redirect: "follow" });
+  if (!res.ok) throw new Error(`frankfurter_${res.status}`);
   const data = await res.json();
-  const payload = {
+  if (!ratesPayloadValid(data)) throw new Error("frankfurter_empty");
+  return {
     base: data.base,
     date: data.date,
     rates: data.rates,
     cachedAt: new Date().toISOString(),
     refreshMinutes: 30,
+    stale: false,
   };
-  const toCache = new Response(JSON.stringify(payload), {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": `public, max-age=${RATES_TTL_SEC}`,
-    },
-  });
-  waitUntil?.(cache.put(cacheKey, toCache.clone()));
-  return json(payload);
+}
+
+async function getCachedRates(env, base, waitUntil) {
+  const cache = caches.default;
+  const cacheKey = new Request(`https://rates.1024201.internal/v2/?base=${encodeURIComponent(base)}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) {
+    try {
+      const data = await hit.json();
+      if (ratesPayloadValid(data)) return json(data);
+    } catch {
+      /* fall through */
+    }
+  }
+
+  let db = null;
+  try {
+    db = requireDb(env);
+  } catch {
+    db = null;
+  }
+
+  try {
+    const payload = await fetchFreshRates(base);
+    const toCache = new Response(JSON.stringify(payload), {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": `public, max-age=${RATES_TTL_SEC}`,
+      },
+    });
+    waitUntil?.(cache.put(cacheKey, toCache.clone()));
+    if (db) waitUntil?.(writeLastRates(db, base, payload));
+    return json(payload);
+  } catch {
+    const last = db ? await readLastRates(db, base) : null;
+    if (last && ratesPayloadValid(last)) {
+      return json({
+        ...last,
+        stale: true,
+        refreshMinutes: 30,
+      });
+    }
+    return json({ error: "汇率服务暂不可用" }, 502);
+  }
 }
 
 async function requireRegisteredUser(db, userId) {

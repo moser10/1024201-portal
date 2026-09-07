@@ -16,6 +16,8 @@ const CURRENCIES = [
   { code: "BRL", names: { en: "Brazil", zh: "巴西", ja: "ブラジル" } },
 ];
 
+const CACHE_KEY = "fx_rates_last_v1";
+
 const UI = {
   en: {
     title: "Exchange Rates",
@@ -24,6 +26,7 @@ const UI = {
     back: "Portal",
     err: "Failed to load rates",
     updated: "Updated",
+    stale: "Last available (markets closed / feed delayed)",
   },
   zh: {
     title: "实时汇率",
@@ -32,6 +35,7 @@ const UI = {
     back: "返回门户",
     err: "汇率加载失败",
     updated: "更新于",
+    stale: "显示最近可用汇率（周末休市或上游暂不可用）",
   },
   ja: {
     title: "為替レート",
@@ -40,6 +44,7 @@ const UI = {
     back: "ポータル",
     err: "読み込みに失敗しました",
     updated: "更新",
+    stale: "直近の利用可能なレート（休場 / 取得遅延）",
   },
 };
 
@@ -80,41 +85,86 @@ function nameFor(code) {
   return row?.names[lang] || row?.names.en || code;
 }
 
+function readLocal(base) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+    return all[base] || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(data) {
+  if (!data?.base || !data?.rates) return;
+  try {
+    const all = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+    all[data.base] = data;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
+}
+
 function formatUpdated(data) {
   const locale = lang === "zh" ? "zh-CN" : lang === "ja" ? "ja-JP" : "en-US";
   const when = data.cachedAt
-    ? new Date(data.cachedAt).toLocaleString(locale, { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" })
+    ? new Date(data.cachedAt).toLocaleString(locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+        month: "short",
+        day: "numeric",
+      })
     : data.date;
-  return `${t.updated} ${when} · 1 ${data.base}`;
+  const prefix = data.stale ? t.stale : t.updated;
+  return `${prefix} · ${when} · 1 ${data.base}`;
+}
+
+function paintRates(data) {
+  const list = document.getElementById("rateList");
+  const errBox = document.getElementById("errBox");
+  const base = data.base;
+  document.getElementById("updatedAt").textContent = formatUpdated(data);
+  document.getElementById("updatedAt").classList.toggle("stale", !!data.stale);
+
+  const rates = { [base]: 1, ...data.rates };
+  const codes = CURRENCIES.map((c) => c.code).filter((c) => rates[c] != null);
+  list.innerHTML = codes
+    .map((code) => {
+      const val = rates[code];
+      const display = code === base ? "1.0000" : Number(val).toFixed(code === "JPY" ? 2 : 4);
+      return `<li class="rate-row">
+          <span class="rate-code">${code}</span>
+          <span class="rate-name">${nameFor(code)}</span>
+          <span class="rate-val">${display}</span>
+        </li>`;
+    })
+    .join("");
+  errBox.hidden = true;
 }
 
 async function loadRates() {
   const errBox = document.getElementById("errBox");
   const list = document.getElementById("rateList");
-  errBox.hidden = true;
-  list.innerHTML = `<li class="rate-row"><span class="rate-name">…</span></li>`;
+  const base = baseSelect.value;
+  const cached = readLocal(base);
+  if (cached?.rates) {
+    paintRates({ ...cached, stale: true });
+  } else {
+    errBox.hidden = true;
+    list.innerHTML = `<li class="rate-row"><span class="rate-name">…</span></li>`;
+  }
   try {
-    const base = baseSelect.value;
     const res = await fetch(`/api/portal?action=rates&base=${encodeURIComponent(base)}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t.err);
-    document.getElementById("updatedAt").textContent = formatUpdated(data);
-
-    const rates = { [base]: 1, ...data.rates };
-    const codes = CURRENCIES.map((c) => c.code).filter((c) => rates[c] != null);
-
-    list.innerHTML = codes
-      .map((code) => {
-        const val = rates[code];
-        const display = code === base ? "1.0000" : Number(val).toFixed(code === "JPY" ? 2 : 4);
-        return `<li class="rate-row">
-          <span class="rate-code">${code}</span>
-          <span class="rate-name">${nameFor(code)}</span>
-          <span class="rate-val">${display}</span>
-        </li>`;
-      })
-      .join("");
+    if (!data.rates || !Object.keys(data.rates).length) throw new Error(t.err);
+    writeLocal(data);
+    paintRates(data);
   } catch (e) {
+    if (cached?.rates) {
+      paintRates({ ...cached, stale: true });
+      return;
+    }
     list.innerHTML = "";
     errBox.hidden = false;
     errBox.textContent = e.message || t.err;
@@ -127,4 +177,6 @@ baseSelect.onchange = () => {
 };
 
 applyI18n();
+const bootCached = readLocal(baseSelect.value || "USD");
+if (bootCached?.rates) paintRates({ ...bootCached, stale: true });
 deferWork(loadRates);
