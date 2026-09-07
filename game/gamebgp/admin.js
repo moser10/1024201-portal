@@ -305,8 +305,7 @@ function panelSettings() {
     </div>
 
     <div class="card">
-      <h2>管理员邮箱（adminmail）</h2>
-      <p class="sub">存放在 D1 <code>admin_auth.adminmail</code>。改密后会把新密码明文发到此邮箱。</p>
+      <h2>管理员邮箱</h2>
       <form class="form-grid" id="mailForm" onsubmit="return false">
         <div class="field">
           <label for="adminMail">邮箱</label>
@@ -331,9 +330,8 @@ function panelSettings() {
           <label for="newPw2">确认新密码</label>
           <input id="newPw2" type="password" autocomplete="new-password">
         </div>
-        <button type="button" class="btn" id="savePwBtn">保存新密码并邮件通知</button>
+        <button type="button" class="btn" id="savePwBtn">保存新密码</button>
       </form>
-      <p class="hint">保存后其他会话失效；系统会向管理员邮箱发送一封含<strong>明文新密码</strong>的通知邮件。</p>
     </div>`;
 }
 
@@ -475,6 +473,15 @@ async function savePassword() {
   const password = document.getElementById("newPw")?.value || "";
   const password2 = document.getElementById("newPw2")?.value || "";
   const btn = document.getElementById("savePwBtn");
+  if (!current_password || !password || !password2) {
+    await confirmDialog({
+      title: "无法更改",
+      message: "请填写当前密码与新密码。",
+      confirmText: "知道了",
+      cancelText: "关闭",
+    });
+    return;
+  }
   btn.disabled = true;
   try {
     const data = await api("change_password", {
@@ -482,21 +489,28 @@ async function savePassword() {
       body: JSON.stringify({ current_password, password, password2 }),
     });
     state.me.mustChangePassword = false;
-    toast(
-      data.emailSent
-        ? `密码已更新，通知已发至 ${data.adminmail}`
-        : data.emailError
-          ? `密码已更新，但邮件未发出：${data.emailError}`
-          : "密码已更新"
-    );
-    document.getElementById("curPw").value = "";
-    document.getElementById("newPw").value = "";
-    document.getElementById("newPw2").value = "";
     paintShell();
+    const okMsg = data.emailSent
+      ? `密码已更改成功。\n通知邮件已发送至 ${data.adminmail || "管理员邮箱"}。`
+      : data.emailError
+        ? `密码已更改成功。\n但邮件发送失败：${data.emailError}`
+        : "密码已更改成功。";
+    await confirmDialog({
+      title: "更改成功",
+      message: okMsg,
+      confirmText: "好的",
+      cancelText: "关闭",
+    });
   } catch (e) {
-    toast(e.message);
+    await confirmDialog({
+      title: "更改失败",
+      message: e.message || "密码更改失败，请重试。",
+      confirmText: "知道了",
+      cancelText: "关闭",
+    });
   } finally {
-    btn.disabled = false;
+    const again = document.getElementById("savePwBtn");
+    if (again) again.disabled = false;
   }
 }
 
