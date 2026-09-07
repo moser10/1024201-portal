@@ -277,11 +277,14 @@ export async function onRequest(context) {
       await db.prepare("DELETE FROM admin_sessions WHERE token != ?").bind(token).run();
 
       const when = new Date().toISOString();
-      await sendAdminMail(
-        env,
-        mail,
-        "【1024201】管理后台密码已更改",
-        `<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;line-height:1.6;color:#1d1d1f">
+      let emailSent = false;
+      let emailError = "";
+      try {
+        await sendAdminMail(
+          env,
+          mail,
+          "【1024201】管理后台密码已更改",
+          `<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;line-height:1.6;color:#1d1d1f">
 <p>你好，</p>
 <p>管理后台账号 <strong>${escHtml(admin.username)}</strong> 的密码已更改。</p>
 <p style="margin:16px 0;padding:12px 14px;background:#f5f5f7;border-radius:10px">
@@ -290,9 +293,13 @@ export async function onRequest(context) {
 <p>登录地址：<a href="https://1024201.com/game/gamebgp/">https://1024201.com/game/gamebgp/</a></p>
 <p style="color:#6e6e73;font-size:13px">时间（UTC）：${escHtml(when)}<br>若非本人操作，请立即登录后台再次修改密码。</p>
 </div>`
-      );
+        );
+        emailSent = true;
+      } catch (e) {
+        emailError = e.message || "邮件发送失败";
+      }
 
-      return json({ success: true, emailSent: true, adminmail: mail });
+      return json({ success: true, emailSent, emailError, adminmail: mail });
     }
 
     if (request.method === "GET" && action === "overview") {

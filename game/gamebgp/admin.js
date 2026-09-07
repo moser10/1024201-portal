@@ -6,9 +6,16 @@ let state = {
   users: [],
   rooms: [],
   overview: { users: 0, rooms: 0, pending: 0 },
-  me: { username: "sa", adminmail: "", mustChangePassword: false, loginUrl: "https://1024201.com/game/gamebgp/" },
+  me: {
+    username: "sa",
+    adminmail: "",
+    mustChangePassword: false,
+    loginUrl: "https://1024201.com/game/gamebgp/",
+    sessionHours: 12,
+  },
   userQ: "",
   roomQ: "",
+  loadError: "",
 };
 
 async function api(action, options = {}) {
@@ -18,10 +25,25 @@ async function api(action, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
-  const res = await fetch(`/api/admin?action=${action}`, { ...options, headers });
+  const qs = new URLSearchParams({ action });
+  if (options.query) {
+    for (const [k, v] of Object.entries(options.query)) {
+      if (v != null && v !== "") qs.set(k, String(v));
+    }
+  }
+  const { query: _q, ...fetchOpts } = options;
+  const res = await fetch(`/api/admin?${qs}`, { ...fetchOpts, headers });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "请求失败");
+  if (!res.ok) {
+    const err = new Error(data.error || "请求失败");
+    err.status = res.status;
+    throw err;
+  }
   return data;
+}
+
+function isAuthError(e) {
+  return e?.status === 401 || /未登录|会话|过期/.test(String(e?.message || ""));
 }
 
 function esc(s) {
@@ -45,7 +67,7 @@ function toast(msg) {
   clearTimeout(toast._t);
   toast._t = setTimeout(() => {
     el.hidden = true;
-  }, 2800);
+  }, 3200);
 }
 
 function confirmDialog({ title, message, confirmText = "确定", cancelText = "取消", danger = false }) {
@@ -74,81 +96,70 @@ function confirmDialog({ title, message, confirmText = "确定", cancelText = "�
   });
 }
 
-function clearLoginFields() {
-  const userEl = document.getElementById("user");
-  const passEl = document.getElementById("pass");
-  if (!userEl || !passEl) return;
-  userEl.value = "";
-  passEl.value = "";
-}
-
-function bindLoginAntiAutofill() {
-  const userEl = document.getElementById("user");
-  const passEl = document.getElementById("pass");
-  userEl.readOnly = true;
-  passEl.readOnly = true;
-  userEl.addEventListener("focus", () => {
-    userEl.readOnly = false;
-  });
-  passEl.addEventListener("focus", () => {
-    passEl.readOnly = false;
-  });
-  clearLoginFields();
-  requestAnimationFrame(clearLoginFields);
-  setTimeout(clearLoginFields, 50);
-}
-
-function renderLogin() {
+function renderLogin(errorMsg = "") {
   app.innerHTML = `
     <div class="login-wrap">
       <div class="card login-card">
         <p class="brand">1024201</p>
         <h1>管理后台</h1>
         <p class="sub">门户与游戏数据管理。会话 12 小时有效。</p>
-        <form id="loginForm" autocomplete="off" onsubmit="return false">
-          <input type="text" tabindex="-1" aria-hidden="true" class="login-trap" autocomplete="username">
-          <input type="password" tabindex="-1" aria-hidden="true" class="login-trap" autocomplete="current-password">
+        ${errorMsg ? `<div class="banner" style="margin-bottom:14px">${esc(errorMsg)}</div>` : ""}
+        <form id="loginForm" autocomplete="off">
           <div class="field">
             <label for="user">用户名</label>
-            <input id="user" name="gbp-user" type="text" autocomplete="off" spellcheck="false">
+            <input id="user" name="gbp-user" type="text" autocomplete="username" spellcheck="false" required>
           </div>
           <div class="field">
             <label for="pass">密码</label>
-            <input id="pass" name="gbp-pass" type="password" autocomplete="new-password">
+            <input id="pass" name="gbp-pass" type="password" autocomplete="current-password" required>
           </div>
-          <button id="loginBtn" class="btn btn-block" type="button">登录</button>
+          <button id="loginBtn" class="btn btn-block" type="submit">登录</button>
         </form>
       </div>
     </div>`;
-  bindLoginAntiAutofill();
-  document.getElementById("loginBtn").onclick = doLogin;
-  document.getElementById("pass").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") doLogin();
+  document.getElementById("loginForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    doLogin();
   });
 }
 
 async function doLogin() {
   const userEl = document.getElementById("user");
   const passEl = document.getElementById("pass");
-  const username = userEl.value.trim();
-  const password = passEl.value;
-  clearLoginFields();
+  const btn = document.getElementById("loginBtn");
+  const username = userEl?.value.trim() || "";
+  const password = passEl?.value || "";
+  if (!username || !password) {
+    toast("请输入用户名和密码");
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "登录中…";
+  }
   try {
     const data = await api("login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     });
+    if (!data?.token) throw new Error("登录响应无效");
     sessionStorage.setItem(TOKEN_KEY, data.token);
     state.me = {
       username: data.username || username,
       adminmail: data.adminmail || "",
       mustChangePassword: !!data.mustChangePassword,
       loginUrl: "https://1024201.com/game/gamebgp/",
+      sessionHours: data.sessionHours || 12,
     };
     if (data.mustChangePassword) state.tab = "settings";
+    else state.tab = "settings";
     await renderDashboard();
   } catch (e) {
-    toast(e.message);
+    toast(e.message || "登录失败");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "登录";
+    }
   }
 }
 
@@ -163,18 +174,42 @@ async function logoutAdmin() {
 }
 
 async function loadAll() {
-  const userQs = state.userQ ? `&q=${encodeURIComponent(state.userQ)}` : "";
-  const roomQs = state.roomQ ? `&q=${encodeURIComponent(state.roomQ)}` : "";
-  const [me, overview, users, rooms] = await Promise.all([
-    api("me"),
-    api("overview"),
-    api(`users${userQs}`),
-    api(`rooms${roomQs}`),
-  ]);
-  state.me = me;
-  state.overview = overview;
-  state.users = users.users || [];
-  state.rooms = rooms.rooms || [];
+  state.loadError = "";
+  const me = await api("me");
+  state.me = {
+    username: me.username || state.me.username,
+    adminmail: me.adminmail || "",
+    mustChangePassword: !!me.mustChangePassword,
+    loginUrl: me.loginUrl || "https://1024201.com/game/gamebgp/",
+    sessionHours: me.sessionHours || 12,
+  };
+
+  const jobs = [
+    api("overview")
+      .then((d) => {
+        state.overview = d;
+      })
+      .catch((e) => {
+        state.loadError = e.message;
+      }),
+    api("users", { query: { q: state.userQ } })
+      .then((d) => {
+        state.users = d.users || [];
+      })
+      .catch((e) => {
+        state.users = [];
+        state.loadError = e.message;
+      }),
+    api("rooms", { query: { q: state.roomQ } })
+      .then((d) => {
+        state.rooms = d.rooms || [];
+      })
+      .catch((e) => {
+        state.rooms = [];
+        state.loadError = e.message;
+      }),
+  ];
+  await Promise.all(jobs);
 }
 
 function userRowHtml(u, i) {
@@ -262,7 +297,7 @@ function panelSettings() {
       <div class="info-grid">
         <div><span class="info-k">用户名</span><span class="info-v">${esc(state.me.username)}</span></div>
         <div><span class="info-k">管理员邮箱</span><span class="info-v">${esc(mail || "未设置")}</span></div>
-        <div><span class="info-k">登录地址</span><span class="info-v"><a href="${esc(state.me.loginUrl || "https://1024201.com/game/gamebgp/")}" target="_blank" rel="noopener">${esc(state.me.loginUrl || "https://1024201.com/game/gamebgp/")}</a></span></div>
+        <div><span class="info-k">登录地址</span><span class="info-v"><a href="${esc(state.me.loginUrl)}" target="_blank" rel="noopener">${esc(state.me.loginUrl)}</a></span></div>
         <div><span class="info-k">会话</span><span class="info-v">${esc(String(state.me.sessionHours || 12))} 小时</span></div>
       </div>
     </div>
@@ -445,7 +480,13 @@ async function savePassword() {
       body: JSON.stringify({ current_password, password, password2 }),
     });
     state.me.mustChangePassword = false;
-    toast(data.emailSent ? `密码已更新，通知已发至 ${data.adminmail}` : "密码已更新");
+    toast(
+      data.emailSent
+        ? `密码已更新，通知已发至 ${data.adminmail}`
+        : data.emailError
+          ? `密码已更新，但邮件未发出：${data.emailError}`
+          : "密码已更新"
+    );
     document.getElementById("curPw").value = "";
     document.getElementById("newPw").value = "";
     document.getElementById("newPw2").value = "";
@@ -475,14 +516,15 @@ function paintShell() {
 
       ${
         state.me.mustChangePassword
-          ? `<div class="banner"><strong>安全提示：</strong>当前使用默认或临时管理员密码，请先在「设置」中修改后再继续操作。</div>`
+          ? `<div class="banner"><strong>安全提示：</strong>当前使用默认或临时管理员密码，请先在「设置」中修改管理员邮箱与密码。</div>`
           : ""
       }
+      ${state.loadError ? `<div class="banner"><strong>部分数据加载失败：</strong>${esc(state.loadError)}</div>` : ""}
 
       <div class="stats">
-        <div class="stat"><div class="stat-n">${state.overview.users}</div><div class="stat-l">注册用户</div></div>
-        <div class="stat"><div class="stat-n">${state.overview.rooms}</div><div class="stat-l">游戏房间</div></div>
-        <div class="stat"><div class="stat-n">${state.overview.pending}</div><div class="stat-l">待验证注册</div></div>
+        <div class="stat"><div class="stat-n">${state.overview.users ?? "—"}</div><div class="stat-l">注册用户</div></div>
+        <div class="stat"><div class="stat-n">${state.overview.rooms ?? "—"}</div><div class="stat-l">游戏房间</div></div>
+        <div class="stat"><div class="stat-n">${state.overview.pending ?? "—"}</div><div class="stat-l">待验证注册</div></div>
       </div>
 
       <div class="tabs">
@@ -501,10 +543,9 @@ async function refreshQuiet() {
     await loadAll();
     paintShell();
   } catch (e) {
-    if (String(e.message || "").includes("登录") || String(e.message || "").includes("会话")) {
+    if (isAuthError(e)) {
       sessionStorage.removeItem(TOKEN_KEY);
-      toast(e.message);
-      renderLogin();
+      renderLogin(e.message);
       return;
     }
     toast(e.message);
@@ -516,19 +557,21 @@ async function renderDashboard() {
   try {
     await loadAll();
     if (state.me.mustChangePassword) state.tab = "settings";
+    else if (!state.tab) state.tab = "settings";
     paintShell();
   } catch (e) {
-    sessionStorage.removeItem(TOKEN_KEY);
+    if (isAuthError(e)) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      renderLogin(e.message);
+      return;
+    }
+    // Keep session; still show settings shell with whatever we have
+    state.tab = "settings";
+    state.loadError = e.message || "加载失败";
+    paintShell();
     toast(e.message);
-    renderLogin();
   }
 }
-
-window.addEventListener("pageshow", () => {
-  if (sessionStorage.getItem(TOKEN_KEY)) return;
-  if (document.getElementById("user")) clearLoginFields();
-  else renderLogin();
-});
 
 if (sessionStorage.getItem(TOKEN_KEY)) renderDashboard();
 else renderLogin();
