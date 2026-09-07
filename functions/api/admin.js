@@ -4,6 +4,8 @@ import { hashPassword, verifyPassword } from "./_crypto.js";
 const SESSION_HOURS = 12;
 const DEFAULT_ADMIN_USER = "sa";
 const DEFAULT_ADMIN_PASS = "1qaz2wsx";
+const DEFAULT_ADMIN_MAIL = "admin@1024201.com";
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function ensureAdminSchema(db) {
   await db
@@ -15,6 +17,7 @@ async function ensureAdminSchema(db) {
         password_plain TEXT,
         temp_password TEXT,
         temp_password_used_at TEXT,
+        adminmail TEXT,
         must_change_password INTEGER NOT NULL DEFAULT 0
       )`
     )
@@ -29,24 +32,59 @@ async function ensureAdminSchema(db) {
     .run();
 
   const cols = await db.prepare("PRAGMA table_info(admin_auth)").all();
-  if (!cols.results?.some((c) => c.name === "must_change_password")) {
+  const names = new Set((cols.results || []).map((c) => c.name));
+  if (!names.has("must_change_password")) {
     await db
       .prepare("ALTER TABLE admin_auth ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0")
       .run()
       .catch(() => {});
   }
+  if (!names.has("adminmail")) {
+    await db.prepare("ALTER TABLE admin_auth ADD COLUMN adminmail TEXT").run().catch(() => {});
+  }
 
-  const row = await db.prepare("SELECT id FROM admin_auth WHERE id = 1").first();
+  const row = await db.prepare("SELECT id, adminmail FROM admin_auth WHERE id = 1").first();
   if (!row) {
     const h = await hashPassword(DEFAULT_ADMIN_PASS);
     await db
       .prepare(
-        `INSERT INTO admin_auth (id, username, password_hash, password_plain, must_change_password)
-         VALUES (1, ?, ?, NULL, 1)`
+        `INSERT INTO admin_auth (id, username, password_hash, password_plain, adminmail, must_change_password)
+         VALUES (1, ?, ?, NULL, ?, 1)`
       )
-      .bind(DEFAULT_ADMIN_USER, h)
+      .bind(DEFAULT_ADMIN_USER, h, DEFAULT_ADMIN_MAIL)
+      .run();
+  } else if (!row.adminmail) {
+    await db
+      .prepare("UPDATE admin_auth SET adminmail = ? WHERE id = 1 AND (adminmail IS NULL OR adminmail = '')")
+      .bind(DEFAULT_ADMIN_MAIL)
       .run();
   }
+}
+
+async function sendAdminMail(env, to, subject, html) {
+  if (!env.RESEND_API_KEY) {
+    throw new Error("邮件服务未配置（RESEND_API_KEY）");
+  }
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from: "admin@1024201.com", to, subject, html }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`邮件发送失败 (${res.status})${detail ? `: ${detail.slice(0, 120)}` : ""}`);
+  }
+}
+
+function escHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 async function getAdminRow(db) {
@@ -173,6 +211,7 @@ export async function onRequest(context) {
         success: true,
         token,
         username: result.row.username,
+        adminmail: result.row.adminmail || DEFAULT_ADMIN_MAIL,
         mustChangePassword: mustChange,
         sessionHours: SESSION_HOURS,
       });
@@ -184,14 +223,24 @@ export async function onRequest(context) {
     if (request.method === "GET" && action === "me") {
       return json({
         username: admin?.username || DEFAULT_ADMIN_USER,
+        adminmail: admin?.adminmail || "",
         mustChangePassword: Number(admin?.must_change_password) === 1 || !!admin?.temp_password,
         sessionHours: SESSION_HOURS,
+        loginUrl: "https://1024201.com/game/gamebgp/",
       });
     }
 
     if (request.method === "POST" && action === "logout") {
       await db.prepare("DELETE FROM admin_sessions WHERE token = ?").bind(token).run();
       return json({ success: true });
+    }
+
+    if (request.method === "POST" && action === "save_adminmail") {
+      const body = await request.json().catch(() => ({}));
+      const mail = String(body?.adminmail || "").trim().toLowerCase();
+      if (!EMAIL_RE.test(mail)) return json({ error: "管理员邮箱格式不正确" }, 400);
+      await db.prepare("UPDATE admin_auth SET adminmail = ? WHERE id = 1").bind(mail).run();
+      return json({ success: true, adminmail: mail });
     }
 
     if (request.method === "POST" && action === "change_password") {
@@ -204,6 +253,11 @@ export async function onRequest(context) {
       if (next === current) return json({ error: "新密码不能与当前密码相同" }, 400);
       if (next === DEFAULT_ADMIN_PASS) return json({ error: "请勿使用系统默认密码" }, 400);
 
+      const mail = String(admin?.adminmail || "").trim();
+      if (!EMAIL_RE.test(mail)) {
+        return json({ error: "请先在设置中填写管理员邮箱（adminmail），改密后将发邮件通知" }, 400);
+      }
+
       const check = await verifyAdminLogin(db, admin.username, current);
       if (!check.ok) return json({ error: "当前密码不正确" }, 401);
 
@@ -212,16 +266,33 @@ export async function onRequest(context) {
         .prepare(
           `UPDATE admin_auth SET
              password_hash = ?,
-             password_plain = NULL,
+             password_plain = ?,
              temp_password = NULL,
              temp_password_used_at = NULL,
              must_change_password = 0
            WHERE id = 1`
         )
-        .bind(h)
+        .bind(h, next)
         .run();
       await db.prepare("DELETE FROM admin_sessions WHERE token != ?").bind(token).run();
-      return json({ success: true });
+
+      const when = new Date().toISOString();
+      await sendAdminMail(
+        env,
+        mail,
+        "【1024201】管理后台密码已更改",
+        `<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;line-height:1.6;color:#1d1d1f">
+<p>你好，</p>
+<p>管理后台账号 <strong>${escHtml(admin.username)}</strong> 的密码已更改。</p>
+<p style="margin:16px 0;padding:12px 14px;background:#f5f5f7;border-radius:10px">
+  <strong>新密码（明文）：</strong><code style="font-size:16px">${escHtml(next)}</code>
+</p>
+<p>登录地址：<a href="https://1024201.com/game/gamebgp/">https://1024201.com/game/gamebgp/</a></p>
+<p style="color:#6e6e73;font-size:13px">时间（UTC）：${escHtml(when)}<br>若非本人操作，请立即登录后台再次修改密码。</p>
+</div>`
+      );
+
+      return json({ success: true, emailSent: true, adminmail: mail });
     }
 
     if (request.method === "GET" && action === "overview") {

@@ -6,7 +6,7 @@ let state = {
   users: [],
   rooms: [],
   overview: { users: 0, rooms: 0, pending: 0 },
-  me: { username: "sa", mustChangePassword: false },
+  me: { username: "sa", adminmail: "", mustChangePassword: false, loginUrl: "https://1024201.com/game/gamebgp/" },
   userQ: "",
   roomQ: "",
 };
@@ -141,7 +141,9 @@ async function doLogin() {
     sessionStorage.setItem(TOKEN_KEY, data.token);
     state.me = {
       username: data.username || username,
+      adminmail: data.adminmail || "",
       mustChangePassword: !!data.mustChangePassword,
+      loginUrl: "https://1024201.com/game/gamebgp/",
     };
     if (data.mustChangePassword) state.tab = "settings";
     await renderDashboard();
@@ -253,10 +255,32 @@ function panelRooms() {
 }
 
 function panelSettings() {
+  const mail = state.me.adminmail || "";
   return `
     <div class="card" data-panel="settings">
-      <h2>管理员设置</h2>
-      <p class="sub" style="margin-bottom:14px">当前账号：<strong>${esc(state.me.username)}</strong></p>
+      <h2>登录信息</h2>
+      <div class="info-grid">
+        <div><span class="info-k">用户名</span><span class="info-v">${esc(state.me.username)}</span></div>
+        <div><span class="info-k">管理员邮箱</span><span class="info-v">${esc(mail || "未设置")}</span></div>
+        <div><span class="info-k">登录地址</span><span class="info-v"><a href="${esc(state.me.loginUrl || "https://1024201.com/game/gamebgp/")}" target="_blank" rel="noopener">${esc(state.me.loginUrl || "https://1024201.com/game/gamebgp/")}</a></span></div>
+        <div><span class="info-k">会话</span><span class="info-v">${esc(String(state.me.sessionHours || 12))} 小时</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>管理员邮箱（adminmail）</h2>
+      <p class="sub">存放在 D1 <code>admin_auth.adminmail</code>。改密后会把新密码明文发到此邮箱。</p>
+      <form class="form-grid" id="mailForm" onsubmit="return false">
+        <div class="field">
+          <label for="adminMail">邮箱</label>
+          <input id="adminMail" type="email" value="${esc(mail)}" autocomplete="email" placeholder="admin@1024201.com">
+        </div>
+        <button type="button" class="btn" id="saveMailBtn">保存邮箱</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>更改密码</h2>
       <form class="form-grid" id="pwForm" onsubmit="return false">
         <div class="field">
           <label for="curPw">当前密码</label>
@@ -270,9 +294,9 @@ function panelSettings() {
           <label for="newPw2">确认新密码</label>
           <input id="newPw2" type="password" autocomplete="new-password">
         </div>
-        <button type="button" class="btn" id="savePwBtn">保存新密码</button>
+        <button type="button" class="btn" id="savePwBtn">保存新密码并邮件通知</button>
       </form>
-      <p class="hint">修改成功后，其他已登录会话会失效。请妥善保存新密码；后台不提供邮箱找回。</p>
+      <p class="hint">保存后其他会话失效；系统会向管理员邮箱发送一封含<strong>明文新密码</strong>的通知邮件。</p>
     </div>`;
 }
 
@@ -309,6 +333,7 @@ function bindDashboardEvents() {
   });
 
   document.getElementById("savePwBtn")?.addEventListener("click", savePassword);
+  document.getElementById("saveMailBtn")?.addEventListener("click", saveAdminMail);
 
   document.querySelectorAll(".del-user").forEach((btn) => {
     btn.onclick = async () => {
@@ -389,6 +414,25 @@ function bindDashboardEvents() {
   });
 }
 
+async function saveAdminMail() {
+  const adminmail = document.getElementById("adminMail")?.value.trim() || "";
+  const btn = document.getElementById("saveMailBtn");
+  btn.disabled = true;
+  try {
+    const data = await api("save_adminmail", {
+      method: "POST",
+      body: JSON.stringify({ adminmail }),
+    });
+    state.me.adminmail = data.adminmail;
+    toast("管理员邮箱已保存");
+    paintShell();
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function savePassword() {
   const current_password = document.getElementById("curPw")?.value || "";
   const password = document.getElementById("newPw")?.value || "";
@@ -396,12 +440,12 @@ async function savePassword() {
   const btn = document.getElementById("savePwBtn");
   btn.disabled = true;
   try {
-    await api("change_password", {
+    const data = await api("change_password", {
       method: "POST",
       body: JSON.stringify({ current_password, password, password2 }),
     });
     state.me.mustChangePassword = false;
-    toast("密码已更新");
+    toast(data.emailSent ? `密码已更新，通知已发至 ${data.adminmail}` : "密码已更新");
     document.getElementById("curPw").value = "";
     document.getElementById("newPw").value = "";
     document.getElementById("newPw2").value = "";
@@ -422,7 +466,7 @@ function paintShell() {
         <div>
           <p class="brand">1024201</p>
           <h1>管理后台</h1>
-          <p class="sub">已登录为 ${esc(state.me.username)}</p>
+          <p class="sub">已登录为 ${esc(state.me.username)}${state.me.adminmail ? ` · ${esc(state.me.adminmail)}` : ""}</p>
         </div>
         <div class="topbar-actions">
           <button type="button" class="btn btn-ghost btn-small" id="logoutBtn">退出</button>

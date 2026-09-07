@@ -149,7 +149,30 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; }
 }
 .banner strong { font-weight: 700; }
 
-.form-grid { display: grid; gap: 10px; max-width: 420px; }
+.info-grid {
+  display: grid;
+  gap: 10px;
+}
+.info-grid > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.info-grid > div:last-child { border-bottom: none; }
+.info-k { font-size: 12px; font-weight: 600; color: var(--muted); }
+.info-v { font-size: 14px; word-break: break-all; }
+.info-v a { color: var(--blue); text-decoration: none; }
+.info-v a:hover { text-decoration: underline; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: #f2f2f7;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
 .hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.45; }
 .empty { color: var(--muted); font-size: 13px; padding: 16px 0; }
 
