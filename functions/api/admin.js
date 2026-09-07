@@ -2,6 +2,8 @@ import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
 import { hashPassword, verifyPassword } from "./_crypto.js";
 
 const SESSION_HOURS = 12;
+const DEFAULT_ADMIN_USER = "sa";
+const DEFAULT_ADMIN_PASS = "1qaz2wsx";
 
 async function ensureAdminSchema(db) {
   await db
@@ -12,7 +14,8 @@ async function ensureAdminSchema(db) {
         password_hash TEXT,
         password_plain TEXT,
         temp_password TEXT,
-        temp_password_used_at TEXT
+        temp_password_used_at TEXT,
+        must_change_password INTEGER NOT NULL DEFAULT 0
       )`
     )
     .run();
@@ -24,10 +27,24 @@ async function ensureAdminSchema(db) {
       )`
     )
     .run();
+
+  const cols = await db.prepare("PRAGMA table_info(admin_auth)").all();
+  if (!cols.results?.some((c) => c.name === "must_change_password")) {
+    await db
+      .prepare("ALTER TABLE admin_auth ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0")
+      .run()
+      .catch(() => {});
+  }
+
   const row = await db.prepare("SELECT id FROM admin_auth WHERE id = 1").first();
   if (!row) {
+    const h = await hashPassword(DEFAULT_ADMIN_PASS);
     await db
-      .prepare("INSERT INTO admin_auth (id, username, password_plain) VALUES (1, 'sa', '1qaz2wsx')")
+      .prepare(
+        `INSERT INTO admin_auth (id, username, password_hash, password_plain, must_change_password)
+         VALUES (1, ?, ?, NULL, 1)`
+      )
+      .bind(DEFAULT_ADMIN_USER, h)
       .run();
   }
 }
@@ -38,33 +55,44 @@ async function getAdminRow(db) {
 
 async function verifyAdminLogin(db, username, password) {
   const row = await getAdminRow(db);
-  if (!row || row.username !== username) return false;
+  if (!row || row.username !== username) return { ok: false };
 
-  if (row.password_hash && (await verifyPassword(password, row.password_hash))) return true;
+  if (row.password_hash && (await verifyPassword(password, row.password_hash))) {
+    return { ok: true, row, via: "hash" };
+  }
   if (row.password_plain && password === row.password_plain) {
     const h = await hashPassword(password);
-    await db.prepare("UPDATE admin_auth SET password_hash = ?, password_plain = NULL WHERE id = 1").bind(h).run();
-    return true;
+    await db
+      .prepare("UPDATE admin_auth SET password_hash = ?, password_plain = NULL WHERE id = 1")
+      .bind(h)
+      .run();
+    return { ok: true, row, via: "plain" };
   }
   if (row.temp_password && password === row.temp_password) {
     const used = row.temp_password_used_at ? new Date(row.temp_password_used_at).getTime() : 0;
-    if (used && Date.now() - used > 24 * 3600 * 1000) return false;
+    if (used && Date.now() - used > 24 * 3600 * 1000) return { ok: false };
     if (!row.temp_password_used_at) {
       await db.prepare("UPDATE admin_auth SET temp_password_used_at = datetime('now') WHERE id = 1").run();
     }
-    return true;
+    return { ok: true, row, via: "temp" };
   }
+  return { ok: false };
+}
+
+function needsPasswordChange(row, via) {
+  if (via === "temp") return true;
+  if (Number(row.must_change_password) === 1) return true;
   return false;
 }
 
 async function requireAdmin(request, db) {
   const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token) throw new Error("未登录管理后台");
+  if (!token) throw Object.assign(new Error("未登录管理后台"), { status: 401 });
   const session = await db
     .prepare("SELECT * FROM admin_sessions WHERE token = ? AND expires_at > datetime('now')")
     .bind(token)
     .first();
-  if (!session) throw new Error("管理会话已过期，请重新登录");
+  if (!session) throw Object.assign(new Error("管理会话已过期，请重新登录"), { status: 401 });
   return token;
 }
 
@@ -103,6 +131,12 @@ function gameLabel(gameId, title) {
   return `${prefix}-${title}`;
 }
 
+function randomTempPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -117,40 +151,176 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "login") {
       const { username, password } = await request.json();
-      const ok = await verifyAdminLogin(db, username?.trim(), password);
-      if (!ok) return json({ error: "用户名或密码错误" }, 401);
+      const result = await verifyAdminLogin(db, username?.trim(), password);
+      if (!result.ok) return json({ error: "用户名或密码错误" }, 401);
 
       const token = crypto.randomUUID();
       await db
-        .prepare("INSERT INTO admin_sessions (token, expires_at) VALUES (?, datetime('now', '+12 hours'))")
+        .prepare(
+          `INSERT INTO admin_sessions (token, expires_at)
+           VALUES (?, datetime('now', '+${SESSION_HOURS} hours'))`
+        )
         .bind(token)
         .run();
-      return json({ success: true, token });
+      const mustChange =
+        needsPasswordChange(result.row, result.via) ||
+        (result.via === "plain" && password === DEFAULT_ADMIN_PASS) ||
+        (result.via === "hash" && password === DEFAULT_ADMIN_PASS);
+      if (mustChange && Number(result.row.must_change_password) !== 1) {
+        await db.prepare("UPDATE admin_auth SET must_change_password = 1 WHERE id = 1").run();
+      }
+      return json({
+        success: true,
+        token,
+        username: result.row.username,
+        mustChangePassword: mustChange,
+        sessionHours: SESSION_HOURS,
+      });
     }
 
-    await requireAdmin(request, db);
+    const token = await requireAdmin(request, db);
+    const admin = await getAdminRow(db);
+
+    if (request.method === "GET" && action === "me") {
+      return json({
+        username: admin?.username || DEFAULT_ADMIN_USER,
+        mustChangePassword: Number(admin?.must_change_password) === 1 || !!admin?.temp_password,
+        sessionHours: SESSION_HOURS,
+      });
+    }
+
+    if (request.method === "POST" && action === "logout") {
+      await db.prepare("DELETE FROM admin_sessions WHERE token = ?").bind(token).run();
+      return json({ success: true });
+    }
+
+    if (request.method === "POST" && action === "change_password") {
+      const body = await request.json().catch(() => ({}));
+      const current = String(body?.current_password || "");
+      const next = String(body?.password || "").trim();
+      const next2 = String(body?.password2 || "").trim();
+      if (next.length < 8) return json({ error: "新密码至少 8 位" }, 400);
+      if (next !== next2) return json({ error: "两次新密码不一致" }, 400);
+      if (next === current) return json({ error: "新密码不能与当前密码相同" }, 400);
+      if (next === DEFAULT_ADMIN_PASS) return json({ error: "请勿使用系统默认密码" }, 400);
+
+      const check = await verifyAdminLogin(db, admin.username, current);
+      if (!check.ok) return json({ error: "当前密码不正确" }, 401);
+
+      const h = await hashPassword(next);
+      await db
+        .prepare(
+          `UPDATE admin_auth SET
+             password_hash = ?,
+             password_plain = NULL,
+             temp_password = NULL,
+             temp_password_used_at = NULL,
+             must_change_password = 0
+           WHERE id = 1`
+        )
+        .bind(h)
+        .run();
+      await db.prepare("DELETE FROM admin_sessions WHERE token != ?").bind(token).run();
+      return json({ success: true });
+    }
+
+    if (request.method === "GET" && action === "overview") {
+      const users = await db.prepare("SELECT COUNT(*) AS n FROM users").first();
+      const rooms = await db.prepare("SELECT COUNT(*) AS n FROM stories").first();
+      const pending = await db.prepare("SELECT COUNT(*) AS n FROM pending_registrations").first().catch(() => ({ n: 0 }));
+      return json({
+        users: users?.n || 0,
+        rooms: rooms?.n || 0,
+        pending: pending?.n || 0,
+      });
+    }
 
     if (request.method === "GET" && action === "users") {
-      const { results } = await db
-        .prepare(
-          `SELECT id, username, email, datetime(created_at, 'localtime') AS created_at,
-                  password_plain, must_change_password
-           FROM users ORDER BY id DESC`
-        )
-        .all();
+      const q = (url.searchParams.get("q") || "").trim();
+      let results;
+      if (q) {
+        const like = `%${q}%`;
+        ({ results } = await db
+          .prepare(
+            `SELECT id, username, email, datetime(created_at, 'localtime') AS created_at,
+                    must_change_password,
+                    CASE WHEN temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password
+             FROM users
+             WHERE username LIKE ? OR email LIKE ?
+             ORDER BY id DESC
+             LIMIT 200`
+          )
+          .bind(like, like)
+          .all());
+      } else {
+        ({ results } = await db
+          .prepare(
+            `SELECT id, username, email, datetime(created_at, 'localtime') AS created_at,
+                    must_change_password,
+                    CASE WHEN temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password
+             FROM users ORDER BY id DESC LIMIT 200`
+          )
+          .all());
+      }
       return json({ users: results });
     }
 
-    if (request.method === "GET" && action === "rooms") {
-      const { results } = await db
+    if (request.method === "POST" && action === "reset_user_password") {
+      const { user_id } = await request.json();
+      const uid = Number(user_id);
+      if (!Number.isFinite(uid)) return json({ error: "无效用户 ID" }, 400);
+      const user = await db.prepare("SELECT id, username, email FROM users WHERE id = ?").bind(uid).first();
+      if (!user) return json({ error: "用户不存在" }, 404);
+      const temp = randomTempPassword();
+      await db
         .prepare(
-          `SELECT s.id, s.game_id, s.title, s.invite_code,
-                  datetime(s.created_at, 'localtime') AS created_at,
-                  u.username AS owner_name
-           FROM stories s JOIN users u ON s.owner_id = u.id
-           ORDER BY s.id DESC`
+          `UPDATE users SET
+             temp_password = ?,
+             temp_password_expires = datetime('now', '+24 hours'),
+             must_change_password = 1
+           WHERE id = ?`
         )
-        .all();
+        .bind(temp, uid)
+        .run();
+      return json({
+        success: true,
+        user_id: uid,
+        username: user.username,
+        email: user.email,
+        temp_password: temp,
+        expires_in_hours: 24,
+      });
+    }
+
+    if (request.method === "GET" && action === "rooms") {
+      const q = (url.searchParams.get("q") || "").trim();
+      let results;
+      if (q) {
+        const like = `%${q}%`;
+        ({ results } = await db
+          .prepare(
+            `SELECT s.id, s.game_id, s.title, s.invite_code,
+                    datetime(s.created_at, 'localtime') AS created_at,
+                    u.username AS owner_name
+             FROM stories s JOIN users u ON s.owner_id = u.id
+             WHERE s.title LIKE ? OR s.invite_code LIKE ? OR u.username LIKE ?
+             ORDER BY s.id DESC
+             LIMIT 200`
+          )
+          .bind(like, like, like)
+          .all());
+      } else {
+        ({ results } = await db
+          .prepare(
+            `SELECT s.id, s.game_id, s.title, s.invite_code,
+                    datetime(s.created_at, 'localtime') AS created_at,
+                    u.username AS owner_name
+             FROM stories s JOIN users u ON s.owner_id = u.id
+             ORDER BY s.id DESC
+             LIMIT 200`
+          )
+          .all());
+      }
       return json({
         rooms: results.map((r) => ({
           ...r,
@@ -177,6 +347,7 @@ export async function onRequest(context) {
 
     return json({ error: "未知操作" }, 404);
   } catch (err) {
-    return json({ error: err.message }, err.message.includes("未登录") ? 401 : 500);
+    const status = err.status || (String(err.message || "").includes("未登录") || String(err.message || "").includes("会话") ? 401 : 500);
+    return json({ error: err.message }, status);
   }
 }
