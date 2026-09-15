@@ -4,6 +4,7 @@ import * as room from "./functions/api/room.js";
 
 import * as admin from "./functions/api/admin.js";
 import * as portal from "./functions/api/portal.js";
+import * as blog from "./functions/api/blog.js";
 import { refreshAddressData } from "./functions/api/address.js";
 import { fileStoreStatus } from "./functions/api/vpsStore.js";
 
@@ -13,6 +14,7 @@ const API_ROUTES = {
   "/api/room": room,
   "/api/admin": admin,
   "/api/portal": portal,
+  "/api/blog": blog,
 };
 
 export default {
@@ -103,6 +105,7 @@ const SUBDOMAIN_ROOT = {
   "cli.1024201.com": "/tools/cli/",
   "address.1024201.com": "/tools/address/",
   "showcase.1024201.com": "/tools/showcase/",
+  "blog.1024201.com": "/blog/",
 };
 
 function maybeSubdomainRootRedirect(request) {

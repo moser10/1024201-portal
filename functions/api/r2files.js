@@ -8,6 +8,9 @@ export const SYNCNOTE_MAX_FILES = 3;
 export const SYNCNOTE_STORAGE_BYTES = SYNCNOTE_MAX_FILES * MAX_FILE_BYTES;
 /** 作品展示总容量上限 */
 export const SHOWCASE_STORAGE_BYTES = 30 * MAX_FILE_BYTES;
+/** 博客图片总容量上限 */
+export const BLOG_STORAGE_BYTES = 40 * MAX_FILE_BYTES;
+export const BLOG_MAX_IMAGES = 12;
 const CHUNK_BYTES = 48 * 1024;
 const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
 
@@ -225,6 +228,13 @@ export async function handleFileUpload(env, request, url) {
     if (existing.length >= SYNCNOTE_MAX_FILES) return json({ error: "too_many_files", max: SYNCNOTE_MAX_FILES }, 413);
   }
 
+  if (purpose === "blog") {
+    const existing = await listUserFiles(db, userId, "blog");
+    if (existing.length >= BLOG_MAX_IMAGES * 20) {
+      return json({ error: "too_many_files", max: BLOG_MAX_IMAGES * 20 }, 413);
+    }
+  }
+
   const form = await request.formData();
   const file = form.get("file");
   if (!file || typeof file === "string") return json({ error: "no_file" }, 400);
@@ -234,6 +244,9 @@ export async function handleFileUpload(env, request, url) {
     return json({ error: "images_only" }, 400);
   }
   if (purpose === "syncnote" && slot === 2 && !IMAGE_MIMES.has(mime)) {
+    return json({ error: "images_only" }, 400);
+  }
+  if (purpose === "blog" && !IMAGE_MIMES.has(mime)) {
     return json({ error: "images_only" }, 400);
   }
 
@@ -279,7 +292,7 @@ export async function handleFileGet(env, request, url) {
   const row = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(id).first();
   if (!row) return json({ error: "not_found" }, 404);
 
-  if (row.purpose !== "showcase") {
+  if (row.purpose !== "showcase" && row.purpose !== "blog") {
     const userId = await resolveUserId(request, env, url);
     if (userId !== row.user_id) return json({ error: "forbidden" }, 403);
   }
@@ -287,7 +300,8 @@ export async function handleFileGet(env, request, url) {
   const body = await readFileBody(env, db, row);
   if (!body) return json({ error: "not_found" }, 404);
 
-  const cache = row.purpose === "showcase" ? "public, max-age=86400" : "private, max-age=3600";
+  const cache =
+    row.purpose === "showcase" || row.purpose === "blog" ? "public, max-age=86400" : "private, max-age=3600";
   return new Response(body, {
     headers: {
       "Content-Type": row.mime,
@@ -331,7 +345,13 @@ export async function handleFileStorageQuota(env, request, url) {
 
   const purpose = url.searchParams.get("purpose") || "syncnote";
   const limit =
-    purpose === "showcase" ? SHOWCASE_STORAGE_BYTES : purpose === "syncnote" ? SYNCNOTE_STORAGE_BYTES : MAX_FILE_BYTES;
+    purpose === "showcase"
+      ? SHOWCASE_STORAGE_BYTES
+      : purpose === "blog"
+        ? BLOG_STORAGE_BYTES
+        : purpose === "syncnote"
+          ? SYNCNOTE_STORAGE_BYTES
+          : MAX_FILE_BYTES;
 
   const row = await db
     .prepare(`SELECT COALESCE(SUM(size), 0) AS used FROM user_files WHERE user_id = ? AND purpose = ?`)

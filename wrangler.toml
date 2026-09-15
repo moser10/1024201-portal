@@ -50,6 +50,10 @@ zone_name = "1024201.com"
 pattern = "showcase.1024201.com/*"
 zone_name = "1024201.com"
 
+[[routes]]
+pattern = "blog.1024201.com/*"
+zone_name = "1024201.com"
+
 [triggers]
 crons = ["0 14 * * *"]
 

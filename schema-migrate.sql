@@ -53,4 +53,25 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
 
 INSERT OR IGNORE INTO admin_auth (id, username, password_plain) VALUES (1, 'sa', '1qaz2wsx');
 
+CREATE TABLE IF NOT EXISTS blogs (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  body_md TEXT NOT NULL DEFAULT '',
+  images_json TEXT NOT NULL DEFAULT '[]',
+  visibility TEXT NOT NULL DEFAULT 'private',
+  status TEXT NOT NULL DEFAULT 'draft',
+  like_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT,
+  published_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS blog_likes (
+  blog_id TEXT NOT NULL,
+  ip_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (blog_id, ip_hash)
+);
+
 DELETE FROM users WHERE email_verified = 0;

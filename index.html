@@ -235,7 +235,7 @@
 
         .app-grid {
             display: grid;
-            grid-template-columns: repeat(2, auto);
+            grid-template-columns: repeat(3, auto);
             gap: 18px 26px;
             justify-content: center;
             align-items: center;
@@ -250,13 +250,27 @@
         }
 
         .app-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--ios-text); }
+        .app-item.is-slot {
+            visibility: hidden;
+            pointer-events: none;
+        }
         .app-icon { width: 90px; height: 90px; border-radius: 21.5%; box-shadow: 0 8px 24px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; }
         .icon-mail { background: linear-gradient(135deg, #54cbff 0%, #007aff 100%); }
         .icon-game { background: linear-gradient(135deg, #ff6b6b 0%, #ff9f43 100%); }
         .icon-fx { background: linear-gradient(135deg, #5ac8fa 0%, #34c759 100%); }
         .icon-tools { background: linear-gradient(135deg, #8e8e93 0%, #636366 100%); }
+        .icon-blog { background: linear-gradient(135deg, #ff6482 0%, #ff2d55 100%); }
         .app-icon svg { width: 44px; height: 44px; fill: white; }
         .icon-tools svg { width: 38px; height: 38px; }
+        .icon-blog .blog-glyph {
+            font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+            font-size: 34px;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+            letter-spacing: -0.06em;
+            user-select: none;
+        }
         .app-label { margin-top: 10px; font-size: 14px; font-weight: 500; }
 
         footer { font-size: 12px; color: var(--ios-text-secondary); padding: 10px 0; position: relative; z-index: 1; }
@@ -321,33 +335,38 @@
             }
 
             .app-grid {
-                gap: 16px 22px;
-                padding: 18px 20px;
+                gap: 16px 18px;
+                padding: 18px 16px;
                 border-radius: 20px;
                 width: 100%;
-                max-width: 320px;
+                max-width: 360px;
+                grid-template-columns: repeat(3, 1fr);
             }
 
             .app-icon {
-                width: 74px;
-                height: 74px;
+                width: 68px;
+                height: 68px;
                 border-radius: 21.5%;
                 box-shadow: 0 6px 18px rgba(0,0,0,0.07);
             }
 
             .app-icon svg {
-                width: 36px;
-                height: 36px;
-            }
-
-            .icon-tools svg {
                 width: 32px;
                 height: 32px;
             }
 
+            .icon-tools svg {
+                width: 28px;
+                height: 28px;
+            }
+
+            .icon-blog .blog-glyph {
+                font-size: 26px;
+            }
+
             .app-label {
                 margin-top: 8px;
-                font-size: 13px;
+                font-size: 12px;
             }
         }
     </style>
@@ -425,6 +444,17 @@
                     </div>
                     <div class="app-label" id="app-tools">Toolbox</div>
                 </a>
+                <a href="/blog/" class="app-item" id="appBlogLink">
+                    <div class="app-icon icon-blog" title="ブログ">
+                        <span class="blog-glyph" aria-hidden="true">記</span>
+                    </div>
+                    <div class="app-label" id="app-blog">Blog</div>
+                </a>
+                <!-- reserved 6th quadrant -->
+                <div class="app-item is-slot" aria-hidden="true">
+                    <div class="app-icon"></div>
+                    <div class="app-label">&nbsp;</div>
+                </div>
             </div>
         </div>
     </main>
@@ -437,21 +467,21 @@
         const i18n = {
             en: {
                 us: 'San Jose', jp: 'Osaka', cn: 'Beijing', se: 'Gothenburg',
-                mail: 'Mail', game: 'Game Center', fx: 'Rates', tools: 'Toolbox',
+                mail: 'Mail', game: 'Game Center', fx: 'Rates', tools: 'Toolbox', blog: 'Blog',
                 locTitle: 'IP Location', locating: 'Locating…', locUnavailable: 'Location unavailable',
                 netResidential: 'Home broadband', netDatacenter: 'Datacenter', netMobile: 'Mobile network',
                 purity: 'Purity', proxy: 'Proxy/VPN'
             },
             ja: {
                 us: 'サンノゼ', jp: '大阪', cn: '北京', se: 'ヨーテボリ',
-                mail: 'メール', game: 'ゲームセンター', fx: '為替', tools: 'ツールボックス',
+                mail: 'メール', game: 'ゲームセンター', fx: '為替', tools: 'ツールボックス', blog: 'ブログ',
                 locTitle: 'IP位置', locating: '取得中…', locUnavailable: '位置を取得できません',
                 netResidential: '家庭用回線', netDatacenter: 'データセンター', netMobile: 'モバイル回線',
                 purity: '純度', proxy: 'プロキシ/VPN'
             },
             zh: {
                 us: '圣何塞', jp: '大阪', cn: '北京', se: '哥德堡',
-                mail: '邮箱', game: '游戏中心', fx: '汇率', tools: '工具箱',
+                mail: '邮箱', game: '游戏中心', fx: '汇率', tools: '工具箱', blog: '博客',
                 locTitle: 'IP 位置', locating: '定位中…', locUnavailable: '无法获取位置',
                 netResidential: '家庭宽带', netDatacenter: '机房网络', netMobile: '移动网络',
                 purity: '纯净度', proxy: '代理/VPN'
@@ -476,6 +506,7 @@
             document.getElementById('app-game').innerText = t.game;
             document.getElementById('app-fx').innerText = t.fx;
             document.getElementById('app-tools').innerText = t.tools;
+            document.getElementById('app-blog').innerText = t.blog;
             document.getElementById('locTitle').innerText = t.locTitle;
             const locEl = document.getElementById('deviceLocation');
             if (locEl.classList.contains('is-loading')) {

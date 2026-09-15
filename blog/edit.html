@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" class="feature-page blog-page">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ff2d55">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Edit Blog | 1024201</title>
+  <link rel="modulepreload" href="/js/langTabs.js">
+  <link rel="stylesheet" href="/js/langTabs.css">
+  <link rel="stylesheet" href="/js/featurePage.css">
+  <link rel="stylesheet" href="blog.css?v=1">
+</head>
+<body class="feature-page blog-page">
+  <div class="feature-shell">
+    <div class="feature-main">
+      <div class="feature-top">
+        <a class="feature-back" id="backLink" href="/blog/">Blog</a>
+        <div id="langSlot"></div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-head">
+          <h1 id="pageTitle">New post</h1>
+          <p class="sub" id="pageSub"></p>
+        </div>
+
+        <form class="blog-form" id="editForm" onsubmit="return false">
+          <label class="blog-label" id="lblTitle" for="titleIn">Title</label>
+          <input class="blog-input" id="titleIn" type="text" maxlength="200" autocomplete="off" />
+
+          <span class="blog-label" id="lblVis">Visibility</span>
+          <div class="blog-vis" role="radiogroup">
+            <label><input type="radio" name="vis" value="private" checked> <span id="visPrivate">Private</span></label>
+            <label><input type="radio" name="vis" value="public"> <span id="visPublic">Public</span></label>
+          </div>
+          <p class="blog-hint" id="visHint"></p>
+
+          <label class="blog-label" id="lblBody" for="bodyIn">Content</label>
+          <textarea class="blog-textarea" id="bodyIn" spellcheck="true" placeholder=""></textarea>
+
+          <span class="blog-label" id="lblImages">Images</span>
+          <div class="blog-img-tools">
+            <button type="button" class="btn-ghost" id="addImgBtn">Add image</button>
+            <input type="file" id="imgInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden multiple />
+            <span class="blog-hint" id="imgHint"></span>
+          </div>
+          <div class="blog-thumbs" id="thumbGrid"></div>
+
+          <div class="blog-actions">
+            <button type="button" class="btn-ghost" id="draftBtn">Save draft</button>
+            <button type="button" class="btn-primary" id="publishBtn">Publish</button>
+            <button type="button" class="btn-danger" id="deleteBtn" hidden>Delete</button>
+          </div>
+        </form>
+
+        <div class="login-panel" id="loginPanel" hidden>
+          <p id="loginDesc"></p>
+          <a class="btn-primary btn-link" id="loginBtn" href="/game/register/">Sign in</a>
+        </div>
+
+        <p class="err" id="errBox" hidden></p>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="edit.js?v=1"></script>
+</body>
+</html>
