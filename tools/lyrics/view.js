@@ -44,7 +44,16 @@ const loadingHost = document.getElementById("viewLoading");
 const contentEl = document.getElementById("viewContent");
 
 function applyI18n() {
-  document.getElementById("backLink").textContent = t.back;
+  const back = document.getElementById("backLink");
+  back.textContent = t.back;
+  back.href = "/tools/lyrics/";
+  back.onclick = (e) => {
+    // Prefer real history so edge-swipe / back stack stay consistent
+    if (window.history.length > 1) {
+      e.preventDefault();
+      window.history.back();
+    }
+  };
 }
 
 function readCache(id) {

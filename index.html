@@ -621,12 +621,14 @@
         setInterval(updateClocks, 1000);
 
         window.addEventListener('pageshow', () => {
+            const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1));
             import('/game/js/userBar.js?v=7').then(({ mountUserBar }) => {
                 mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '', showHint: true });
             });
-            loadDeviceLocation();
+            idle(() => loadDeviceLocation(), { timeout: 1200 });
         });
     </script>
+    <script src="/js/edgeBack.js" defer></script>
     <script src="/pwa.js" defer></script>
 </body>
 </html>

@@ -172,7 +172,15 @@ function restoreSearchSession() {
 function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
   document.getElementById("pageSub").textContent = t.sub;
-  document.getElementById("backLink").textContent = t.back;
+  const back = document.getElementById("backLink");
+  back.textContent = t.back;
+  back.href = "/tools/";
+  back.onclick = (e) => {
+    if (window.history.length > 1) {
+      e.preventDefault();
+      window.history.back();
+    }
+  };
   document.getElementById("lblTitle").textContent = t.lblTitle;
   document.getElementById("lblArtist").textContent = t.lblArtist;
   document.getElementById("searchHint").textContent = t.hint;

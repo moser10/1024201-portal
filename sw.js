@@ -1,32 +1,95 @@
-const CACHE = "1042-pwa-v67";
-const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png", "/icons/favicon-32.png"];
+const CACHE = "1042-pwa-v68";
+const SHELL = [
+  "/",
+  "/index.html",
+  "/manifest.webmanifest",
+  "/pwa.js",
+  "/js/langTabs.css",
+  "/js/langTabs.js",
+  "/js/featurePage.css",
+  "/js/edgeBack.js",
+  "/game/css/userBar.css?v=6",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/apple-touch-icon.png",
+  "/icons/favicon-32.png",
+];
+
+function isApi(url) {
+  return url.pathname.startsWith("/api/");
+}
+
+function shouldCache(url, request) {
+  if (isApi(url)) return false;
+  if (request.mode === "navigate") return true;
+  const p = url.pathname;
+  return (
+    p.endsWith(".css") ||
+    p.endsWith(".js") ||
+    p.endsWith(".webmanifest") ||
+    p.endsWith(".png") ||
+    p.endsWith(".svg") ||
+    p.endsWith(".ico") ||
+    p.endsWith(".woff2") ||
+    p === "/" ||
+    p.endsWith(".html") ||
+    p.endsWith("/")
+  );
+}
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(SHELL))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
+/** Cache-first / stale-while-revalidate so home-screen launches paint instantly. */
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  const url = new URL(request.url);
   if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/")) return;
+  if (isApi(url)) return;
 
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok && url.pathname.startsWith("/icons/")) {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/index.html")))
+    (async () => {
+      const cache = await caches.open(CACHE);
+      const cached = await cache.match(request);
+
+      const networkPromise = fetch(request)
+        .then((response) => {
+          if (response && response.ok && shouldCache(url, request)) {
+            cache.put(request, response.clone()).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => null);
+
+      // Instant paint from cache; refresh in background
+      if (cached) {
+        networkPromise.catch(() => {});
+        return cached;
+      }
+
+      const fresh = await networkPromise;
+      if (fresh) return fresh;
+      if (request.mode === "navigate") {
+        return (await cache.match("/index.html")) || (await cache.match("/"));
+      }
+      return new Response("", { status: 504, statusText: "Offline" });
+    })()
   );
 });

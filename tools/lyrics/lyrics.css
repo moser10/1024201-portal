@@ -150,6 +150,14 @@
   max-width: none;
   overflow: hidden;
 }
+.lyrics-view-page .feature-top {
+  background: #f2f2f7;
+}
+.lyrics-view-page .feature-back {
+  font-size: 14px;
+  padding: 9px 14px;
+  min-height: 36px;
+}
 .view-lyrics-wrap {
   flex: 1;
   min-height: 0;
