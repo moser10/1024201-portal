@@ -366,6 +366,14 @@ html.blog-page body {
   margin-top: 1.15em;
 }
 
+.blog-updated-in-body {
+  margin: 0 0 1.1em;
+  font-size: 13px;
+  color: var(--blog-muted);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 .blog-md h1,
 .blog-md h2,
 .blog-md h3 {

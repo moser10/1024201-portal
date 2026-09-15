@@ -247,23 +247,42 @@ async function save(mode) {
       body: { id: blogId || undefined, title, body_md, visibility, mode, images: imageIds },
     });
     blogId = data.blog?.id || blogId;
+
+    // Publish → leave editor immediately (no extra UI work before navigate)
+    if (mode === "publish") {
+      try {
+        if (data.blog) {
+          sessionStorage.setItem(`blog_flash_${blogId}`, JSON.stringify(data.blog));
+          sessionStorage.setItem("blog_list_dirty", "1");
+          // Optimistic list cache so /blog/ paints the new post immediately
+          const prev = JSON.parse(sessionStorage.getItem("blog_mine_cache") || '{"blogs":[]}');
+          const blogs = Array.isArray(prev.blogs) ? prev.blogs.filter((b) => b.id !== data.blog.id) : [];
+          blogs.unshift({
+            id: data.blog.id,
+            title: data.blog.title,
+            visibility: data.blog.visibility,
+            status: data.blog.status,
+            created_at: data.blog.created_at,
+            updated_at: data.blog.updated_at,
+            like_count: data.blog.like_count || 0,
+          });
+          sessionStorage.setItem("blog_mine_cache", JSON.stringify({ blogs, t: Date.now() }));
+        }
+      } catch {
+        /* ignore */
+      }
+      location.replace("/blog/");
+      return;
+    }
+
     history.replaceState(null, "", `/blog/edit.html?id=${encodeURIComponent(blogId)}`);
     document.getElementById("deleteBtn").hidden = false;
     applyI18n();
-    if (mode === "publish" && data.blog?.visibility === "public") {
-      location.href = `/blog/view.html?id=${encodeURIComponent(blogId)}`;
-      return;
-    }
-    showErr("");
-    const note = document.createElement("p");
-    note.className = "blog-hint";
-    note.textContent = mode === "publish" ? ui.published : ui.saved;
-    note.style.color = "#1b7a3d";
     const err = document.getElementById("errBox");
     err.hidden = false;
     err.className = "blog-hint";
     err.style.color = "#1b7a3d";
-    err.textContent = mode === "publish" ? ui.published : ui.saved;
+    err.textContent = ui.saved;
   } catch (e) {
     document.getElementById("errBox").className = "err";
     document.getElementById("errBox").style.color = "";

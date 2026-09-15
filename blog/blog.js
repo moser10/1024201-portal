@@ -115,12 +115,12 @@ function paintList(blogs) {
           : b.visibility === "public"
             ? `<span class="blog-pill public">${esc(ui.public)}</span>`
             : `<span class="blog-pill private">${esc(ui.private)}</span>`;
-      const dates = [`${esc(formatBlogDate(b.created_at, lang))}`];
-      if (b.updated_at) dates.push(`${esc(ui.updated)} ${esc(formatBlogDate(b.updated_at, lang))}`);
+      // Title row: creation date only (updated date lives in the article body)
+      const created = esc(formatBlogDate(b.created_at, lang));
       return `<li>
         <a class="blog-item" href="/blog/edit.html?id=${encodeURIComponent(b.id)}">
           <div class="blog-item-title">${esc(b.title || "(untitled)")}</div>
-          <div class="blog-item-meta"><span>${dates.join(" · ")}</span>${vis}</div>
+          <div class="blog-item-meta"><span>${created}</span>${vis}</div>
         </a>
       </li>`;
     })
@@ -149,6 +149,27 @@ async function boot() {
   await bootContent();
 }
 
+const LIST_CACHE_KEY = "blog_mine_cache";
+
+function readListCache() {
+  try {
+    const raw = sessionStorage.getItem(LIST_CACHE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return Array.isArray(data?.blogs) ? data.blogs : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeListCache(blogs) {
+  try {
+    sessionStorage.setItem(LIST_CACHE_KEY, JSON.stringify({ blogs, t: Date.now() }));
+  } catch {
+    /* ignore */
+  }
+}
+
 async function bootContent() {
   const user = getUser();
   const loginPanel = document.getElementById("loginPanel");
@@ -173,12 +194,23 @@ async function bootContent() {
   userLine.textContent = `@${user.username || user.email || user.id}`;
 
   document.getElementById("newBtn").onclick = () => {
-    location.href = "/blog/edit.html";
+    location.assign("/blog/edit.html");
   };
+
+  // Paint cached list instantly, then refresh — publish → list feels instant
+  const cached = readListCache();
+  if (cached) paintList(cached);
 
   try {
     const data = await api("mine");
-    paintList(data.blogs || []);
+    const blogs = data.blogs || [];
+    writeListCache(blogs);
+    paintList(blogs);
+    try {
+      sessionStorage.removeItem("blog_list_dirty");
+    } catch {
+      /* ignore */
+    }
   } catch (e) {
     if (e.data?.needLogin) {
       loginPanel.hidden = false;
@@ -186,7 +218,7 @@ async function bootContent() {
       toolbar.hidden = true;
       return;
     }
-    showErr(e.message || t().err);
+    if (!cached) showErr(e.message || t().err);
   }
 }
 

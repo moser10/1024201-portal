@@ -42,6 +42,14 @@ function t() {
   return UI[getPortalLang()] || UI.en;
 }
 
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 async function boot() {
   const id = new URLSearchParams(location.search).get("id")?.trim();
   const errBox = document.getElementById("errBox");
@@ -85,10 +93,14 @@ async function boot() {
   const metaBits = [];
   if (data.author) metaBits.push(`${ui.author} @${data.author}`);
   metaBits.push(formatBlogDate(data.created_at, lang));
-  if (data.updated_at) metaBits.push(`${ui.updated} ${formatBlogDate(data.updated_at, lang)}`);
   if (!isPublic) metaBits.push(ui.privateNote);
   document.getElementById("metaEl").textContent = metaBits.join(" · ");
-  document.getElementById("bodyEl").innerHTML = renderMarkdown(data.body_md || "");
+
+  const bodyHtml = renderMarkdown(data.body_md || "");
+  const updatedBlock = data.updated_at
+    ? `<p class="blog-updated-in-body">${esc(ui.updated)} ${esc(formatBlogDate(data.updated_at, lang))}</p>`
+    : "";
+  document.getElementById("bodyEl").innerHTML = `${updatedBlock}${bodyHtml}`;
 
   article.hidden = false;
 
