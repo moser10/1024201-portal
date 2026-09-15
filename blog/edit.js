@@ -255,8 +255,14 @@ async function save(mode) {
           sessionStorage.setItem(`blog_flash_${blogId}`, JSON.stringify(data.blog));
           sessionStorage.setItem("blog_list_dirty", "1");
           // Optimistic list cache so /blog/ paints the new post immediately
-          const prev = JSON.parse(sessionStorage.getItem("blog_mine_cache") || '{"blogs":[]}');
-          const blogs = Array.isArray(prev.blogs) ? prev.blogs.filter((b) => b.id !== data.blog.id) : [];
+          const user = getUser();
+          let blogs = [];
+          try {
+            const prev = JSON.parse(localStorage.getItem(`blog_mine_v2:${user?.id}`) || '{"blogs":[]}');
+            blogs = Array.isArray(prev.blogs) ? prev.blogs.filter((b) => b.id !== data.blog.id) : [];
+          } catch {
+            blogs = [];
+          }
           blogs.unshift({
             id: data.blog.id,
             title: data.blog.title,
@@ -266,7 +272,10 @@ async function save(mode) {
             updated_at: data.blog.updated_at,
             like_count: data.blog.like_count || 0,
           });
-          sessionStorage.setItem("blog_mine_cache", JSON.stringify({ blogs, t: Date.now() }));
+          if (user?.id) {
+            localStorage.setItem(`blog_mine_v2:${user.id}`, JSON.stringify({ blogs, t: Date.now() }));
+          }
+          sessionStorage.setItem(`blog_doc_v2:${data.blog.id}`, JSON.stringify(data.blog));
         }
       } catch {
         /* ignore */
@@ -293,22 +302,53 @@ async function save(mode) {
   }
 }
 
-async function loadBlog() {
-  if (!blogId) return;
-  const user = getUser();
-  const qs = new URLSearchParams({ action: "get", id: blogId, user_id: String(user.id) });
-  const res = await fetch(`/api/blog?${qs}`);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || t().err);
-  if (!data.is_owner) throw new Error(t().err);
-
+function fillForm(data) {
   document.getElementById("titleIn").value = data.title || "";
   document.getElementById("bodyIn").value = data.body_md || "";
   const vis = data.visibility === "public" ? "public" : "private";
   document.querySelector(`input[name="vis"][value="${vis}"]`).checked = true;
   imageIds = Array.isArray(data.images) ? data.images.slice() : [];
-  paintThumbs();
   document.getElementById("deleteBtn").hidden = false;
+  // Text first; thumbs can wait a frame
+  requestAnimationFrame(() => paintThumbs());
+}
+
+function readDocCache(id) {
+  try {
+    const raw = sessionStorage.getItem(`blog_doc_v2:${id}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDocCache(data) {
+  if (!data?.id) return;
+  try {
+    sessionStorage.setItem(`blog_doc_v2:${data.id}`, JSON.stringify(data));
+  } catch {
+    /* ignore */
+  }
+}
+
+async function loadBlog() {
+  if (!blogId) return;
+
+  // Instant fill from prefetch / previous visit
+  const cached = readDocCache(blogId);
+  if (cached && (cached.body_md != null || cached.title != null)) {
+    fillForm(cached);
+  }
+
+  const user = getUser();
+  const qs = new URLSearchParams({ action: "get", id: blogId, user_id: String(user.id) });
+  const res = await fetch(`/api/blog?${qs}`, { headers: { Accept: "application/json" } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || t().err);
+  if (!data.is_owner) throw new Error(t().err);
+
+  fillForm(data);
+  writeDocCache(data);
 }
 
 async function boot() {

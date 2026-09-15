@@ -14,7 +14,9 @@ export const BLOG_MAX_IMAGES = 12;
 const CHUNK_BYTES = 48 * 1024;
 const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
 
-export async function ensureFilesSchema(db) {
+let filesSchemaJob = null;
+
+async function ensureFilesSchemaInner(db) {
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS user_files (
@@ -67,6 +69,16 @@ export async function ensureFilesSchema(db) {
     )
     .run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_showcase_user ON showcase_works(user_id)`).run();
+}
+
+export async function ensureFilesSchema(db) {
+  if (!filesSchemaJob) {
+    filesSchemaJob = ensureFilesSchemaInner(db).catch((err) => {
+      filesSchemaJob = null;
+      throw err;
+    });
+  }
+  return filesSchemaJob;
 }
 
 export function newFileId() {

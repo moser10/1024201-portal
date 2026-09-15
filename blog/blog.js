@@ -1,6 +1,5 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser } from "/game/js/store.js";
-import { formatBlogDate } from "./md.js";
 
 const UI = {
   en: {
@@ -14,7 +13,6 @@ const UI = {
     public: "Public",
     private: "Private",
     draft: "Draft",
-    updated: "Updated",
     err: "Failed to load",
   },
   zh: {
@@ -28,7 +26,6 @@ const UI = {
     public: "展现",
     private: "自己看",
     draft: "草稿",
-    updated: "更新",
     err: "加载失败",
   },
   ja: {
@@ -42,10 +39,12 @@ const UI = {
     public: "公開",
     private: "非公開",
     draft: "下書き",
-    updated: "更新",
     err: "読み込みに失敗しました",
   },
 };
+
+const LIST_KEY = "blog_mine_v2";
+const DOC_PREFIX = "blog_doc_v2:";
 
 function t() {
   return UI[getPortalLang()] || UI.en;
@@ -59,6 +58,15 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+function formatDate(raw) {
+  if (!raw) return "";
+  const d = new Date(String(raw).includes("T") ? raw : `${String(raw).replace(" ", "T")}Z`);
+  if (Number.isNaN(d.getTime())) return String(raw).slice(0, 10);
+  const lang = getPortalLang();
+  const locale = lang === "ja" ? "ja-JP" : lang === "en" ? "en-US" : "zh-CN";
+  return d.toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
+}
+
 function showErr(msg) {
   const el = document.getElementById("errBox");
   if (!msg) {
@@ -70,20 +78,41 @@ function showErr(msg) {
   el.textContent = msg;
 }
 
-async function api(action, opts = {}) {
-  const user = getUser();
-  const qs = new URLSearchParams({ action });
-  if (user?.id) qs.set("user_id", String(user.id));
-  if (opts.query) {
-    for (const [k, v] of Object.entries(opts.query)) {
-      if (v != null && v !== "") qs.set(k, String(v));
-    }
+function listCacheKey(userId) {
+  return `${LIST_KEY}:${userId}`;
+}
+
+function readListCache(userId) {
+  try {
+    const raw = localStorage.getItem(listCacheKey(userId));
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return Array.isArray(data?.blogs) ? data.blogs : null;
+  } catch {
+    return null;
   }
-  const res = await fetch(`/api/blog?${qs}`, {
-    method: opts.method || "GET",
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-    body: opts.body,
-  });
+}
+
+function writeListCache(userId, blogs) {
+  try {
+    localStorage.setItem(listCacheKey(userId), JSON.stringify({ blogs, t: Date.now() }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function writeDocCache(blog) {
+  if (!blog?.id) return;
+  try {
+    sessionStorage.setItem(DOC_PREFIX + blog.id, JSON.stringify(blog));
+  } catch {
+    /* ignore */
+  }
+}
+
+async function apiMine(userId) {
+  const qs = new URLSearchParams({ action: "mine", user_id: String(userId) });
+  const res = await fetch(`/api/blog?${qs}`, { headers: { Accept: "application/json" } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || t().err);
@@ -94,11 +123,27 @@ async function api(action, opts = {}) {
   return data;
 }
 
-function paintList(blogs) {
+function prefetchDoc(id, userId) {
+  if (!id || !userId) return;
+  const key = DOC_PREFIX + id;
+  try {
+    if (sessionStorage.getItem(key)) return;
+  } catch {
+    /* ignore */
+  }
+  const qs = new URLSearchParams({ action: "get", id, user_id: String(userId) });
+  fetch(`/api/blog?${qs}`, { headers: { Accept: "application/json" } })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.id || data?.body_md != null) writeDocCache({ ...data, id: data.id || id });
+    })
+    .catch(() => {});
+}
+
+function paintList(blogs, userId) {
   const list = document.getElementById("blogList");
   const empty = document.getElementById("emptyBox");
   const ui = t();
-  const lang = getPortalLang();
 
   if (!blogs.length) {
     list.innerHTML = "";
@@ -115,16 +160,20 @@ function paintList(blogs) {
           : b.visibility === "public"
             ? `<span class="blog-pill public">${esc(ui.public)}</span>`
             : `<span class="blog-pill private">${esc(ui.private)}</span>`;
-      // Title row: creation date only (updated date lives in the article body)
-      const created = esc(formatBlogDate(b.created_at, lang));
       return `<li>
-        <a class="blog-item" href="/blog/edit.html?id=${encodeURIComponent(b.id)}">
+        <a class="blog-item" href="/blog/edit.html?id=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
           <div class="blog-item-title">${esc(b.title || "(untitled)")}</div>
-          <div class="blog-item-meta"><span>${created}</span>${vis}</div>
+          <div class="blog-item-meta"><span>${esc(formatDate(b.created_at))}</span>${vis}</div>
         </a>
       </li>`;
     })
     .join("");
+
+  list.querySelectorAll("a.blog-item").forEach((a) => {
+    const warm = () => prefetchDoc(a.dataset.id, userId);
+    a.addEventListener("pointerdown", warm, { passive: true });
+    a.addEventListener("mouseenter", warm, { passive: true });
+  });
 }
 
 function applyI18n() {
@@ -136,38 +185,6 @@ function applyI18n() {
   document.getElementById("loginBtn").textContent = ui.loginBtn;
   document.getElementById("newBtn").textContent = ui.newPost;
   document.title = `${ui.title} | 1024201`;
-}
-
-async function boot() {
-  mountLangTabs(document.getElementById("langSlot"), {
-    onChange: () => {
-      applyI18n();
-      bootContent();
-    },
-  });
-  applyI18n();
-  await bootContent();
-}
-
-const LIST_CACHE_KEY = "blog_mine_cache";
-
-function readListCache() {
-  try {
-    const raw = sessionStorage.getItem(LIST_CACHE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    return Array.isArray(data?.blogs) ? data.blogs : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeListCache(blogs) {
-  try {
-    sessionStorage.setItem(LIST_CACHE_KEY, JSON.stringify({ blogs, t: Date.now() }));
-  } catch {
-    /* ignore */
-  }
 }
 
 async function bootContent() {
@@ -192,27 +209,18 @@ async function bootContent() {
   toolbar.hidden = false;
   userLine.hidden = false;
   userLine.textContent = `@${user.username || user.email || user.id}`;
+  document.getElementById("newBtn").onclick = () => location.assign("/blog/edit.html");
 
-  document.getElementById("newBtn").onclick = () => {
-    location.assign("/blog/edit.html");
-  };
-
-  // Paint cached list instantly, then refresh — publish → list feels instant
-  const cached = readListCache();
-  if (cached) paintList(cached);
+  const cached = readListCache(user.id);
+  if (cached) paintList(cached, user.id);
 
   try {
-    const data = await api("mine");
+    const data = await apiMine(user.id);
     const blogs = data.blogs || [];
-    writeListCache(blogs);
-    paintList(blogs);
-    try {
-      sessionStorage.removeItem("blog_list_dirty");
-    } catch {
-      /* ignore */
-    }
+    writeListCache(user.id, blogs);
+    paintList(blogs, user.id);
   } catch (e) {
-    if (e.data?.needLogin) {
+    if (e.data?.needLogin || e.status === 403) {
       loginPanel.hidden = false;
       listWrap.hidden = true;
       toolbar.hidden = true;
@@ -220,6 +228,17 @@ async function bootContent() {
     }
     if (!cached) showErr(e.message || t().err);
   }
+}
+
+function boot() {
+  mountLangTabs(document.getElementById("langSlot"), {
+    onChange: () => {
+      applyI18n();
+      bootContent();
+    },
+  });
+  applyI18n();
+  bootContent();
 }
 
 boot();

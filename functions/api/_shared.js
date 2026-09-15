@@ -33,7 +33,9 @@ async function ensureColumn(db, table, column, alterSql) {
   await db.prepare(alterSql).run();
 }
 
-export async function ensureAppSchema(db) {
+let appSchemaJob = null;
+
+async function ensureAppSchemaInner(db) {
   await ensureColumn(db, "stories", "game_id", "ALTER TABLE stories ADD COLUMN game_id TEXT NOT NULL DEFAULT 'osn'");
   await ensureColumn(db, "stories", "chapters_json", "ALTER TABLE stories ADD COLUMN chapters_json TEXT");
   await ensureColumn(db, "stories", "writing_state_json", "ALTER TABLE stories ADD COLUMN writing_state_json TEXT");
@@ -127,6 +129,17 @@ export async function ensureAppSchema(db) {
   await ensureAddressSchema(db);
 }
 
+/** Once per Worker isolate — do not re-run migrations on every API hit. */
+export async function ensureAppSchema(db) {
+  if (!appSchemaJob) {
+    appSchemaJob = ensureAppSchemaInner(db).catch((err) => {
+      appSchemaJob = null;
+      throw err;
+    });
+  }
+  return appSchemaJob;
+}
+
 async function ensureCliTokenSchema(db) {
   await db
     .prepare(
@@ -184,7 +197,8 @@ export async function resolveUserId(request, env, url, body) {
     const token = auth.slice(7).trim();
     if (token) {
       const db = requireDb(env);
-      await ensureAppSchema(db);
+      // Token table is tiny — avoid full app schema migration on every call
+      await ensureCliTokenSchema(db);
       const userId = await verifyCliToken(db, token);
       if (userId) return userId;
     }
