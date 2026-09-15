@@ -17,6 +17,26 @@ html.blog-page body {
   color: var(--blog-text);
 }
 
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.18s;
+}
+
+.blog-view[hidden] {
+  display: none !important;
+}
+
+.feature-back {
+  appearance: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 .blog-page .feature-shell {
   height: auto;
   max-height: none;

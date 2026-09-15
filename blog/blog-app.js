@@ -1,0 +1,708 @@
+import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
+import { getUser } from "/game/js/store.js";
+
+const MAX_IMAGES = 12;
+const MAX_MB = 5;
+const LIST_KEY = "blog_mine_v2";
+const DOC_PREFIX = "blog_doc_v2:";
+
+const UI = {
+  en: {
+    title: "Blog",
+    sub: "Image & text posts. Drafts stay private until you publish.",
+    back: "Portal",
+    loginDesc: "Sign in to write and manage your blog.",
+    loginBtn: "Sign in / Register",
+    newPost: "New post",
+    empty: "No posts yet. Create your first one.",
+    public: "Public",
+    private: "Private",
+    draft: "Draft",
+    err: "Failed to load",
+    titleNew: "New post",
+    titleEdit: "Edit post",
+    editBack: "Blog",
+    editSub: "Save draft anytime. Publish formats content as clean Markdown.",
+    lblTitle: "Title",
+    lblVis: "Visibility",
+    visPrivate: "Private (only you)",
+    visPublic: "Public (URL share + likes)",
+    visHint: "Visibility can only be set while creating or editing.",
+    lblBody: "Content",
+    bodyPh: "Write freely. On publish it becomes clean Markdown layout.",
+    lblImages: "Images",
+    addImg: "Add image",
+    imgHint: `JPEG/PNG/WebP/GIF · max ${MAX_MB}MB each · up to ${MAX_IMAGES}`,
+    draftBtn: "Save draft",
+    publish: "Publish",
+    delete: "Delete",
+    deleteConfirm: "Delete this post permanently?",
+    saved: "Draft saved",
+    titleRequired: "Title is required to publish",
+    bodyRequired: "Content is required to publish",
+    tooMany: "Too many images",
+    tooLarge: "Image too large",
+  },
+  zh: {
+    title: "博客",
+    sub: "图文博客。草稿默认不公开，发布后按展现状态决定是否可访问。",
+    back: "门户",
+    loginDesc: "登录后可写博客、管理已发布内容。",
+    loginBtn: "登录 / 注册",
+    newPost: "新建博客",
+    empty: "还没有博客，写一篇吧。",
+    public: "展现",
+    private: "自己看",
+    draft: "草稿",
+    err: "加载失败",
+    titleNew: "新建博客",
+    titleEdit: "编辑博客",
+    editBack: "博客列表",
+    editSub: "可随时存草稿；发布时会自动整理成干净的 Markdown 排版。",
+    lblTitle: "标题",
+    lblVis: "展现状态",
+    visPrivate: "自己看（外网搜不到）",
+    visPublic: "展现（URL 可访问并点赞）",
+    visHint: "展现状态仅在新建或编辑时可选择。",
+    lblBody: "正文",
+    bodyPh: "随意写。发布后会自动变成扁平、整齐的 Markdown 页面。",
+    lblImages: "图片",
+    addImg: "添加图片",
+    imgHint: `JPEG/PNG/WebP/GIF · 单张 ≤ ${MAX_MB}MB · 最多 ${MAX_IMAGES} 张`,
+    draftBtn: "存草稿",
+    publish: "发布",
+    delete: "删除",
+    deleteConfirm: "确定永久删除这篇博客？",
+    saved: "草稿已保存",
+    titleRequired: "发布需要标题",
+    bodyRequired: "发布需要正文",
+    tooMany: "图片数量过多",
+    tooLarge: "图片太大",
+  },
+  ja: {
+    title: "ブログ",
+    sub: "画像とテキストのブログ。下書きは非公開、公開後は表示設定に従います。",
+    back: "ポータル",
+    loginDesc: "ログインしてブログを作成・管理。",
+    loginBtn: "ログイン / 登録",
+    newPost: "新規作成",
+    empty: "まだ投稿がありません。",
+    public: "公開",
+    private: "非公開",
+    draft: "下書き",
+    err: "読み込みに失敗しました",
+    titleNew: "新規ブログ",
+    titleEdit: "ブログ編集",
+    editBack: "一覧",
+    editSub: "下書き保存可。公開時に Markdown へ整えます。",
+    lblTitle: "タイトル",
+    lblVis: "表示状態",
+    visPrivate: "非公開（自分だけ）",
+    visPublic: "公開（URL共有・いいね）",
+    visHint: "表示状態は作成・編集時のみ選べます。",
+    lblBody: "本文",
+    bodyPh: "自由に書いてください。公開時に整った Markdown になります。",
+    lblImages: "画像",
+    addImg: "画像を追加",
+    imgHint: `JPEG/PNG/WebP/GIF · 各 ${MAX_MB}MB まで · 最大 ${MAX_IMAGES}`,
+    draftBtn: "下書き保存",
+    publish: "公開",
+    delete: "削除",
+    deleteConfirm: "このブログを完全に削除しますか？",
+    saved: "下書きを保存しました",
+    titleRequired: "公開にはタイトルが必要です",
+    bodyRequired: "公開には本文が必要です",
+    tooMany: "画像が多すぎます",
+    tooLarge: "画像が大きすぎます",
+  },
+};
+
+let blogId = "";
+let imageIds = [];
+let listFingerprint = "";
+let wired = false;
+
+function t() {
+  return UI[getPortalLang()] || UI.en;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatDate(raw) {
+  if (!raw) return "";
+  const d = new Date(String(raw).includes("T") ? raw : `${String(raw).replace(" ", "T")}Z`);
+  if (Number.isNaN(d.getTime())) return String(raw).slice(0, 10);
+  const lang = getPortalLang();
+  const locale = lang === "ja" ? "ja-JP" : lang === "en" ? "en-US" : "zh-CN";
+  return d.toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function showErr(msg, boxId = "errBox") {
+  const el = document.getElementById(boxId);
+  if (!el) return;
+  if (!msg) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  el.hidden = false;
+  el.textContent = msg;
+}
+
+function listCacheKey(userId) {
+  return `${LIST_KEY}:${userId}`;
+}
+
+function readListCache(userId) {
+  try {
+    const raw = localStorage.getItem(listCacheKey(userId));
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return Array.isArray(data?.blogs) ? data.blogs : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeListCache(userId, blogs) {
+  try {
+    localStorage.setItem(listCacheKey(userId), JSON.stringify({ blogs, t: Date.now() }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function writeDocCache(blog) {
+  if (!blog?.id) return;
+  try {
+    sessionStorage.setItem(DOC_PREFIX + blog.id, JSON.stringify(blog));
+  } catch {
+    /* ignore */
+  }
+}
+
+function readDocCache(id) {
+  try {
+    const raw = sessionStorage.getItem(DOC_PREFIX + id);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function fileUrl(id) {
+  return `/api/portal?action=file_get&id=${encodeURIComponent(id)}`;
+}
+
+async function api(action, opts = {}) {
+  const user = getUser();
+  const qs = new URLSearchParams({ action });
+  if (user?.id) qs.set("user_id", String(user.id));
+  if (opts.query) {
+    for (const [k, v] of Object.entries(opts.query)) {
+      if (v != null && v !== "") qs.set(k, String(v));
+    }
+  }
+  const res = await fetch(`/api/blog?${qs}`, {
+    method: opts.method || "GET",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: opts.body ? JSON.stringify({ ...opts.body, user_id: user?.id }) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || t().err);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+function runViewSwap(fn) {
+  if (document.startViewTransition) {
+    document.startViewTransition(fn);
+  } else {
+    fn();
+  }
+}
+
+function showList() {
+  document.getElementById("listView").hidden = false;
+  document.getElementById("editView").hidden = true;
+  document.title = `${t().title} | 1024201`;
+}
+
+function showEditor() {
+  document.getElementById("listView").hidden = true;
+  document.getElementById("editView").hidden = false;
+}
+
+function goList({ replace = false } = {}) {
+  runViewSwap(() => {
+    blogId = "";
+    imageIds = [];
+    showList();
+    if (replace) history.replaceState({ view: "list" }, "", "/blog/");
+    else history.pushState({ view: "list" }, "", "/blog/");
+  });
+}
+
+function goEdit(id, { replace = false } = {}) {
+  const nextId = id || "";
+  runViewSwap(() => {
+    blogId = nextId;
+    showEditor();
+    applyEditI18n();
+    const url = nextId ? `/blog/?id=${encodeURIComponent(nextId)}` : "/blog/?new=1";
+    if (replace) history.replaceState({ view: "edit", id: nextId }, "", url);
+    else history.pushState({ view: "edit", id: nextId }, "", url);
+  });
+  openEditor(nextId);
+}
+
+function bindListNav(userId) {
+  const list = document.getElementById("blogList");
+  list.querySelectorAll("a.blog-item").forEach((a) => {
+    if (a.dataset.softBound === "1") return;
+    a.dataset.softBound = "1";
+    const warm = () => prefetchDoc(a.dataset.id, userId);
+    a.addEventListener("pointerdown", warm, { passive: true });
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      warm();
+      goEdit(a.dataset.id);
+    });
+  });
+}
+
+function listFp(blogs) {
+  return JSON.stringify((blogs || []).map((b) => [b.id, b.title, b.status, b.visibility, b.created_at]));
+}
+
+function paintList(blogs, userId) {
+  const fp = listFp(blogs);
+  if (fp === listFingerprint) {
+    bindListNav(userId);
+    return; // skip identical re-render flash
+  }
+  listFingerprint = fp;
+
+  const list = document.getElementById("blogList");
+  const empty = document.getElementById("emptyBox");
+  const ui = t();
+
+  if (!blogs.length) {
+    list.innerHTML = "";
+    empty.hidden = false;
+    empty.textContent = ui.empty;
+    return;
+  }
+  empty.hidden = true;
+  list.innerHTML = blogs
+    .map((b) => {
+      const vis =
+        b.status === "draft"
+          ? `<span class="blog-pill draft">${esc(ui.draft)}</span>`
+          : b.visibility === "public"
+            ? `<span class="blog-pill public">${esc(ui.public)}</span>`
+            : `<span class="blog-pill private">${esc(ui.private)}</span>`;
+      return `<li>
+        <a class="blog-item" href="/blog/?id=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
+          <div class="blog-item-title">${esc(b.title || "(untitled)")}</div>
+          <div class="blog-item-meta"><span>${esc(formatDate(b.created_at))}</span>${vis}</div>
+        </a>
+      </li>`;
+    })
+    .join("");
+
+  bindListNav(userId);
+}
+
+function prefetchDoc(id, userId) {
+  if (!id || !userId) return;
+  try {
+    if (sessionStorage.getItem(DOC_PREFIX + id)) return;
+  } catch {
+    /* ignore */
+  }
+  api("get", { query: { id } })
+    .then((data) => writeDocCache(data))
+    .catch(() => {});
+}
+
+function paintThumbs() {
+  const grid = document.getElementById("thumbGrid");
+  grid.innerHTML = imageIds
+    .map(
+      (id) => `<div class="blog-thumb" data-id="${id}">
+        <img src="${fileUrl(id)}" alt="" />
+        <button type="button" aria-label="Remove">×</button>
+      </div>`
+    )
+    .join("");
+  grid.querySelectorAll("button").forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.closest(".blog-thumb")?.dataset.id;
+      imageIds = imageIds.filter((x) => x !== id);
+      paintThumbs();
+    };
+  });
+}
+
+function fillForm(data) {
+  document.getElementById("titleIn").value = data?.title || "";
+  document.getElementById("bodyIn").value = data?.body_md || "";
+  const vis = data?.visibility === "public" ? "public" : "private";
+  document.querySelector(`input[name="vis"][value="${vis}"]`).checked = true;
+  imageIds = Array.isArray(data?.images) ? data.images.slice() : [];
+  document.getElementById("deleteBtn").hidden = !blogId;
+  requestAnimationFrame(() => paintThumbs());
+}
+
+function resetForm() {
+  fillForm({ title: "", body_md: "", visibility: "private", images: [] });
+  document.getElementById("deleteBtn").hidden = true;
+  showErr("", "editErrBox");
+}
+
+async function openEditor(id) {
+  showErr("", "editErrBox");
+  if (!id) {
+    resetForm();
+    applyEditI18n();
+    return;
+  }
+  let cached = readDocCache(id);
+  if (cached) {
+    fillForm(cached);
+  } else {
+    // Instant title/visibility from list cache — no empty→content flash
+    const user = getUser();
+    const stub = (readListCache(user?.id) || []).find((b) => b.id === id);
+    if (stub) {
+      fillForm({
+        title: stub.title || "",
+        body_md: "",
+        visibility: stub.visibility === "public" ? "public" : "private",
+        images: [],
+      });
+    }
+  }
+  try {
+    const data = await api("get", { query: { id } });
+    if (!data.is_owner) throw new Error(t().err);
+    // Only refill if changed — avoids caret/scroll jump flash
+    const same =
+      cached &&
+      cached.title === data.title &&
+      cached.body_md === data.body_md &&
+      cached.visibility === data.visibility &&
+      JSON.stringify(cached.images || []) === JSON.stringify(data.images || []);
+    if (!same) fillForm(data);
+    writeDocCache(data);
+    cached = data;
+  } catch (e) {
+    if (!readDocCache(id) && !document.getElementById("titleIn").value) {
+      showErr(e.message || t().err, "editErrBox");
+    }
+  }
+  applyEditI18n();
+}
+
+function applyListI18n() {
+  const ui = t();
+  document.getElementById("pageTitle").textContent = ui.title;
+  document.getElementById("pageSub").textContent = ui.sub;
+  document.getElementById("backLink").textContent = ui.back;
+  document.getElementById("loginDesc").textContent = ui.loginDesc;
+  document.getElementById("loginBtn").textContent = ui.loginBtn;
+  document.getElementById("newBtn").textContent = ui.newPost;
+}
+
+function applyEditI18n() {
+  const ui = t();
+  document.getElementById("editPageTitle").textContent = blogId ? ui.titleEdit : ui.titleNew;
+  document.getElementById("editPageSub").textContent = ui.editSub;
+  document.getElementById("editBackBtn").textContent = ui.editBack;
+  document.getElementById("lblTitle").textContent = ui.lblTitle;
+  document.getElementById("lblVis").textContent = ui.lblVis;
+  document.getElementById("visPrivate").textContent = ui.visPrivate;
+  document.getElementById("visPublic").textContent = ui.visPublic;
+  document.getElementById("visHint").textContent = ui.visHint;
+  document.getElementById("lblBody").textContent = ui.lblBody;
+  document.getElementById("bodyIn").placeholder = ui.bodyPh;
+  document.getElementById("lblImages").textContent = ui.lblImages;
+  document.getElementById("addImgBtn").textContent = ui.addImg;
+  document.getElementById("imgHint").textContent = ui.imgHint;
+  document.getElementById("draftBtn").textContent = ui.draftBtn;
+  document.getElementById("publishBtn").textContent = ui.publish;
+  document.getElementById("deleteBtn").textContent = ui.delete;
+  document.title = `${blogId ? ui.titleEdit : ui.titleNew} | 1024201`;
+}
+
+function insertImageMarkdown(id) {
+  const ta = document.getElementById("bodyIn");
+  const snippet = `\n\n![](${fileUrl(id)})\n\n`;
+  const start = ta.selectionStart ?? ta.value.length;
+  const end = ta.selectionEnd ?? ta.value.length;
+  ta.value = `${ta.value.slice(0, start)}${snippet}${ta.value.slice(end)}`;
+  ta.focus();
+}
+
+async function uploadImages(files) {
+  const user = getUser();
+  const ui = t();
+  for (const file of files) {
+    if (imageIds.length >= MAX_IMAGES) {
+      showErr(ui.tooMany, "editErrBox");
+      break;
+    }
+    if (!String(file.type || "").startsWith("image/")) continue;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      showErr(ui.tooLarge, "editErrBox");
+      continue;
+    }
+    const qs = new URLSearchParams({
+      action: "file_upload",
+      purpose: "blog",
+      user_id: String(user.id),
+    });
+    const fd = new FormData();
+    fd.append("file", file, file.name || "image.jpg");
+    const res = await fetch(`/api/portal?${qs}`, { method: "POST", body: fd });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ui.err);
+    const id = data.file?.id;
+    if (id) {
+      imageIds.push(id);
+      insertImageMarkdown(id);
+    }
+  }
+  paintThumbs();
+}
+
+async function save(mode) {
+  const ui = t();
+  const title = document.getElementById("titleIn").value.trim();
+  const body_md = document.getElementById("bodyIn").value;
+  const visibility = document.querySelector('input[name="vis"]:checked')?.value === "public" ? "public" : "private";
+
+  if (mode === "publish") {
+    if (!title) {
+      showErr(ui.titleRequired, "editErrBox");
+      return;
+    }
+    if (!body_md.trim()) {
+      showErr(ui.bodyRequired, "editErrBox");
+      return;
+    }
+  }
+
+  showErr("", "editErrBox");
+  const draftBtn = document.getElementById("draftBtn");
+  const publishBtn = document.getElementById("publishBtn");
+  draftBtn.disabled = true;
+  publishBtn.disabled = true;
+  try {
+    const data = await api("save", {
+      method: "POST",
+      body: { id: blogId || undefined, title, body_md, visibility, mode, images: imageIds },
+    });
+    blogId = data.blog?.id || blogId;
+    writeDocCache(data.blog);
+
+    const user = getUser();
+    let blogs = readListCache(user.id) || [];
+    blogs = blogs.filter((b) => b.id !== data.blog.id);
+    blogs.unshift({
+      id: data.blog.id,
+      title: data.blog.title,
+      visibility: data.blog.visibility,
+      status: data.blog.status,
+      created_at: data.blog.created_at,
+      updated_at: data.blog.updated_at,
+      like_count: data.blog.like_count || 0,
+    });
+    writeListCache(user.id, blogs);
+    listFingerprint = ""; // force list paint on return
+    paintList(blogs, user.id);
+
+    if (mode === "publish") {
+      goList({ replace: true });
+      return;
+    }
+
+    history.replaceState({ view: "edit", id: blogId }, "", `/blog/?id=${encodeURIComponent(blogId)}`);
+    document.getElementById("deleteBtn").hidden = false;
+    applyEditI18n();
+    const err = document.getElementById("editErrBox");
+    err.hidden = false;
+    err.className = "blog-hint";
+    err.style.color = "#1b7a3d";
+    err.textContent = ui.saved;
+  } catch (e) {
+    const err = document.getElementById("editErrBox");
+    err.className = "err";
+    err.style.color = "";
+    showErr(e.message || ui.err, "editErrBox");
+  } finally {
+    draftBtn.disabled = false;
+    publishBtn.disabled = false;
+  }
+}
+
+async function bootList() {
+  const user = getUser();
+  const loginPanel = document.getElementById("loginPanel");
+  const toolbar = document.getElementById("toolbar");
+  const userLine = document.getElementById("userLine");
+  showErr("");
+
+  if (!user?.id) {
+    loginPanel.hidden = false;
+    toolbar.hidden = true;
+    userLine.hidden = true;
+    document.getElementById("blogList").innerHTML = "";
+    document.getElementById("loginBtn").href = `/game/register/?return=${encodeURIComponent("/blog/")}`;
+    return;
+  }
+
+  loginPanel.hidden = true;
+  toolbar.hidden = false;
+  userLine.hidden = false;
+  userLine.textContent = `@${user.username || user.email || user.id}`;
+
+  const cached = readListCache(user.id);
+  if (cached) {
+    // Sync boot may have already painted — adopt fingerprint, don't wipe DOM
+    if (document.querySelector("#blogList .blog-item")) {
+      listFingerprint = listFp(cached);
+      bindListNav(user.id);
+    } else {
+      paintList(cached, user.id);
+    }
+  }
+
+  try {
+    const data = await api("mine");
+    const blogs = data.blogs || [];
+    writeListCache(user.id, blogs);
+    paintList(blogs, user.id);
+  } catch (e) {
+    if (e.data?.needLogin || e.status === 403) {
+      loginPanel.hidden = false;
+      toolbar.hidden = true;
+      return;
+    }
+    if (!cached) showErr(e.message || t().err);
+  }
+}
+
+function wireOnce() {
+  if (wired) return;
+  wired = true;
+
+  document.getElementById("newBtn").onclick = () => {
+    resetForm();
+    goEdit("");
+  };
+  document.getElementById("editBackBtn").onclick = () => goList();
+  document.getElementById("addImgBtn").onclick = () => document.getElementById("imgInput").click();
+  document.getElementById("imgInput").onchange = async (e) => {
+    const files = [...(e.target.files || [])];
+    e.target.value = "";
+    if (!files.length) return;
+    try {
+      showErr("", "editErrBox");
+      await uploadImages(files);
+    } catch (err) {
+      showErr(err.message || t().err, "editErrBox");
+    }
+  };
+  document.getElementById("draftBtn").onclick = () => save("draft");
+  document.getElementById("publishBtn").onclick = () => save("publish");
+  document.getElementById("deleteBtn").onclick = async () => {
+    if (!blogId) return;
+    if (!confirm(t().deleteConfirm)) return;
+    try {
+      await api("delete", { method: "POST", body: { id: blogId } });
+      const user = getUser();
+      const blogs = (readListCache(user.id) || []).filter((b) => b.id !== blogId);
+      writeListCache(user.id, blogs);
+      listFingerprint = "";
+      paintList(blogs, user.id);
+      try {
+        sessionStorage.removeItem(DOC_PREFIX + blogId);
+      } catch {
+        /* ignore */
+      }
+      goList({ replace: true });
+    } catch (e) {
+      showErr(e.message || t().err, "editErrBox");
+    }
+  };
+
+  window.addEventListener("popstate", () => {
+    const params = new URLSearchParams(location.search);
+    const id = (params.get("id") || "").trim();
+    const isNew = params.get("new") === "1";
+    if (id || isNew) {
+      blogId = id;
+      showEditor();
+      openEditor(id);
+    } else {
+      blogId = "";
+      showList();
+    }
+  });
+}
+
+function boot() {
+  window.__blogSoftNav = true;
+  mountLangTabs(document.getElementById("langSlot"), {
+    onChange: () => {
+      applyListI18n();
+      applyEditI18n();
+      bootList();
+    },
+  });
+  // Second lang slot in editor mirrors the same control host if empty
+  const editSlot = document.getElementById("editLangSlot");
+  if (editSlot && !editSlot.childElementCount) {
+    mountLangTabs(editSlot, {
+      onChange: () => {
+        applyListI18n();
+        applyEditI18n();
+      },
+    });
+  }
+
+  applyListI18n();
+  applyEditI18n();
+  wireOnce();
+
+  const params = new URLSearchParams(location.search);
+  const id = (params.get("id") || "").trim();
+  const isNew = params.get("new") === "1";
+
+  if (id || isNew) {
+    blogId = id;
+    showEditor();
+    openEditor(id);
+    history.replaceState({ view: "edit", id }, "", id ? `/blog/?id=${encodeURIComponent(id)}` : "/blog/?new=1");
+  } else {
+    showList();
+    history.replaceState({ view: "list" }, "", "/blog/");
+  }
+
+  bootList();
+  document.documentElement.classList.remove("blog-booting");
+}
+
+boot();

@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v68";
+const CACHE = "1042-pwa-v69";
 const SHELL = [
   "/",
   "/index.html",
@@ -7,8 +7,13 @@ const SHELL = [
   "/js/langTabs.css",
   "/js/langTabs.js",
   "/js/featurePage.css",
+  "/js/featurePage.css?v=2",
   "/js/edgeBack.js",
   "/game/css/userBar.css?v=6",
+  "/blog/",
+  "/blog/index.html",
+  "/blog/blog.css?v=3",
+  "/blog/blog-app.js?v=1",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
