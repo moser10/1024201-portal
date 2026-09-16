@@ -500,6 +500,7 @@ function applyListI18n() {
   document.getElementById("pageTitle").textContent = ui.title;
   document.getElementById("pageSub").textContent = ui.sub;
   document.getElementById("backLink").textContent = ui.back;
+  document.getElementById("backLink").href = "/";
   document.getElementById("loginDesc").textContent = ui.loginDesc;
   document.getElementById("loginBtn").textContent = ui.loginBtn;
   document.getElementById("newBtn").textContent = ui.newPost;

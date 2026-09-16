@@ -208,7 +208,9 @@ export async function resolveUserId(request, env, url, body) {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
-async function ensureSyncNoteSchema(db) {
+let syncNoteSchemaJob = null;
+
+async function ensureSyncNoteSchemaInner(db) {
   const { results } = await db.prepare("PRAGMA table_info(user_sync_notes)").all();
   const hasTable = results.length > 0;
   const hasSlot = results.some((r) => r.name === "slot");
@@ -249,6 +251,17 @@ async function ensureSyncNoteSchema(db) {
     await db.prepare("DROP TABLE user_sync_notes").run();
     await db.prepare("ALTER TABLE user_sync_notes_v2 RENAME TO user_sync_notes").run();
   }
+}
+
+/** Memoized — syncnote reads must not run the full app migration suite. */
+export async function ensureSyncNoteSchema(db) {
+  if (!syncNoteSchemaJob) {
+    syncNoteSchemaJob = ensureSyncNoteSchemaInner(db).catch((err) => {
+      syncNoteSchemaJob = null;
+      throw err;
+    });
+  }
+  return syncNoteSchemaJob;
 }
 
 export async function generateUniqueName(db, baseName, table, column) {

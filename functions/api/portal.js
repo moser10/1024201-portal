@@ -1,4 +1,4 @@
-import { corsHeaders, json, requireDb, ensureAppSchema, resolveUserId } from "./_shared.js";
+import { corsHeaders, json, requireDb, ensureAppSchema, ensureSyncNoteSchema, resolveUserId } from "./_shared.js";
 import { cleanLyricsText } from "./lyricsClean.js";
 import {
   handleFileUpload,
@@ -1109,7 +1109,7 @@ async function requireRegisteredUser(db, userId) {
 
 async function syncNoteGet(env, request, url) {
   const db = requireDb(env);
-  await ensureAppSchema(db);
+  await ensureSyncNoteSchema(db);
   await ensureFilesSchema(db);
   const userId = await resolveUserId(request, env, url);
   const auth = await requireRegisteredUser(db, userId);
@@ -1138,7 +1138,7 @@ function parseSlot(body, url) {
 
 async function syncNoteSave(env, request, url) {
   const db = requireDb(env);
-  await ensureAppSchema(db);
+  await ensureSyncNoteSchema(db);
   const body = await request.json().catch(() => ({}));
   const userId = await resolveUserId(request, env, url, body);
   const slot = parseSlot(body, url);
@@ -1166,7 +1166,7 @@ async function syncNoteSave(env, request, url) {
 
 async function syncNoteClear(env, request, url) {
   const db = requireDb(env);
-  await ensureAppSchema(db);
+  await ensureSyncNoteSchema(db);
   await ensureFilesSchema(db);
   const body = await request.json().catch(() => ({}));
   const userId = await resolveUserId(request, env, url, body);
@@ -1175,6 +1175,17 @@ async function syncNoteClear(env, request, url) {
   const auth = await requireRegisteredUser(db, userId);
   if (!auth.ok) return json(auth.body, auth.status);
   if (slot === 2) await clearSyncnoteFiles(env, db, userId, 2);
+  // Upsert empty row so concurrent stale saves lose on updated_at, then delete
+  await db
+    .prepare(
+      `INSERT INTO user_sync_notes (user_id, slot, content, updated_at)
+       VALUES (?, ?, '', datetime('now'))
+       ON CONFLICT(user_id, slot) DO UPDATE SET
+         content = '',
+         updated_at = excluded.updated_at`
+    )
+    .bind(userId, slot)
+    .run();
   await db.prepare("DELETE FROM user_sync_notes WHERE user_id = ? AND slot = ?").bind(userId, slot).run();
-  return json({ ok: true, slot });
+  return json({ ok: true, slot, cleared: true });
 }
