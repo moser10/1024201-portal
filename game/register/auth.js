@@ -5,7 +5,7 @@ import { mountAccountChrome } from "/js/accountChrome.js";
 const API = "";
 const CODE_WINDOW_MS = 60_000;
 const MAX_VERIFY_ATTEMPTS = 5;
-const DEFAULT_HOME = "/tools/";
+const DEFAULT_HOME = "/";
 
 async function api(path, options = {}) {
   const res = await fetch(`${API}${path}`, options.headers?.["Content-Type"] === undefined && options.body
@@ -53,7 +53,7 @@ function renderShell() {
   app.innerHTML = `
   <div class="auth-page">
     <div class="auth-top">
-      <a href="/game/" class="btn-secondary btn-small">返回游戏中心</a>
+      <a href="/" class="btn-secondary btn-small" id="authBackLink">返回门户</a>
       <div id="accountChrome"></div>
     </div>
   <div class="card">
@@ -82,12 +82,14 @@ function renderShell() {
       <button id="regBtn" class="btn-primary" disabled>注册</button>
     </div>
     <div id="panelLogin" class="panel">
-      <label>邮箱</label>
-      <input type="email" id="loginEmail">
-      <label>密码</label>
-      <input type="password" id="loginPass">
-      <button id="loginBtn" class="btn-primary">登录</button>
-      <button id="forgotBtn" class="btn-link">忘记密码？获取临时密码</button>
+      <form id="loginForm" autocomplete="on">
+        <label>邮箱</label>
+        <input type="email" id="loginEmail" autocomplete="username">
+        <label>密码</label>
+        <input type="password" id="loginPass" autocomplete="current-password">
+        <button type="submit" id="loginBtn" class="btn-primary">登录</button>
+      </form>
+      <button type="button" id="forgotBtn" class="btn-link">忘记密码？获取临时密码</button>
     </div>
   </div>
   </div>
@@ -103,8 +105,12 @@ function renderShell() {
   </div>`;
   mountAccountChrome(document.getElementById("accountChrome"), {
     variant: "game",
-    returnPath: returnTo.replace(/^\//, ""),
+    returnPath: returnTo.replace(/^\//, "") || "",
   });
+  const back = document.getElementById("authBackLink");
+  const dest = resolveDest();
+  back.href = dest;
+  back.textContent = dest === "/" || dest === "/index.html" ? "返回门户" : "返回";
 }
 
 function switchTab(name) {
@@ -184,6 +190,8 @@ function hideVerifyError() {
 function resolveDest() {
   const raw = (returnTo || "").trim();
   if (!raw || raw === "/game/register/" || raw.includes("/register")) return DEFAULT_HOME;
+  // Portal home (empty path / ".") → site root, not toolbox / game hub
+  if (raw === "/" || raw === "." || raw === "index.html" || raw === "/index.html") return "/";
   if (raw.startsWith("/")) return raw;
   return `/${raw}`;
 }
@@ -358,17 +366,20 @@ document.getElementById("verifyModal").addEventListener("click", (e) => {
 
 setInterval(syncRegBtn, 5000);
 
-document.getElementById("loginBtn").onclick = async () => {
+async function handleLoginSubmit(e) {
+  e?.preventDefault?.();
   try {
     const data = await authApi.login(
       document.getElementById("loginEmail").value.trim(),
       document.getElementById("loginPass").value
     );
     goAfterLogin(data.user);
-  } catch (e) {
-    alert(e.message);
+  } catch (err) {
+    alert(err.message);
   }
-};
+}
+
+document.getElementById("loginForm").addEventListener("submit", handleLoginSubmit);
 
 document.getElementById("forgotBtn").onclick = async () => {
   const email = document.getElementById("loginEmail").value.trim();

@@ -9,79 +9,85 @@ const DOC_PREFIX = "blog_doc_v2:";
 const UI = {
   en: {
     title: "Blog",
-    sub: "Image & text posts. Drafts stay private until you publish.",
+    sub: "Write and manage your posts.",
     back: "Portal",
     loginDesc: "Sign in to write and manage your blog.",
     loginBtn: "Sign in / Register",
     newPost: "New post",
     empty: "No posts yet. Create your first one.",
     public: "Public",
-    private: "Private",
+    private: "Hidden",
     draft: "Draft",
     err: "Failed to load",
+    loading: "Loading…",
     titleNew: "New post",
     titleEdit: "Edit post",
-    editBack: "Blog",
-    editSub: "Save draft anytime. Publish formats content as clean Markdown.",
+    editBack: "Back",
+    editSub: "A quiet place for your words and images.",
     lblTitle: "Title",
     lblVis: "Visibility",
-    visPrivate: "Private (only you)",
-    visPublic: "Public (URL share + likes)",
-    visHint: "Visibility can only be set while creating or editing.",
+    visPrivate: "Hidden",
+    visPrivateDesc: "Only you can see it",
+    visPublic: "Public",
+    visPublicDesc: "Anyone with the link",
     lblBody: "Content",
-    bodyPh: "Write freely. On publish it becomes clean Markdown layout.",
+    bodyPh: "Start writing…",
     lblImages: "Images",
     addImg: "Add image",
-    imgHint: `JPEG/PNG/WebP/GIF · max ${MAX_MB}MB each · up to ${MAX_IMAGES}`,
-    draftBtn: "Save draft",
+    imgHint: `JPEG/PNG/WebP/GIF · max ${MAX_MB}MB · up to ${MAX_IMAGES}`,
+    save: "Save",
     publish: "Publish",
+    cancel: "Back",
     delete: "Delete",
     deleteConfirm: "Delete this post permanently?",
-    saved: "Draft saved",
-    titleRequired: "Title is required to publish",
-    bodyRequired: "Content is required to publish",
+    saved: "Saved",
+    titleRequired: "Please add a title",
+    bodyRequired: "Please add some content",
     tooMany: "Too many images",
     tooLarge: "Image too large",
   },
   zh: {
     title: "博客",
-    sub: "图文博客。草稿默认不公开，发布后按展现状态决定是否可访问。",
+    sub: "记录图文，按需隐藏或展现。",
     back: "门户",
-    loginDesc: "登录后可写博客、管理已发布内容。",
+    loginDesc: "登录后可写博客、管理内容。",
     loginBtn: "登录 / 注册",
     newPost: "新建博客",
     empty: "还没有博客，写一篇吧。",
     public: "展现",
-    private: "自己看",
+    private: "隐藏",
     draft: "草稿",
     err: "加载失败",
+    loading: "加载中…",
     titleNew: "新建博客",
     titleEdit: "编辑博客",
-    editBack: "博客列表",
-    editSub: "可随时存草稿；发布时会自动整理成干净的 Markdown 排版。",
+    editBack: "返回",
+    editSub: "写下此刻想留下的文字与图片。",
     lblTitle: "标题",
-    lblVis: "展现状态",
-    visPrivate: "自己看（外网搜不到）",
-    visPublic: "展现（URL 可访问并点赞）",
-    visHint: "展现状态仅在新建或编辑时可选择。",
+    lblVis: "可见范围",
+    visPrivate: "隐藏",
+    visPrivateDesc: "仅自己可见",
+    visPublic: "展现",
+    visPublicDesc: "可通过链接访问",
     lblBody: "正文",
-    bodyPh: "随意写。发布后会自动变成扁平、整齐的 Markdown 页面。",
+    bodyPh: "在这里写下正文…",
     lblImages: "图片",
     addImg: "添加图片",
     imgHint: `JPEG/PNG/WebP/GIF · 单张 ≤ ${MAX_MB}MB · 最多 ${MAX_IMAGES} 张`,
-    draftBtn: "存草稿",
+    save: "保存",
     publish: "发布",
+    cancel: "返回",
     delete: "删除",
     deleteConfirm: "确定永久删除这篇博客？",
-    saved: "草稿已保存",
-    titleRequired: "发布需要标题",
-    bodyRequired: "发布需要正文",
+    saved: "已保存",
+    titleRequired: "请填写标题",
+    bodyRequired: "请填写正文",
     tooMany: "图片数量过多",
     tooLarge: "图片太大",
   },
   ja: {
     title: "ブログ",
-    sub: "画像とテキストのブログ。下書きは非公開、公開後は表示設定に従います。",
+    sub: "画像とテキストを記録。非公開／公開を選べます。",
     back: "ポータル",
     loginDesc: "ログインしてブログを作成・管理。",
     loginBtn: "ログイン / 登録",
@@ -91,27 +97,30 @@ const UI = {
     private: "非公開",
     draft: "下書き",
     err: "読み込みに失敗しました",
+    loading: "読み込み中…",
     titleNew: "新規ブログ",
     titleEdit: "ブログ編集",
-    editBack: "一覧",
-    editSub: "下書き保存可。公開時に Markdown へ整えます。",
+    editBack: "戻る",
+    editSub: "いま残したい言葉と画像を。",
     lblTitle: "タイトル",
-    lblVis: "表示状態",
-    visPrivate: "非公開（自分だけ）",
-    visPublic: "公開（URL共有・いいね）",
-    visHint: "表示状態は作成・編集時のみ選べます。",
+    lblVis: "公開範囲",
+    visPrivate: "非公開",
+    visPrivateDesc: "自分だけ",
+    visPublic: "公開",
+    visPublicDesc: "リンクで閲覧可",
     lblBody: "本文",
-    bodyPh: "自由に書いてください。公開時に整った Markdown になります。",
+    bodyPh: "本文を入力…",
     lblImages: "画像",
     addImg: "画像を追加",
     imgHint: `JPEG/PNG/WebP/GIF · 各 ${MAX_MB}MB まで · 最大 ${MAX_IMAGES}`,
-    draftBtn: "下書き保存",
+    save: "保存",
     publish: "公開",
+    cancel: "戻る",
     delete: "削除",
     deleteConfirm: "このブログを完全に削除しますか？",
-    saved: "下書きを保存しました",
-    titleRequired: "公開にはタイトルが必要です",
-    bodyRequired: "公開には本文が必要です",
+    saved: "保存しました",
+    titleRequired: "タイトルを入力してください",
+    bodyRequired: "本文を入力してください",
     tooMany: "画像が多すぎます",
     tooLarge: "画像が大きすぎます",
   },
@@ -121,6 +130,8 @@ let blogId = "";
 let imageIds = [];
 let listFingerprint = "";
 let wired = false;
+let editorLoadSeq = 0;
+const prefetchInflight = new Map();
 
 function t() {
   return UI[getPortalLang()] || UI.en;
@@ -149,10 +160,26 @@ function showErr(msg, boxId = "errBox") {
   if (!msg) {
     el.hidden = true;
     el.textContent = "";
+    el.className = boxId === "editErrBox" ? "err" : "err";
+    el.style.color = "";
     return;
   }
   el.hidden = false;
+  el.className = "err";
+  el.style.color = "";
   el.textContent = msg;
+}
+
+function setLoading(on) {
+  const el = document.getElementById("editLoading");
+  if (!el) return;
+  if (on) {
+    el.hidden = false;
+    el.textContent = t().loading;
+  } else {
+    el.hidden = true;
+    el.textContent = "";
+  }
 }
 
 function listCacheKey(userId) {
@@ -194,6 +221,10 @@ function readDocCache(id) {
   } catch {
     return null;
   }
+}
+
+function hasFullDoc(doc) {
+  return !!(doc && typeof doc.body_md === "string" && (doc.body_md.length > 0 || doc.title));
 }
 
 function fileUrl(id) {
@@ -243,10 +274,36 @@ function showEditor() {
   document.getElementById("editView").hidden = false;
 }
 
+function getVisibility() {
+  return document.getElementById("visValue")?.value === "public" ? "public" : "private";
+}
+
+function setVisibility(vis) {
+  const next = vis === "public" ? "public" : "private";
+  const input = document.getElementById("visValue");
+  if (input) input.value = next;
+  document.querySelectorAll(".blog-switch-opt").forEach((btn) => {
+    const on = btn.dataset.vis === next;
+    btn.classList.toggle("is-on", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  syncPrimaryBtn();
+}
+
+function syncPrimaryBtn() {
+  const btn = document.getElementById("primaryBtn");
+  if (!btn) return;
+  const ui = t();
+  const pub = getVisibility() === "public";
+  btn.textContent = pub ? ui.publish : ui.save;
+  btn.dataset.mode = pub ? "publish" : "draft";
+}
+
 function goList({ replace = false } = {}) {
   runViewSwap(() => {
     blogId = "";
     imageIds = [];
+    setLoading(false);
     showList();
     if (replace) history.replaceState({ view: "list" }, "", "/blog/");
     else history.pushState({ view: "list" }, "", "/blog/");
@@ -289,7 +346,8 @@ function paintList(blogs, userId) {
   const fp = listFp(blogs);
   if (fp === listFingerprint) {
     bindListNav(userId);
-    return; // skip identical re-render flash
+    warmListDocs(blogs, userId);
+    return;
   }
   listFingerprint = fp;
 
@@ -322,18 +380,28 @@ function paintList(blogs, userId) {
     .join("");
 
   bindListNav(userId);
+  warmListDocs(blogs, userId);
+}
+
+function warmListDocs(blogs, userId) {
+  if (!userId || !blogs?.length) return;
+  // Prefetch full bodies so opening a post is instant
+  blogs.slice(0, 12).forEach((b) => prefetchDoc(b.id, userId));
 }
 
 function prefetchDoc(id, userId) {
   if (!id || !userId) return;
-  try {
-    if (sessionStorage.getItem(DOC_PREFIX + id)) return;
-  } catch {
-    /* ignore */
-  }
-  api("get", { query: { id } })
-    .then((data) => writeDocCache(data))
-    .catch(() => {});
+  const cached = readDocCache(id);
+  if (cached && typeof cached.body_md === "string") return;
+  if (prefetchInflight.has(id)) return;
+  const p = api("get", { query: { id } })
+    .then((data) => {
+      writeDocCache(data);
+      return data;
+    })
+    .catch(() => null)
+    .finally(() => prefetchInflight.delete(id));
+  prefetchInflight.set(id, p);
 }
 
 function paintThumbs() {
@@ -358,8 +426,7 @@ function paintThumbs() {
 function fillForm(data) {
   document.getElementById("titleIn").value = data?.title || "";
   document.getElementById("bodyIn").value = data?.body_md || "";
-  const vis = data?.visibility === "public" ? "public" : "private";
-  document.querySelector(`input[name="vis"][value="${vis}"]`).checked = true;
+  setVisibility(data?.visibility === "public" ? "public" : "private");
   imageIds = Array.isArray(data?.images) ? data.images.slice() : [];
   document.getElementById("deleteBtn").hidden = !blogId;
   requestAnimationFrame(() => paintThumbs());
@@ -369,48 +436,61 @@ function resetForm() {
   fillForm({ title: "", body_md: "", visibility: "private", images: [] });
   document.getElementById("deleteBtn").hidden = true;
   showErr("", "editErrBox");
+  setLoading(false);
+}
+
+function sameDoc(a, b) {
+  if (!a || !b) return false;
+  return (
+    a.title === b.title &&
+    a.body_md === b.body_md &&
+    a.visibility === b.visibility &&
+    JSON.stringify(a.images || []) === JSON.stringify(b.images || [])
+  );
 }
 
 async function openEditor(id) {
+  const seq = ++editorLoadSeq;
   showErr("", "editErrBox");
   if (!id) {
     resetForm();
     applyEditI18n();
     return;
   }
+
   let cached = readDocCache(id);
-  if (cached) {
+  if (hasFullDoc(cached) || (cached && typeof cached.body_md === "string")) {
     fillForm(cached);
+    setLoading(false);
   } else {
-    // Instant title/visibility from list cache — no empty→content flash
     const user = getUser();
     const stub = (readListCache(user?.id) || []).find((b) => b.id === id);
     if (stub) {
       fillForm({
         title: stub.title || "",
-        body_md: "",
+        body_md: document.getElementById("bodyIn").value || "",
         visibility: stub.visibility === "public" ? "public" : "private",
         images: [],
       });
     }
+    setLoading(true);
   }
+
   try {
-    const data = await api("get", { query: { id } });
-    if (!data.is_owner) throw new Error(t().err);
-    // Only refill if changed — avoids caret/scroll jump flash
-    const same =
-      cached &&
-      cached.title === data.title &&
-      cached.body_md === data.body_md &&
-      cached.visibility === data.visibility &&
-      JSON.stringify(cached.images || []) === JSON.stringify(data.images || []);
-    if (!same) fillForm(data);
+    let data = null;
+    const pending = prefetchInflight.get(id);
+    if (pending) data = await pending;
+    if (!data) data = await api("get", { query: { id } });
+    if (seq !== editorLoadSeq) return;
+    if (data.is_owner === false) throw new Error(t().err);
+    if (!sameDoc(cached, data)) fillForm(data);
     writeDocCache(data);
-    cached = data;
   } catch (e) {
-    if (!readDocCache(id) && !document.getElementById("titleIn").value) {
-      showErr(e.message || t().err, "editErrBox");
-    }
+    if (seq !== editorLoadSeq) return;
+    const bodyEmpty = !document.getElementById("bodyIn").value.trim();
+    if (bodyEmpty) showErr(e.message || t().err, "editErrBox");
+  } finally {
+    if (seq === editorLoadSeq) setLoading(false);
   }
   applyEditI18n();
 }
@@ -430,19 +510,20 @@ function applyEditI18n() {
   document.getElementById("editPageTitle").textContent = blogId ? ui.titleEdit : ui.titleNew;
   document.getElementById("editPageSub").textContent = ui.editSub;
   document.getElementById("editBackBtn").textContent = ui.editBack;
+  document.getElementById("cancelBtn").textContent = ui.cancel;
   document.getElementById("lblTitle").textContent = ui.lblTitle;
   document.getElementById("lblVis").textContent = ui.lblVis;
   document.getElementById("visPrivate").textContent = ui.visPrivate;
+  document.getElementById("visPrivateDesc").textContent = ui.visPrivateDesc;
   document.getElementById("visPublic").textContent = ui.visPublic;
-  document.getElementById("visHint").textContent = ui.visHint;
+  document.getElementById("visPublicDesc").textContent = ui.visPublicDesc;
   document.getElementById("lblBody").textContent = ui.lblBody;
   document.getElementById("bodyIn").placeholder = ui.bodyPh;
   document.getElementById("lblImages").textContent = ui.lblImages;
   document.getElementById("addImgBtn").textContent = ui.addImg;
   document.getElementById("imgHint").textContent = ui.imgHint;
-  document.getElementById("draftBtn").textContent = ui.draftBtn;
-  document.getElementById("publishBtn").textContent = ui.publish;
   document.getElementById("deleteBtn").textContent = ui.delete;
+  syncPrimaryBtn();
   document.title = `${blogId ? ui.titleEdit : ui.titleNew} | 1024201`;
 }
 
@@ -491,7 +572,7 @@ async function save(mode) {
   const ui = t();
   const title = document.getElementById("titleIn").value.trim();
   const body_md = document.getElementById("bodyIn").value;
-  const visibility = document.querySelector('input[name="vis"]:checked')?.value === "public" ? "public" : "private";
+  const visibility = getVisibility();
 
   if (mode === "publish") {
     if (!title) {
@@ -505,10 +586,10 @@ async function save(mode) {
   }
 
   showErr("", "editErrBox");
-  const draftBtn = document.getElementById("draftBtn");
-  const publishBtn = document.getElementById("publishBtn");
-  draftBtn.disabled = true;
-  publishBtn.disabled = true;
+  const primaryBtn = document.getElementById("primaryBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
+  primaryBtn.disabled = true;
+  cancelBtn.disabled = true;
   try {
     const data = await api("save", {
       method: "POST",
@@ -530,7 +611,7 @@ async function save(mode) {
       like_count: data.blog.like_count || 0,
     });
     writeListCache(user.id, blogs);
-    listFingerprint = ""; // force list paint on return
+    listFingerprint = "";
     paintList(blogs, user.id);
 
     if (mode === "publish") {
@@ -547,14 +628,21 @@ async function save(mode) {
     err.style.color = "#1b7a3d";
     err.textContent = ui.saved;
   } catch (e) {
-    const err = document.getElementById("editErrBox");
-    err.className = "err";
-    err.style.color = "";
     showErr(e.message || ui.err, "editErrBox");
   } finally {
-    draftBtn.disabled = false;
-    publishBtn.disabled = false;
+    primaryBtn.disabled = false;
+    cancelBtn.disabled = false;
   }
+}
+
+function runPrimaryAction() {
+  const vis = getVisibility();
+  if (vis === "public") return save("publish");
+  // Hidden: keep as private published when content is ready; otherwise draft
+  const title = document.getElementById("titleIn").value.trim();
+  const body = document.getElementById("bodyIn").value.trim();
+  if (title && body) return save("publish");
+  return save("draft");
 }
 
 async function bootList() {
@@ -580,10 +668,10 @@ async function bootList() {
 
   const cached = readListCache(user.id);
   if (cached) {
-    // Sync boot may have already painted — adopt fingerprint, don't wipe DOM
     if (document.querySelector("#blogList .blog-item")) {
       listFingerprint = listFp(cached);
       bindListNav(user.id);
+      warmListDocs(cached, user.id);
     } else {
       paintList(cached, user.id);
     }
@@ -613,6 +701,7 @@ function wireOnce() {
     goEdit("");
   };
   document.getElementById("editBackBtn").onclick = () => goList();
+  document.getElementById("cancelBtn").onclick = () => goList();
   document.getElementById("addImgBtn").onclick = () => document.getElementById("imgInput").click();
   document.getElementById("imgInput").onchange = async (e) => {
     const files = [...(e.target.files || [])];
@@ -625,8 +714,10 @@ function wireOnce() {
       showErr(err.message || t().err, "editErrBox");
     }
   };
-  document.getElementById("draftBtn").onclick = () => save("draft");
-  document.getElementById("publishBtn").onclick = () => save("publish");
+  document.getElementById("primaryBtn").onclick = () => runPrimaryAction();
+  document.querySelectorAll(".blog-switch-opt").forEach((btn) => {
+    btn.onclick = () => setVisibility(btn.dataset.vis);
+  });
   document.getElementById("deleteBtn").onclick = async () => {
     if (!blogId) return;
     if (!confirm(t().deleteConfirm)) return;
@@ -672,7 +763,6 @@ function boot() {
       bootList();
     },
   });
-  // Second lang slot in editor mirrors the same control host if empty
   const editSlot = document.getElementById("editLangSlot");
   if (editSlot && !editSlot.childElementCount) {
     mountLangTabs(editSlot, {

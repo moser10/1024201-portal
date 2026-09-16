@@ -15,7 +15,7 @@
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css">
   <link rel="stylesheet" href="/js/featurePage.css?v=2">
-  <link rel="stylesheet" href="blog.css?v=3">
+  <link rel="stylesheet" href="blog.css?v=4">
 </head>
 <body class="feature-page blog-page" data-tool="blog">
   <div class="feature-shell">
@@ -63,14 +63,21 @@
             <input class="blog-input" id="titleIn" type="text" maxlength="200" autocomplete="off" />
 
             <span class="blog-label" id="lblVis">Visibility</span>
-            <div class="blog-vis" role="radiogroup">
-              <label><input type="radio" name="vis" value="private" checked> <span id="visPrivate">Private</span></label>
-              <label><input type="radio" name="vis" value="public"> <span id="visPublic">Public</span></label>
+            <div class="blog-switch" role="radiogroup" aria-labelledby="lblVis">
+              <button type="button" class="blog-switch-opt is-on" data-vis="private" id="visPrivateBtn" aria-pressed="true">
+                <span class="blog-switch-title" id="visPrivate">Hidden</span>
+                <span class="blog-switch-desc" id="visPrivateDesc">Only you</span>
+              </button>
+              <button type="button" class="blog-switch-opt" data-vis="public" id="visPublicBtn" aria-pressed="false">
+                <span class="blog-switch-title" id="visPublic">Public</span>
+                <span class="blog-switch-desc" id="visPublicDesc">Shareable link</span>
+              </button>
             </div>
-            <p class="blog-hint" id="visHint"></p>
+            <input type="hidden" id="visValue" value="private" />
 
             <label class="blog-label" id="lblBody" for="bodyIn">Content</label>
             <textarea class="blog-textarea" id="bodyIn" spellcheck="true"></textarea>
+            <p class="blog-loading" id="editLoading" hidden></p>
 
             <span class="blog-label" id="lblImages">Images</span>
             <div class="blog-img-tools">
@@ -81,8 +88,8 @@
             <div class="blog-thumbs" id="thumbGrid"></div>
 
             <div class="blog-actions">
-              <button type="button" class="btn-ghost" id="draftBtn">Save draft</button>
-              <button type="button" class="btn-primary" id="publishBtn">Publish</button>
+              <button type="button" class="btn-ghost" id="cancelBtn">Back</button>
+              <button type="button" class="btn-primary" id="primaryBtn">Save</button>
               <button type="button" class="btn-danger" id="deleteBtn" hidden>Delete</button>
             </div>
           </form>
@@ -128,7 +135,7 @@
             empty.hidden = true;
             list.innerHTML = blogs.map(function (b) {
               var pill = b.status === "draft" ? "draft" : b.visibility === "public" ? "public" : "private";
-              var lab = pill === "draft" ? "草稿" : pill === "public" ? "展现" : "自己看";
+              var lab = pill === "draft" ? "草稿" : pill === "public" ? "展现" : "隐藏";
               return '<li><a class="blog-item" href="/blog/?id=' + encodeURIComponent(b.id) + '" data-id="' + esc(b.id) + '">' +
                 '<div class="blog-item-title">' + esc(b.title || "(untitled)") + '</div>' +
                 '<div class="blog-item-meta"><span>' + esc(fmt(b.created_at)) + '</span>' +
@@ -149,8 +156,12 @@
             document.getElementById("titleIn").value = d.title || "";
             document.getElementById("bodyIn").value = d.body_md || "";
             var vis = d.visibility === "public" ? "public" : "private";
-            var radio = document.querySelector('input[name="vis"][value="' + vis + '"]');
-            if (radio) radio.checked = true;
+            document.getElementById("visValue").value = vis;
+            document.querySelectorAll(".blog-switch-opt").forEach(function (btn) {
+              var on = btn.getAttribute("data-vis") === vis;
+              btn.classList.toggle("is-on", on);
+              btn.setAttribute("aria-pressed", on ? "true" : "false");
+            });
           }
         } catch (e) {}
       }
@@ -198,7 +209,7 @@
       document.documentElement.classList.remove("blog-booting");
     })();
   </script>
-  <script type="module" src="blog-app.js?v=1"></script>
+  <script type="module" src="blog-app.js?v=2"></script>
   <script src="/js/edgeBack.js"></script>
 </body>
 </html>

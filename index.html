@@ -549,8 +549,8 @@
             applyI18n(lang);
             localStorage.setItem('portal_lang', lang);
             setLangActive(lang);
-            import('/game/js/userBar.js?v=7').then(({ mountUserBar }) => {
-                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '', showHint: true });
+            import('/game/js/userBar.js?v=8').then(({ mountUserBar }) => {
+                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '/', showHint: true });
             });
             updateClocks();
             fetch('/api/portal?action=geo').then((r) => r.json()).then((data) => {
@@ -624,15 +624,15 @@
 
         window.addEventListener('pageshow', () => {
             const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1));
-            import('/game/js/userBar.js?v=7').then(({ mountUserBar }) => {
-                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '', showHint: true });
+            import('/game/js/userBar.js?v=8').then(({ mountUserBar }) => {
+                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '/', showHint: true });
             });
             idle(() => loadDeviceLocation(), { timeout: 1200 });
         });
 
         // Warm blog shell so portal → blog paints without a blank reload flash
         (function warmBlogShell() {
-            const urls = ['/blog/', '/blog/blog.css?v=3', '/blog/blog-app.js?v=1', '/js/featurePage.css?v=2'];
+            const urls = ['/blog/', '/blog/blog.css?v=4', '/blog/blog-app.js?v=2', '/js/featurePage.css?v=2'];
             function prefetch(url) {
                 if (document.querySelector(`link[rel="prefetch"][href="${url}"], link[rel="modulepreload"][href="${url}"]`)) return;
                 const link = document.createElement('link');
