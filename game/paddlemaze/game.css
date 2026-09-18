@@ -214,7 +214,7 @@ canvas {
 }
 
 .resource-icon {
-  width: 31px;
+  width: 42px;
   height: 25px;
   padding: 3px;
   border-radius: 6px;
@@ -230,11 +230,8 @@ canvas {
   stroke-linejoin: round;
 }
 
-.resource-icon.paddle-up { color: #ff3b30; }
-.resource-icon.paddle-down { color: #bf5af2; }
-.resource-icon.balls-up { color: #30d158; }
-.resource-icon.balls-down { color: #0a84ff; }
-.resource-icon.reset { color: #ffd60a; }
+.resource-icon.paddle-native { color: #ff6b63; }
+.resource-icon.balls-native { color: #fff; width: 49px; }
 
 #startBtn {
   min-width: 150px;
@@ -261,6 +258,7 @@ canvas {
   .control-zone { min-height: 54px; height: 54px; }
   .control-zone { gap: 4px; }
   .resource-icons { gap: 1px; margin-left: 4px; padding-left: 6px; }
-  .resource-icon { width: 27px; height: 23px; }
+  .resource-icon { width: 34px; height: 23px; }
+  .resource-icon.balls-native { width: 41px; }
   .control-paddle { width: 42px; }
 }

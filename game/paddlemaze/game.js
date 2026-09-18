@@ -1,4 +1,4 @@
-import { buildLevelSpec } from "./levels.js";
+import { buildLevelSpec, mazeRingPlan } from "./levels.js";
 import { pickPower, targetBallCount, targetPaddleWidth } from "./resources.js";
 
 const canvas = document.getElementById("gameCanvas");
@@ -49,6 +49,7 @@ let hitsSinceDrop = 0;
 let initialDropInterval = 5;
 let dropsSinceBallMultiplier = 0;
 let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
+let paddleDrag = null;
 const keys = { left: false, right: false };
 
 function seeded(seed) {
@@ -102,7 +103,8 @@ function makeLevel(index) {
 function makeMazeWalls(cfg, field) {
   const result = [];
   const thick = 11;
-  const ringOffsets = [27, 65, 103];
+  const plan = mazeRingPlan(cfg.number - 1);
+  const ringOffsets = [27, 62, 97, 132].slice(0, plan.ringCount);
 
   const addHorizontalWithGates = (y, left, right, centers, gateWidth) => {
     let cursor = left;
@@ -123,13 +125,28 @@ function makeMazeWalls(cfg, field) {
     const top = field.y - offset;
     const bottom = field.y + field.h + offset;
     const sourceGate = cfg.gates[ring % cfg.gates.length];
-    const topCenter = W / 2 + sourceGate * (ring % 2 ? -0.72 : 0.58);
-    const bottomCenters = ring === 0
-      ? cfg.gates.map((gate) => W / 2 + gate)
-      : [W / 2 - sourceGate * (ring === 1 ? 0.85 : 0.52)];
-    const gateWidth = ring === 0 ? 48 : ring === 1 ? 58 : 68;
+    const nextGate = cfg.gates[(ring + 1) % cfg.gates.length];
+    const first = W / 2 + sourceGate * (ring % 2 ? -0.72 : 0.58);
+    const second = W / 2 - nextGate * 0.68 + (ring % 2 ? 54 : -54);
+    const third = W / 2 + ((cfg.number * 71 + ring * 97) % 340) - 170;
+    const gateWidth = 50 + ring * 6;
+    let topCenters = [];
+    let bottomCenters = [];
 
-    addHorizontalWithGates(top, left, right, [topCenter], gateWidth);
+    if (plan.openingsPerRing === 1) {
+      // Four rings: one deliberate entrance per layer, alternating top/bottom.
+      if (ring % 2 === 0) topCenters = [first];
+      else bottomCenters = [first];
+    } else if (plan.openingsPerRing === 2) {
+      topCenters = [first];
+      bottomCenters = [second];
+    } else {
+      // Two rings: more forgiving routes while the player learns the board.
+      topCenters = [first];
+      bottomCenters = [second, third];
+    }
+
+    addHorizontalWithGates(top, left, right, topCenters, gateWidth);
     addHorizontalWithGates(bottom, left, right, bottomCenters, gateWidth);
     result.push({ x: left, y: top, w: thick, h: bottom - top + thick });
     result.push({ x: right - thick, y: top, w: thick, h: bottom - top + thick });
@@ -607,27 +624,41 @@ function togglePause() {
   }
 }
 
-function movePaddle(clientX, source = canvas) {
+function beginPaddleDrag(e, source) {
   const rect = source.getBoundingClientRect();
-  const x = ((clientX - rect.left) / rect.width) * W;
-  paddle.x = Math.max(0, Math.min(W - paddle.w, x - paddle.w / 2));
+  paddleDrag = {
+    pointerId: e.pointerId,
+    startClientX: e.clientX,
+    startPaddleX: paddle.x,
+    scale: W / rect.width,
+  };
+  source.setPointerCapture?.(e.pointerId);
+}
+
+function continuePaddleDrag(e) {
+  if (!paddleDrag || e.pointerId !== paddleDrag.pointerId) return;
+  const delta = (e.clientX - paddleDrag.startClientX) * paddleDrag.scale;
+  paddle.x = Math.max(0, Math.min(W - paddle.w, paddleDrag.startPaddleX + delta));
+}
+
+function endPaddleDrag(e) {
+  if (!paddleDrag || e.pointerId !== paddleDrag.pointerId) return;
+  paddleDrag = null;
 }
 
 wrap.addEventListener("pointerdown", (e) => {
   if (e.target !== canvas) return;
-  wrap.setPointerCapture?.(e.pointerId);
-  movePaddle(e.clientX);
+  beginPaddleDrag(e, wrap);
 });
-wrap.addEventListener("pointermove", (e) => {
-  if (e.buttons || e.pointerType === "touch") movePaddle(e.clientX);
-});
+wrap.addEventListener("pointermove", continuePaddleDrag);
+wrap.addEventListener("pointerup", endPaddleDrag);
+wrap.addEventListener("pointercancel", endPaddleDrag);
 controlZone.addEventListener("pointerdown", (e) => {
-  controlZone.setPointerCapture?.(e.pointerId);
-  movePaddle(e.clientX, controlZone);
+  beginPaddleDrag(e, controlZone);
 });
-controlZone.addEventListener("pointermove", (e) => {
-  if (e.buttons || e.pointerType === "touch") movePaddle(e.clientX, controlZone);
-});
+controlZone.addEventListener("pointermove", continuePaddleDrag);
+controlZone.addEventListener("pointerup", endPaddleDrag);
+controlZone.addEventListener("pointercancel", endPaddleDrag);
 window.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft") keys.left = true;
   if (e.key === "ArrowRight") keys.right = true;

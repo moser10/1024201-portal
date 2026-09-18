@@ -29,6 +29,22 @@ export const LEVEL_BLUEPRINTS = [
   { rows: 9, cols: 15, shape: 23, gates: [-204, 56, 226], guides: [-1, 1, -1], bars: [[430, -126], [486, 218]] },
 ];
 
+// Sawtooth pacing: hard four-ring stages are followed by relief stages.
+const RING_PACING = Object.freeze([
+  2, 2, 3, 3, 4, 2, 3, 4,
+  3, 2, 3, 4, 4, 2, 3, 4,
+  3, 4, 2, 3, 4, 3, 4, 4,
+]);
+
+export function mazeRingPlan(index) {
+  const ringCount = RING_PACING[index];
+  if (!ringCount) throw new RangeError(`Unknown level ${index + 1}`);
+  return {
+    ringCount,
+    openingsPerRing: ringCount === 2 ? 3 : ringCount === 3 ? 2 : 1,
+  };
+}
+
 function baseShape(shape, row, col, rows, cols) {
   const cx = (cols - 1) / 2;
   const cy = (rows - 1) / 2;
