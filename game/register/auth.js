@@ -22,12 +22,18 @@ async function api(path, options = {}) {
 }
 
 const authApi = {
-  checkName: (username) =>
-    api("/api/auth?action=check", { method: "POST", body: JSON.stringify({ username }) }),
+  checkName: (username, email, inviteCode) =>
+    api("/api/auth?action=check", {
+      method: "POST",
+      body: JSON.stringify({ username, email, invite_code: inviteCode }),
+    }),
   checkEmail: (email) =>
     api("/api/auth?action=check_email", { method: "POST", body: JSON.stringify({ email }) }),
-  register: (email, username, password) =>
-    api("/api/auth?action=register", { method: "POST", body: JSON.stringify({ email, username, password }) }),
+  register: (email, username, password, inviteCode) =>
+    api("/api/auth?action=register", {
+      method: "POST",
+      body: JSON.stringify({ email, username, password, invite_code: inviteCode }),
+    }),
   verifyCode: (email, code) =>
     api("/api/auth?action=verify_code", { method: "POST", body: JSON.stringify({ email, code }) }),
   login: (email, password) =>
@@ -67,18 +73,20 @@ function renderShell() {
       <label>邮箱</label>
       <input type="email" id="regEmail" maxlength="80" autocomplete="email">
       <p id="regEmailHint" class="hint"></p>
-      <label>昵称（唯一）</label>
+      <label>昵称（唯一，至少 6 个字符）</label>
       <div class="row">
-        <input type="text" id="regName" maxlength="20">
+        <input type="text" id="regName" minlength="6" maxlength="20">
         <button type="button" id="regSuggest" class="btn-secondary" disabled>推荐</button>
       </div>
       <p id="regHint" class="hint"></p>
+      <label>邀请码（选填）</label>
+      <input type="text" id="regInvite" maxlength="64" autocomplete="one-time-code" placeholder="请输入邀请码">
       <label>密码</label>
       <input type="password" id="regPass" minlength="6">
       <label>确认密码</label>
       <input type="password" id="regPass2" minlength="6">
       <p id="regPassHint" class="hint"></p>
-      <p id="regSpamHint" class="hint spam-hint" hidden>若未收到邮件，请检查垃圾邮件或促销邮件文件夹，并将 admin@1024201.com 加入联系人后重试。</p>
+      <p id="regSpamHint" class="hint spam-hint" hidden>若未收到邮件，请检查垃圾邮件或促销邮件文件夹，并将 1024201@1024201.com 加入联系人后重试。</p>
       <button id="regBtn" class="btn-primary" disabled>注册</button>
     </div>
     <div id="panelLogin" class="panel">
@@ -198,12 +206,27 @@ function resolveDest() {
 
 function goAfterRegister(user) {
   setUser(user);
-  window.location.href = resolveDest();
+  finishAuthNavigation();
 }
 
 function goAfterLogin(user) {
   setUser(user);
-  window.location.href = resolveDest();
+  finishAuthNavigation();
+}
+
+function finishAuthNavigation() {
+  const dest = resolveDest();
+  try {
+    sessionStorage.setItem("portal_auth_redirect", dest);
+  } catch {
+    /* ignore */
+  }
+  app.innerHTML = `<div class="auth-page"><div class="card"><h1>登录成功</h1><p class="sub">正在进入门户…</p><a class="btn-primary" href="${dest}">继续</a></div></div>`;
+  // replace() avoids a broken standalone-PWA history entry on iOS Safari.
+  requestAnimationFrame(() => window.location.replace(new URL(dest, window.location.origin).href));
+  setTimeout(() => {
+    if (location.pathname.includes("/game/register")) window.location.assign(dest);
+  }, 900);
 }
 
 async function handleRegBtnClick() {
@@ -219,8 +242,9 @@ async function sendRegisterMail() {
   const email = document.getElementById("regEmail").value.trim();
   const name = document.getElementById("regName").value.trim();
   const pass = document.getElementById("regPass").value;
+  const inviteCode = document.getElementById("regInvite").value.trim();
   try {
-    const data = await authApi.register(email, name, pass);
+    const data = await authApi.register(email, name, pass, inviteCode);
     regLocked = false;
     verifyAttempts = data.verify_attempts || 0;
     mailSentAt = data.sent_at ? Date.parse(data.sent_at) : Date.now();
@@ -278,11 +302,20 @@ bindNameCheck({
   input: document.getElementById("regName"),
   btn: document.getElementById("regSuggest"),
   hint: document.getElementById("regHint"),
-  checkFn: authApi.checkName,
+  checkFn: (name) =>
+    authApi.checkName(
+      name,
+      document.getElementById("regEmail").value.trim(),
+      document.getElementById("regInvite").value.trim()
+    ),
   onStatus: (ok) => {
     nameOk = ok;
     syncRegBtn();
   },
+});
+
+document.getElementById("regInvite").addEventListener("input", () => {
+  document.getElementById("regName").dispatchEvent(new Event("input"));
 });
 
 const regEmail = document.getElementById("regEmail");

@@ -338,6 +338,26 @@ function panelSettings() {
     </div>
 
     <div class="card">
+      <h2>发送注册邀请码</h2>
+      <p class="panel-hint">邀请码仅限指定收件邮箱使用一次；特殊邀请码允许少于 6 个字符的昵称。</p>
+      <form class="form-grid" id="inviteForm" onsubmit="return false">
+        <div class="field">
+          <label for="inviteCode">邀请码</label>
+          <input id="inviteCode" type="text" maxlength="64" autocomplete="off" placeholder="手动填写邀请码">
+        </div>
+        <div class="field">
+          <label for="inviteEmail">收件邮箱</label>
+          <input id="inviteEmail" type="email" autocomplete="email" placeholder="name@example.com">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#3a3a3c">
+          <input id="inviteSpecial" type="checkbox" style="width:auto;margin:0">
+          特殊邀请码（允许短昵称）
+        </label>
+        <button type="button" class="btn" id="sendInviteBtn">发送邀请</button>
+      </form>
+    </div>
+
+    <div class="card">
       <h2>更改密码</h2>
       <form class="form-grid" id="pwForm" onsubmit="return false">
         <div class="field">
@@ -391,6 +411,7 @@ function bindDashboardEvents() {
 
   document.getElementById("savePwBtn")?.addEventListener("click", savePassword);
   document.getElementById("saveMailBtn")?.addEventListener("click", saveAdminMail);
+  document.getElementById("sendInviteBtn")?.addEventListener("click", sendInvitation);
 
   document.querySelectorAll(".del-user").forEach((btn) => {
     btn.onclick = async () => {
@@ -547,6 +568,34 @@ function bindDashboardEvents() {
       }
     };
   });
+}
+
+async function sendInvitation() {
+  const code = document.getElementById("inviteCode")?.value.trim() || "";
+  const email = document.getElementById("inviteEmail")?.value.trim() || "";
+  const is_special = !!document.getElementById("inviteSpecial")?.checked;
+  const btn = document.getElementById("sendInviteBtn");
+  if (!code || !email) {
+    toast("请填写邀请码和收件邮箱");
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "发送中…";
+  try {
+    await api("send_invitation", {
+      method: "POST",
+      body: JSON.stringify({ code, email, is_special }),
+    });
+    toast(`邀请码已通过 1024201 发送至 ${email}`);
+    document.getElementById("inviteCode").value = "";
+    document.getElementById("inviteEmail").value = "";
+    document.getElementById("inviteSpecial").checked = false;
+  } catch (e) {
+    toast(e.message || "发送失败");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "发送邀请";
+  }
 }
 
 async function saveAdminMail() {

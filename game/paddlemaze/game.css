@@ -109,8 +109,8 @@ body {
 .canvas-wrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 900 / 620;
-  max-height: calc(100dvh - 154px);
+  aspect-ratio: 900 / 1100;
+  min-height: min(72dvh, 760px);
   margin: auto;
   border: 1px solid #2e2e3d;
   border-radius: 12px;
@@ -168,6 +168,24 @@ canvas {
   line-height: 1.6;
 }
 
+.overlay p:empty { display: none; }
+
+.control-zone {
+  width: 100%;
+  min-height: clamp(90px, 16dvh, 180px);
+  border: 1px dashed #30303e;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: #686878;
+  background: #0d0d14;
+  font: 700 10px/1 Arial, sans-serif;
+  letter-spacing: .12em;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 #startBtn {
   min-width: 150px;
   border: 0;
@@ -196,6 +214,6 @@ canvas {
   .hud > div { padding: 6px 3px; gap: 4px; }
   .hud span { font-size: 9px; }
   .hud strong { font-size: 12px; }
-  .canvas-wrap { max-height: none; }
+  .canvas-wrap { min-height: 0; }
   .game-help { flex-direction: column; gap: 2px; }
 }

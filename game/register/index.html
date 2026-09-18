@@ -12,14 +12,28 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <title>注册账户</title>
-  <link rel="stylesheet" href="auth.css">
+  <style>html,body{background:#f2f2f7}#authBoot{max-width:420px;margin:24px auto;padding:24px 20px;border-radius:14px;background:#fff;color:#8e8e93;font:14px -apple-system,BlinkMacSystemFont,sans-serif;text-align:center}</style>
+  <link rel="stylesheet" href="auth.css?v=2">
   <link rel="stylesheet" href="/js/langTabs.css">
   <link rel="stylesheet" href="/js/accountChrome.css">
   <link rel="stylesheet" href="../css/userBar.css?v=7">
 </head>
 <body>
-  <div id="app"></div>
-  <script type="module" src="auth.js?v=11"></script>
+  <div id="app"><div id="authBoot">正在打开账户页面…</div></div>
+  <script>
+    // iOS home-screen recovery: never strand an already-authenticated user here.
+    (function () {
+      try {
+        var user = JSON.parse(localStorage.getItem("osn_user") || "null");
+        if (!user || !user.id) return;
+        var raw = new URLSearchParams(location.search).get("return") || "/";
+        var dest = raw.charAt(0) === "/" ? raw : "/" + raw;
+        if (dest.indexOf("/register") !== -1) dest = "/";
+        location.replace(dest);
+      } catch (_) {}
+    })();
+  </script>
+  <script type="module" src="auth.js?v=12"></script>
   <script src="/pwa.js" defer></script>
 </body>
 </html>

@@ -387,6 +387,56 @@ export async function onRequest(context) {
       return json({ success: true, emailSent, emailError, adminmail: mail });
     }
 
+    if (request.method === "POST" && action === "send_invitation") {
+      const body = await request.json().catch(() => ({}));
+      const code = String(body?.code || "").trim();
+      const email = String(body?.email || "").trim().toLowerCase();
+      const special = body?.is_special ? 1 : 0;
+      if (!code || code.length < 4 || code.length > 64) {
+        return json({ error: "邀请码长度需为 4–64 个字符" }, 400);
+      }
+      if (!EMAIL_RE.test(email)) return json({ error: "收件邮箱格式不正确" }, 400);
+      const exists = await db
+        .prepare("SELECT code, used_at FROM registration_invitations WHERE code = ?")
+        .bind(code)
+        .first();
+      if (exists) return json({ error: exists.used_at ? "该邀请码已使用" : "该邀请码已存在" }, 409);
+
+      await db
+        .prepare(
+          `INSERT INTO registration_invitations (code, email, is_special, created_by)
+           VALUES (?, ?, ?, ?)`
+        )
+        .bind(code, email, special, admin.username)
+        .run();
+      try {
+        await sendAdminMail(
+          env,
+          email,
+          "[邀请码] 1024201 [Invitation Code]",
+          `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.8;color:#1c1c1e">
+<p style="margin:0 0 14px;font-weight:600;color:#636366">中文</p>
+<p>你收到了一枚 1024201 注册邀请码：</p>
+<p style="margin:16px 0;padding:14px;background:#f5f5f7;border-radius:10px;text-align:center">
+  <strong style="font-size:20px;letter-spacing:2px">${escHtml(code)}</strong>
+</p>
+<p>请使用收件邮箱 <strong>${escHtml(email)}</strong> 注册。</p>
+<p style="margin:24px 0 14px;font-weight:600;color:#636366">English</p>
+<p>You have received a 1024201 invitation code:</p>
+<p style="margin:16px 0;padding:14px;background:#f5f5f7;border-radius:10px;text-align:center">
+  <strong style="font-size:20px;letter-spacing:2px">${escHtml(code)}</strong>
+</p>
+<p>Register with <strong>${escHtml(email)}</strong>.</p>
+<p style="margin-top:24px"><strong>1024201</strong></p>
+</div>`
+        );
+      } catch (error) {
+        await db.prepare("DELETE FROM registration_invitations WHERE code = ? AND used_at IS NULL").bind(code).run();
+        throw error;
+      }
+      return json({ success: true, code, email, is_special: !!special });
+    }
+
     if (request.method === "GET" && action === "overview") {
       const users = await db.prepare("SELECT COUNT(*) AS n FROM users").first();
       const rooms = await db

@@ -84,6 +84,24 @@ async function ensureAppSchemaInner(db) {
     "register_channel",
     "ALTER TABLE pending_registrations ADD COLUMN register_channel TEXT NOT NULL DEFAULT 'web'"
   );
+  await ensureColumn(
+    db,
+    "pending_registrations",
+    "invitation_code",
+    "ALTER TABLE pending_registrations ADD COLUMN invitation_code TEXT"
+  );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS registration_invitations (
+        code TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        is_special INTEGER NOT NULL DEFAULT 0,
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        used_at TEXT
+      )`
+    )
+    .run();
   await db.prepare("DELETE FROM pending_registrations WHERE expires_at <= datetime('now')").run();
   await db
     .prepare(

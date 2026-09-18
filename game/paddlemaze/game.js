@@ -3,6 +3,7 @@ import { buildLevelSpec } from "./levels.js";
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const wrap = document.getElementById("canvasWrap");
+const controlZone = document.getElementById("controlZone");
 const overlay = document.getElementById("overlay");
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
@@ -52,6 +53,9 @@ let fpsAverage = 60;
 let lowFpsFrames = 0;
 let reducedVisuals = false;
 let lastHapticAt = 0;
+let consecutiveHits = 0;
+let hitsSinceDrop = 0;
+let initialDropInterval = 5;
 let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
 const keys = { left: false, right: false };
 
@@ -66,7 +70,7 @@ function seeded(seed) {
 function makeLevel(index) {
   const cfg = buildLevelSpec(index);
   const rand = seeded(cfg.seed);
-  const field = { x: 142, y: 78, w: 616, h: 258 };
+  const field = { x: 142, y: 118, w: 616, h: 390 };
   const gap = 5;
   const brickW = (field.w - gap * (cfg.cols - 1)) / cfg.cols;
   const brickH = (field.h - gap * (cfg.rows - 1)) / cfg.rows;
@@ -87,11 +91,14 @@ function makeLevel(index) {
   }
 
   rebuildBrickBuckets();
+  consecutiveHits = 0;
+  hitsSinceDrop = 0;
+  initialDropInterval = bricks.length <= 60 ? 3 : bricks.length <= 90 ? 4 : 5;
   walls = makeMazeWalls(cfg, field);
   releaseAllBalls();
   releaseAllItems();
   releaseAllParticles();
-  paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
+  paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 58, w: INITIAL_PADDLE, h: 12 };
   activateBall(cfg.speed, null, true);
   updateHud();
   document.getElementById("levelText").textContent =
@@ -101,8 +108,13 @@ function makeLevel(index) {
 function makeMazeWalls(cfg, field) {
   const thick = 16;
   const bottomY = field.y + field.h + 17;
+  const topY = field.y - 24;
+  const topGateW = 58;
+  const rawTopCenter = W / 2 - cfg.gates[0] * 0.55;
+  const topGateX = Math.max(field.x + 35, Math.min(field.x + field.w - 35 - topGateW, rawTopCenter - topGateW / 2));
   const result = [
-    { x: field.x - 25, y: field.y - 24, w: field.w + 50, h: thick },
+    { x: field.x - 25, y: topY, w: topGateX - (field.x - 25), h: thick },
+    { x: topGateX + topGateW, y: topY, w: field.x + field.w + 25 - topGateX - topGateW, h: thick },
     { x: field.x - 25, y: field.y - 24, w: thick, h: field.h + 58 },
     { x: field.x + field.w + 9, y: field.y - 24, w: thick, h: field.h + 58 },
   ];
@@ -131,7 +143,8 @@ function makeMazeWalls(cfg, field) {
   if (cursor < right) result.push({ x: cursor, y: bottomY, w: right - cursor, h: thick });
 
   // Hand-curated bars make the lower maze topology unique for every level.
-  for (const [y, openingOffset] of cfg.bars) {
+  for (const [sourceY, openingOffset] of cfg.bars) {
+    const y = sourceY + 180;
     const openingX = W / 2 + openingOffset;
     result.push({ x: 90, y, w: Math.max(70, openingX - 90), h: 12 });
     result.push({ x: openingX + 80, y, w: Math.max(70, 810 - openingX - 80), h: 12 });
@@ -277,10 +290,9 @@ function bounceRect(ball, rect) {
 }
 
 function spawnPower(brick) {
-  if ((bricks.length + score + levelIndex) % 9 !== 0) return;
   const power = itemPool.find((entry) => !entry.active);
   if (!power) return;
-  const type = POWER_TYPES[(score / 10 + levelIndex * 3) % POWER_TYPES.length | 0];
+  const type = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)];
   Object.assign(power, type, {
     active: true,
     x: brick.x + brick.w / 2 - 20,
@@ -290,6 +302,18 @@ function spawnPower(brick) {
     vy: 105,
   });
   powers.push(power);
+}
+
+function registerBrickHit(brick) {
+  consecutiveHits++;
+  hitsSinceDrop++;
+  const interval =
+    consecutiveHits >= 27 ? 3 :
+      consecutiveHits >= 15 ? Math.min(4, initialDropInterval) :
+        initialDropInterval;
+  if (hitsSinceDrop < interval) return;
+  hitsSinceDrop = 0;
+  spawnPower(brick);
 }
 
 function applyPower(power) {
@@ -344,11 +368,11 @@ function moveBallStep(ball, dt) {
 
   const brick = hitNearbyBrick(ball);
   if (brick) {
+    registerBrickHit(brick);
     brick.hp--;
     score += brick.hp <= 0 ? 10 : 3;
     if (brick.hp <= 0) {
       removeBrick(brick); // immediately leaves spatial collision buckets
-      spawnPower(brick);
       spawnParticles(brick);
     }
   }
@@ -408,7 +432,7 @@ function update(dt) {
     releaseAllBalls();
     if (levelIndex + 1 >= TOTAL_LEVELS) {
       running = false;
-      showOverlay("全部通关", `最终得分 ${score}。24 个迷宫已全部清除。`, "再玩一次", "COMPLETE");
+      showOverlay("全部通关", `最终得分 ${score}。24 个迷宫已全部清除。`, "START", "COMPLETE");
       levelIndex = 0;
     } else {
       running = false;
@@ -416,7 +440,7 @@ function update(dt) {
       showOverlay(
         `LEVEL ${String(levelIndex).padStart(2, "0")} CLEAR`,
         "通道结构即将改变。准备进入下一层。",
-        "下一关",
+        "NEXT",
         `SCORE ${score}`
       );
     }
@@ -427,7 +451,7 @@ function update(dt) {
     showOverlay(
       "游戏结束",
       `接球失败。得分 ${score}，当前进度 LEVEL ${String(levelIndex + 1).padStart(2, "0")}。`,
-      "重新挑战",
+      "START",
       "NO BALLS LEFT"
     );
   }
@@ -566,15 +590,15 @@ function togglePause() {
   paused = !paused;
   pauseBtn.textContent = paused ? "▶" : "Ⅱ";
   if (paused) {
-    showOverlay("已暂停", "当前进度已保留。", "继续", `LEVEL ${String(levelIndex + 1).padStart(2, "0")}`);
+    showOverlay("已暂停", "当前进度已保留。", "RESUME", `LEVEL ${String(levelIndex + 1).padStart(2, "0")}`);
   } else {
     overlay.hidden = true;
     lastTime = performance.now();
   }
 }
 
-function movePaddle(clientX) {
-  const rect = canvas.getBoundingClientRect();
+function movePaddle(clientX, source = canvas) {
+  const rect = source.getBoundingClientRect();
   const x = ((clientX - rect.left) / rect.width) * W;
   paddle.x = Math.max(0, Math.min(W - paddle.w, x - paddle.w / 2));
 }
@@ -586,6 +610,13 @@ wrap.addEventListener("pointerdown", (e) => {
 });
 wrap.addEventListener("pointermove", (e) => {
   if (e.buttons || e.pointerType === "touch") movePaddle(e.clientX);
+});
+controlZone.addEventListener("pointerdown", (e) => {
+  controlZone.setPointerCapture?.(e.pointerId);
+  movePaddle(e.clientX, controlZone);
+});
+controlZone.addEventListener("pointermove", (e) => {
+  if (e.buttons || e.pointerType === "touch") movePaddle(e.clientX, controlZone);
 });
 window.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft") keys.left = true;
