@@ -17,7 +17,7 @@ const BALL_R = 7;
 const MAX_BALLS = 128;
 const MAX_ITEMS = 48;
 const BRICK_CELL = 64;
-const MIN_PADDLE = 30;
+const MIN_PADDLE = INITIAL_PADDLE;
 
 let levelIndex = 0;
 let score = 0;
@@ -47,6 +47,7 @@ let lastHapticAt = 0;
 let consecutiveHits = 0;
 let hitsSinceDrop = 0;
 let initialDropInterval = 5;
+let dropsSinceBallMultiplier = 0;
 let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
 const keys = { left: false, right: false };
 
@@ -71,9 +72,6 @@ function makeLevel(index) {
   bricks = [];
   for (let r = 0; r < fineRows; r++) {
     for (let c = 0; c < fineCols; c++) {
-      if (!cfg.mask[Math.floor(r / 2)][Math.floor(c / 2)]) continue;
-      // A few deterministic pinholes stop the dense 2× expansion looking tiled.
-      if ((r * 29 + c * 17 + cfg.number * 11) % 97 === 0) continue;
       bricks.push({
         x: field.x + c * (brickW + gap),
         y: field.y + r * (brickH + gap),
@@ -88,6 +86,7 @@ function makeLevel(index) {
   rebuildBrickBuckets();
   consecutiveHits = 0;
   hitsSinceDrop = 0;
+  dropsSinceBallMultiplier = 0;
   initialDropInterval = bricks.length <= 60 ? 3 : bricks.length <= 90 ? 4 : 5;
   walls = makeMazeWalls(cfg, field);
   releaseAllBalls();
@@ -101,48 +100,48 @@ function makeLevel(index) {
 }
 
 function makeMazeWalls(cfg, field) {
-  const thick = 16;
-  const bottomY = field.y + field.h + 17;
-  const topY = field.y - 24;
-  const topGateW = 58;
-  const rawTopCenter = W / 2 - cfg.gates[0] * 0.55;
-  const topGateX = Math.max(field.x + 35, Math.min(field.x + field.w - 35 - topGateW, rawTopCenter - topGateW / 2));
-  const result = [
-    { x: field.x - 25, y: topY, w: topGateX - (field.x - 25), h: thick },
-    { x: topGateX + topGateW, y: topY, w: field.x + field.w + 25 - topGateX - topGateW, h: thick },
-    { x: field.x - 25, y: field.y - 24, w: thick, h: field.h + 58 },
-    { x: field.x + field.w + 9, y: field.y - 24, w: thick, h: field.h + 58 },
-  ];
+  const result = [];
+  const thick = 11;
+  const ringOffsets = [27, 65, 103];
 
-  const gateW = cfg.gates.length === 1 ? 68 : cfg.gates.length === 2 ? 54 : 46;
-  const centers = cfg.gates.map((offset) => W / 2 + offset);
-
-  const left = field.x - 25;
-  const right = field.x + field.w + 25;
-  let cursor = left;
-  for (const [gateIndex, center] of centers.sort((a, b) => a - b).entries()) {
-    const gx = Math.max(left + 25, Math.min(right - 25 - gateW, center - gateW / 2));
-    if (gx > cursor) result.push({ x: cursor, y: bottomY, w: gx - cursor, h: thick });
-    cursor = gx + gateW;
-
-    // Short alternating channel guides make each trap entrance distinct.
-    const channelDepth = 30 + ((cfg.number * 13 + Math.round(center)) % 44);
-    if (cfg.guides[gateIndex] > 0) {
-      result.push({ x: gx - thick, y: bottomY, w: thick, h: channelDepth });
-      result.push({ x: gx + gateW, y: bottomY + channelDepth - thick, w: thick, h: channelDepth });
-    } else {
-      result.push({ x: gx - thick, y: bottomY + channelDepth - thick, w: thick, h: channelDepth });
-      result.push({ x: gx + gateW, y: bottomY, w: thick, h: channelDepth });
+  const addHorizontalWithGates = (y, left, right, centers, gateWidth) => {
+    let cursor = left;
+    const sorted = centers
+      .map((center) => Math.max(left + 18, Math.min(right - 18, center)))
+      .sort((a, b) => a - b);
+    for (const center of sorted) {
+      const gateLeft = Math.max(cursor, center - gateWidth / 2);
+      if (gateLeft > cursor) result.push({ x: cursor, y, w: gateLeft - cursor, h: thick });
+      cursor = Math.max(cursor, center + gateWidth / 2);
     }
-  }
-  if (cursor < right) result.push({ x: cursor, y: bottomY, w: right - cursor, h: thick });
+    if (cursor < right) result.push({ x: cursor, y, w: right - cursor, h: thick });
+  };
 
-  // Hand-curated bars make the lower maze topology unique for every level.
+  ringOffsets.forEach((offset, ring) => {
+    const left = field.x - offset;
+    const right = field.x + field.w + offset;
+    const top = field.y - offset;
+    const bottom = field.y + field.h + offset;
+    const sourceGate = cfg.gates[ring % cfg.gates.length];
+    const topCenter = W / 2 + sourceGate * (ring % 2 ? -0.72 : 0.58);
+    const bottomCenters = ring === 0
+      ? cfg.gates.map((gate) => W / 2 + gate)
+      : [W / 2 - sourceGate * (ring === 1 ? 0.85 : 0.52)];
+    const gateWidth = ring === 0 ? 48 : ring === 1 ? 58 : 68;
+
+    addHorizontalWithGates(top, left, right, [topCenter], gateWidth);
+    addHorizontalWithGates(bottom, left, right, bottomCenters, gateWidth);
+    result.push({ x: left, y: top, w: thick, h: bottom - top + thick });
+    result.push({ x: right - thick, y: top, w: thick, h: bottom - top + thick });
+  });
+
+  // Lower deflectors continue the orbit after the outer ring.
+  const outerBottom = field.y + field.h + ringOffsets[ringOffsets.length - 1];
   for (const [barIndex, [sourceY, openingOffset]] of cfg.bars.entries()) {
-    const y = bottomY + 66 + barIndex * 76 + (sourceY % 17);
+    const y = outerBottom + 38 + barIndex * 62 + (sourceY % 11);
     const openingX = W / 2 + openingOffset;
-    result.push({ x: 90, y, w: Math.max(70, openingX - 90), h: 12 });
-    result.push({ x: openingX + 80, y, w: Math.max(70, 810 - openingX - 80), h: 12 });
+    result.push({ x: 42, y, w: Math.max(70, openingX - 42), h: thick });
+    result.push({ x: openingX + 78, y, w: Math.max(48, W - 42 - openingX - 78), h: thick });
   }
   return result;
 }
@@ -287,7 +286,9 @@ function bounceRect(ball, rect) {
 function spawnPower(brick) {
   const power = itemPool.find((entry) => !entry.active);
   if (!power) return;
-  const type = pickPower();
+  const type = pickPower(Math.random, { forceBallMultiplier: dropsSinceBallMultiplier >= 2 });
+  if (type.kind === "balls" && type.operation === "multiply") dropsSinceBallMultiplier = 0;
+  else dropsSinceBallMultiplier++;
   Object.assign(power, type, {
     active: true,
     x: brick.x + brick.w / 2 - 36,
@@ -312,13 +313,12 @@ function registerBrickHit(brick) {
 }
 
 function applyPower(power) {
-  const oldPaddleWidth = paddle.w;
-  const oldBallCount = balls.length;
   if (power.kind === "paddle") {
     paddle.w = targetPaddleWidth(paddle.w, power, INITIAL_PADDLE, MIN_PADDLE, W);
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
   } else if (power.kind === "balls") {
-    const target = targetBallCount(balls.length, power, MAX_BALLS);
+    const ballCap = Math.max(1, Math.min(MAX_BALLS, bricks.length));
+    const target = targetBallCount(balls.length, power, ballCap);
     if (target > balls.length) {
       if (power.operation === "add") {
         while (balls.length < target) {
@@ -346,29 +346,8 @@ function applyPower(power) {
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
     while (balls.length > 1) releaseBallAt(balls.length - 1);
   }
-  showResourceNotice(power, oldPaddleWidth, oldBallCount);
   haptic(16);
   updateHud();
-}
-
-function showResourceNotice(power, oldPaddleWidth, oldBallCount) {
-  const notice = document.getElementById("resourceNotice");
-  if (!notice) return;
-  const oldPaddle = `${Math.round((oldPaddleWidth / INITIAL_PADDLE) * 10) / 10}×`;
-  const newPaddle = `${Math.round((paddle.w / INITIAL_PADDLE) * 10) / 10}×`;
-  const result = power.kind === "paddle"
-    ? `${oldPaddle} → ${newPaddle}`
-    : power.kind === "balls"
-      ? `${oldBallCount} → ${balls.length}`
-      : `托盘 1× · 球 ${oldBallCount} → 1`;
-  notice.textContent = `${power.label}　${result}`;
-  notice.style.setProperty("--resource-color", power.color);
-  notice.style.color = power.textColor || "#fff";
-  notice.hidden = false;
-  clearTimeout(showResourceNotice.timer);
-  showResourceNotice.timer = setTimeout(() => {
-    notice.hidden = true;
-  }, 1800);
 }
 
 function moveBallStep(ball, dt) {

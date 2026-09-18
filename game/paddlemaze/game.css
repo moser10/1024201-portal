@@ -140,27 +140,6 @@ canvas {
 
 .overlay[hidden] { display: none; }
 
-.resource-notice {
-  --resource-color: #fff;
-  position: absolute;
-  z-index: 3;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: calc(100% - 24px);
-  padding: 9px 14px;
-  border: 2px solid rgba(255, 255, 255, .7);
-  border-radius: 9px;
-  background: var(--resource-color);
-  box-shadow: 0 6px 24px color-mix(in srgb, var(--resource-color) 45%, transparent);
-  font-size: 14px;
-  font-weight: 800;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.resource-notice[hidden] { display: none; }
-
 .overlay-card {
   width: min(100%, 430px);
   padding: 24px;
@@ -199,8 +178,10 @@ canvas {
   margin: 0 auto;
   border: 1px dashed #30303e;
   border-radius: 12px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   color: #686878;
   background: #0d0d14;
   font: 700 10px/1 Arial, sans-serif;
@@ -209,6 +190,51 @@ canvas {
   user-select: none;
   -webkit-user-select: none;
 }
+
+.control-symbol {
+  color: #8d8d9c;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.control-paddle {
+  width: 54px;
+  height: 24px;
+  color: #f5f5f7;
+  fill: currentColor;
+}
+
+.resource-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 10px;
+  padding-left: 12px;
+  border-left: 1px solid #30303e;
+}
+
+.resource-icon {
+  width: 31px;
+  height: 25px;
+  padding: 3px;
+  border-radius: 6px;
+  background: #181821;
+  fill: currentColor;
+}
+
+.resource-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.resource-icon.paddle-up { color: #ff3b30; }
+.resource-icon.paddle-down { color: #bf5af2; }
+.resource-icon.balls-up { color: #30d158; }
+.resource-icon.balls-down { color: #0a84ff; }
+.resource-icon.reset { color: #ffd60a; }
 
 #startBtn {
   min-width: 150px;
@@ -222,37 +248,6 @@ canvas {
   box-shadow: 0 8px 24px rgba(234, 20, 149, .24);
 }
 
-.game-help {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 18px;
-  color: #777786;
-  font-size: 10px;
-  text-align: center;
-}
-
-.resource-legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 4px;
-}
-
-.resource-chip {
-  padding: 3px 6px;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 9px;
-  line-height: 1.2;
-}
-
-.resource-chip.paddle-up { background: #ff3b30; }
-.resource-chip.paddle-down { background: #af52de; }
-.resource-chip.balls-up { background: #248a3d; }
-.resource-chip.balls-down { background: #0a84ff; }
-.resource-chip.reset { background: #ffd60a; color: #211b00; }
-
 @media (max-width: 620px) {
   .game-shell { gap: 7px; padding-left: 6px; padding-right: 6px; }
   .game-top { grid-template-columns: 68px 1fr 68px; }
@@ -264,5 +259,8 @@ canvas {
   .control-zone { width: 100%; }
   .canvas-wrap { min-height: 0; }
   .control-zone { min-height: 54px; height: 54px; }
-  .game-help { flex-direction: column; gap: 4px; }
+  .control-zone { gap: 4px; }
+  .resource-icons { gap: 1px; margin-left: 4px; padding-left: 6px; }
+  .resource-icon { width: 27px; height: 23px; }
+  .control-paddle { width: 42px; }
 }

@@ -33,16 +33,17 @@ test("ball increases, proportional reductions, reset and cap are calculated corr
   assert.equal(targetBallCount(17, { kind: "balls", operation: "divide", value: 5 }, 128), 4);
   assert.equal(targetBallCount(1, { kind: "balls", operation: "divide", value: 20 }, 128), 1);
   assert.equal(targetBallCount(100, { kind: "balls", operation: "multiply", value: 20 }, 128), 128);
+  assert.equal(targetBallCount(100, { kind: "balls", operation: "multiply", value: 20 }, 12), 12);
   assert.equal(targetBallCount(42, { kind: "reset" }, 128), 1);
 });
 
 test("paddle changes persist and reductions use the current width", () => {
   const divideByTwo = { kind: "paddle", operation: "divide", value: 2 };
   const multiplyByFour = { kind: "paddle", operation: "multiply", value: 4 };
-  assert.equal(targetPaddleWidth(480, divideByTwo, 120, 30, 900), 240);
-  assert.equal(targetPaddleWidth(60, divideByTwo, 120, 30, 900), 30);
-  assert.equal(targetPaddleWidth(300, multiplyByFour, 120, 30, 900), 900);
-  assert.equal(targetPaddleWidth(600, { kind: "reset" }, 120, 30, 900), 120);
+  assert.equal(targetPaddleWidth(480, divideByTwo, 120, 120, 900), 240);
+  assert.equal(targetPaddleWidth(120, divideByTwo, 120, 120, 900), 120);
+  assert.equal(targetPaddleWidth(300, multiplyByFour, 120, 120, 900), 900);
+  assert.equal(targetPaddleWidth(600, { kind: "reset" }, 120, 120, 900), 120);
 });
 
 test("weighted picker can select the rare reset resource", () => {
@@ -51,4 +52,17 @@ test("weighted picker can select the rare reset resource", () => {
   const reset = POWER_TYPES.find(({ kind }) => kind === "reset");
   const total = POWER_TYPES.reduce((sum, power) => sum + power.weight, 0);
   assert.ok(reset.weight / total < 0.01, "reset probability should remain below one percent");
+});
+
+test("ball multipliers are common and drought protection forces one", () => {
+  const multiplierWeight = POWER_TYPES
+    .filter((power) => power.kind === "balls" && power.operation === "multiply")
+    .reduce((sum, power) => sum + power.weight, 0);
+  const total = POWER_TYPES.reduce((sum, power) => sum + power.weight, 0);
+  assert.ok(multiplierWeight / total > 0.5, "ball multipliers should exceed half of weighted outcomes");
+  for (const roll of [0, 0.25, 0.5, 0.75, 0.999]) {
+    const power = pickPower(() => roll, { forceBallMultiplier: true });
+    assert.equal(power.kind, "balls");
+    assert.equal(power.operation, "multiply");
+  }
 });
