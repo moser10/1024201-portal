@@ -70,21 +70,25 @@ function seeded(seed) {
 function makeLevel(index) {
   const cfg = buildLevelSpec(index);
   const rand = seeded(cfg.seed);
-  const field = { x: 142, y: 118, w: 616, h: 390 };
-  const gap = 5;
-  const brickW = (field.w - gap * (cfg.cols - 1)) / cfg.cols;
-  const brickH = (field.h - gap * (cfg.rows - 1)) / cfg.rows;
+  const field = { x: 142, y: 190, w: 616, h: 430 };
+  const fineRows = cfg.rows * 2;
+  const fineCols = cfg.cols * 2;
+  const gap = 3;
+  const brickW = (field.w - gap * (fineCols - 1)) / fineCols;
+  const brickH = (field.h - gap * (fineRows - 1)) / fineRows;
 
   bricks = [];
-  for (let r = 0; r < cfg.rows; r++) {
-    for (let c = 0; c < cfg.cols; c++) {
-      if (!cfg.mask[r][c]) continue;
+  for (let r = 0; r < fineRows; r++) {
+    for (let c = 0; c < fineCols; c++) {
+      if (!cfg.mask[Math.floor(r / 2)][Math.floor(c / 2)]) continue;
+      // A few deterministic pinholes stop the dense 2× expansion looking tiled.
+      if ((r * 29 + c * 17 + cfg.number * 11) % 97 === 0) continue;
       bricks.push({
         x: field.x + c * (brickW + gap),
         y: field.y + r * (brickH + gap),
         w: brickW,
         h: brickH,
-        hp: index >= 12 && (r * 5 + c * 3 + index) % 11 === 0 ? 2 : 1,
+        hp: index >= 12 && (r * 5 + c * 3 + index) % 17 === 0 ? 2 : 1,
         hue: 318 + Math.round(rand() * 18),
       });
     }
@@ -134,17 +138,17 @@ function makeMazeWalls(cfg, field) {
     const channelDepth = 30 + ((cfg.number * 13 + Math.round(center)) % 44);
     if (cfg.guides[gateIndex] > 0) {
       result.push({ x: gx - thick, y: bottomY, w: thick, h: channelDepth });
-      result.push({ x: gx + gateW, y: bottomY - channelDepth + thick, w: thick, h: channelDepth });
+      result.push({ x: gx + gateW, y: bottomY + channelDepth - thick, w: thick, h: channelDepth });
     } else {
-      result.push({ x: gx - thick, y: bottomY - channelDepth + thick, w: thick, h: channelDepth });
+      result.push({ x: gx - thick, y: bottomY + channelDepth - thick, w: thick, h: channelDepth });
       result.push({ x: gx + gateW, y: bottomY, w: thick, h: channelDepth });
     }
   }
   if (cursor < right) result.push({ x: cursor, y: bottomY, w: right - cursor, h: thick });
 
   // Hand-curated bars make the lower maze topology unique for every level.
-  for (const [sourceY, openingOffset] of cfg.bars) {
-    const y = sourceY + 180;
+  for (const [barIndex, [sourceY, openingOffset]] of cfg.bars.entries()) {
+    const y = bottomY + 66 + barIndex * 76 + (sourceY % 17);
     const openingX = W / 2 + openingOffset;
     result.push({ x: 90, y, w: Math.max(70, openingX - 90), h: 12 });
     result.push({ x: openingX + 80, y, w: Math.max(70, 810 - openingX - 80), h: 12 });
@@ -448,12 +452,7 @@ function update(dt) {
     running = false;
     releaseAllItems();
     haptic(35);
-    showOverlay(
-      "游戏结束",
-      `接球失败。得分 ${score}，当前进度 LEVEL ${String(levelIndex + 1).padStart(2, "0")}。`,
-      "START",
-      "NO BALLS LEFT"
-    );
+    showOverlay("GAME OVER", "", "Re-Start", "");
   }
   updateHud();
 }

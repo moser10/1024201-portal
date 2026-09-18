@@ -108,10 +108,11 @@ body {
 
 .canvas-wrap {
   position: relative;
-  width: 100%;
+  width: min(100%, max(300px, calc((100dvh - 250px) * 0.8182)));
+  max-width: 900px;
   aspect-ratio: 900 / 1100;
-  min-height: min(72dvh, 760px);
-  margin: auto;
+  min-height: 0;
+  margin: 0 auto;
   border: 1px solid #2e2e3d;
   border-radius: 12px;
   overflow: hidden;
@@ -171,8 +172,10 @@ canvas {
 .overlay p:empty { display: none; }
 
 .control-zone {
-  width: 100%;
-  min-height: clamp(90px, 16dvh, 180px);
+  width: min(100%, max(300px, calc((100dvh - 250px) * 0.8182)));
+  max-width: 900px;
+  min-height: clamp(76px, 10dvh, 120px);
+  margin: 0 auto;
   border: 1px dashed #30303e;
   border-radius: 12px;
   display: grid;
@@ -214,6 +217,9 @@ canvas {
   .hud > div { padding: 6px 3px; gap: 4px; }
   .hud span { font-size: 9px; }
   .hud strong { font-size: 12px; }
+  .canvas-wrap,
+  .control-zone { width: 100%; }
   .canvas-wrap { min-height: 0; }
+  .control-zone { min-height: 54px; height: 54px; }
   .game-help { flex-direction: column; gap: 2px; }
 }
