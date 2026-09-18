@@ -25,6 +25,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 20px;
+  margin-top: 28px;
 }
 .game-card {
   display: flex;

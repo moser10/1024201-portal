@@ -12,15 +12,51 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <title>游戏中心</title>
-    <link rel="stylesheet" href="css/hub.css">
+    <style>html,body{background:#f2f2f7}body{margin:0}</style>
+    <link rel="stylesheet" href="css/hub.css?v=2">
     <link rel="stylesheet" href="/js/featurePage.css">
     <link rel="stylesheet" href="/js/langTabs.css">
     <link rel="stylesheet" href="/js/accountChrome.css">
     <link rel="stylesheet" href="css/userBar.css?v=7">
 </head>
 <body>
-    <div id="app"></div>
-    <script type="module" src="js/hub.js"></script>
+    <div id="app">
+      <div class="hub">
+        <div class="hub-top">
+          <a href="/" class="feature-back" id="hubBack">返回门户</a>
+          <div id="hubAccountChrome"></div>
+        </div>
+        <h1 id="hubTitle">游戏中心</h1>
+        <div class="grid" id="gameGrid">
+          <a class="game-card" href="onesentence/" data-href="onesentence/" data-id="osn">
+            <div class="game-icon" style="background:linear-gradient(135deg,#ff5e62 0%,#ff9966 100%)"><span class="game-code">OSN</span></div>
+            <div class="game-label" data-label="osn">一人一句，一句成书</div>
+            <div class="game-full">One Sentence Novel</div>
+          </a>
+          <a class="game-card" href="paddlemaze/" data-href="paddlemaze/" data-id="paddlemaze">
+            <div class="game-icon" style="background:linear-gradient(135deg,#ff42bb 0%,#8b0aa8 58%,#24113f 100%)"><span class="game-code">PBM</span></div>
+            <div class="game-label" data-label="paddlemaze">挡板方块迷宫</div>
+            <div class="game-full">Paddle Block Maze</div>
+          </a>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var lang = localStorage.getItem("portal_lang") || "zh";
+        var text = {
+          zh: { title:"游戏中心", back:"返回门户", osn:"一人一句，一句成书", paddlemaze:"挡板方块迷宫" },
+          en: { title:"Game Center", back:"Back to portal", osn:"One sentence, one novel", paddlemaze:"Paddle Block Maze" },
+          ja: { title:"ゲームセンター", back:"ポータルへ", osn:"一文執筆", paddlemaze:"パドルブロック迷路" }
+        }[lang] || null;
+        if (!text) return;
+        document.getElementById("hubTitle").textContent = text.title;
+        document.getElementById("hubBack").textContent = text.back;
+        document.querySelector('[data-label="osn"]').textContent = text.osn;
+        document.querySelector('[data-label="paddlemaze"]').textContent = text.paddlemaze;
+      })();
+    </script>
+    <script type="module" src="js/hub.js?v=2"></script>
     <script src="/pwa.js" defer></script>
 </body>
 </html>

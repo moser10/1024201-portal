@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v68";
+const CACHE = "1042-pwa-v73";
 const SHELL = [
   "/",
   "/index.html",
@@ -7,8 +7,26 @@ const SHELL = [
   "/js/langTabs.css",
   "/js/langTabs.js",
   "/js/featurePage.css",
+  "/js/featurePage.css?v=2",
   "/js/edgeBack.js",
   "/game/css/userBar.css?v=6",
+  "/game/",
+  "/game/index.html",
+  "/game/css/hub.css?v=2",
+  "/game/js/hub.js?v=2",
+  "/game/register/",
+  "/game/register/index.html",
+  "/game/register/auth.css?v=2",
+  "/game/register/auth.js?v=12",
+  "/game/paddlemaze/",
+  "/game/paddlemaze/index.html",
+  "/game/paddlemaze/game.css?v=3",
+  "/game/paddlemaze/game.js?v=3",
+  "/game/paddlemaze/levels.js",
+  "/blog/",
+  "/blog/index.html",
+  "/blog/blog.css?v=4",
+  "/blog/blog-app.js?v=2",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
@@ -77,6 +95,15 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => null);
+
+      // Authentication navigations must use the latest HTML on iOS standalone.
+      // Fall back to cache only when offline; never keep a stale/blank auth shell.
+      if (request.mode === "navigate" && url.pathname.startsWith("/game/register")) {
+        const fresh = await networkPromise;
+        if (fresh) return fresh;
+        return cached || (await cache.match("/game/register/index.html")) ||
+          new Response("Offline", { status: 503 });
+      }
 
       // Instant paint from cache; refresh in background
       if (cached) {
