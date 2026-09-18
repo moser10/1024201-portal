@@ -50,3 +50,10 @@ export function targetBallCount(current, power, maxBalls) {
   if (power.operation === "divide") return Math.max(1, Math.ceil(current / power.value));
   return current;
 }
+
+export function targetPaddleWidth(current, power, initialWidth, minWidth, maxWidth) {
+  if (power.kind === "reset") return initialWidth;
+  if (power.kind !== "paddle") return current;
+  const next = power.operation === "divide" ? current / power.value : current * power.value;
+  return Math.max(minWidth, Math.min(maxWidth, next));
+}

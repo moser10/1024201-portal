@@ -1,5 +1,5 @@
 import { buildLevelSpec } from "./levels.js";
-import { pickPower, targetBallCount } from "./resources.js";
+import { pickPower, targetBallCount, targetPaddleWidth } from "./resources.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -315,8 +315,7 @@ function applyPower(power) {
   const oldPaddleWidth = paddle.w;
   const oldBallCount = balls.length;
   if (power.kind === "paddle") {
-    const factor = power.operation === "divide" ? 1 / power.value : power.value;
-    paddle.w = Math.max(MIN_PADDLE, Math.min(W, paddle.w * factor));
+    paddle.w = targetPaddleWidth(paddle.w, power, INITIAL_PADDLE, MIN_PADDLE, W);
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
   } else if (power.kind === "balls") {
     const target = targetBallCount(balls.length, power, MAX_BALLS);

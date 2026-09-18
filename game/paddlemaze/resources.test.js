@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { POWER_TYPES, RESOURCE_COLORS, pickPower, targetBallCount } from "./resources.js";
+import {
+  POWER_TYPES,
+  RESOURCE_COLORS,
+  pickPower,
+  targetBallCount,
+  targetPaddleWidth,
+} from "./resources.js";
 
 test("each resource family uses its specified color", () => {
   for (const power of POWER_TYPES) {
@@ -28,6 +34,15 @@ test("ball increases, proportional reductions, reset and cap are calculated corr
   assert.equal(targetBallCount(1, { kind: "balls", operation: "divide", value: 20 }, 128), 1);
   assert.equal(targetBallCount(100, { kind: "balls", operation: "multiply", value: 20 }, 128), 128);
   assert.equal(targetBallCount(42, { kind: "reset" }, 128), 1);
+});
+
+test("paddle changes persist and reductions use the current width", () => {
+  const divideByTwo = { kind: "paddle", operation: "divide", value: 2 };
+  const multiplyByFour = { kind: "paddle", operation: "multiply", value: 4 };
+  assert.equal(targetPaddleWidth(480, divideByTwo, 120, 30, 900), 240);
+  assert.equal(targetPaddleWidth(60, divideByTwo, 120, 30, 900), 30);
+  assert.equal(targetPaddleWidth(300, multiplyByFour, 120, 30, 900), 900);
+  assert.equal(targetPaddleWidth(600, { kind: "reset" }, 120, 30, 900), 120);
 });
 
 test("weighted picker can select the rare reset resource", () => {
