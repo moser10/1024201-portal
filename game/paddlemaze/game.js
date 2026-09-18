@@ -1,4 +1,5 @@
 import { buildLevelSpec } from "./levels.js";
+import { pickPower, targetBallCount } from "./resources.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -16,17 +17,7 @@ const BALL_R = 7;
 const MAX_BALLS = 128;
 const MAX_ITEMS = 48;
 const BRICK_CELL = 64;
-const POWER_TYPES = [
-  { kind: "paddle", factor: 2, label: "2×", good: true },
-  { kind: "balls", factor: 2, label: "2×", good: true },
-  { kind: "paddle", factor: 0.5, label: "0.5×", good: false },
-  { kind: "balls", factor: 10, label: "10×", good: true },
-  { kind: "balls", factor: 0.5, label: "÷2", good: false },
-  { kind: "paddle", factor: 4, label: "4×", good: true },
-  { kind: "balls", factor: 0.1, label: "÷10", good: false },
-  { kind: "balls", factor: 20, label: "20×", good: true },
-  { kind: "balls", factor: 0.05, label: "÷20", good: false },
-];
+const MIN_PADDLE = 30;
 
 let levelIndex = 0;
 let score = 0;
@@ -39,8 +30,8 @@ const ballPool = Array.from({ length: MAX_BALLS }, () => ({
   active: false, x: 0, y: 0, vx: 0, vy: 0, r: BALL_R, primary: false,
 }));
 const itemPool = Array.from({ length: MAX_ITEMS }, () => ({
-  active: false, x: 0, y: 0, w: 40, h: 22, vy: 105,
-  kind: "balls", factor: 2, label: "2×", good: true,
+  active: false, x: 0, y: 0, w: 72, h: 26, vy: 105,
+  kind: "balls", operation: "add", value: 2, label: "球 +2", color: "#34c759",
 }));
 const particlePool = Array.from({ length: 120 }, () => ({
   active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, hue: 320,
@@ -296,13 +287,13 @@ function bounceRect(ball, rect) {
 function spawnPower(brick) {
   const power = itemPool.find((entry) => !entry.active);
   if (!power) return;
-  const type = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)];
+  const type = pickPower();
   Object.assign(power, type, {
     active: true,
-    x: brick.x + brick.w / 2 - 20,
-    y: brick.y + brick.h / 2 - 11,
-    w: 40,
-    h: 22,
+    x: brick.x + brick.w / 2 - 36,
+    y: brick.y + brick.h / 2 - 13,
+    w: 72,
+    h: 26,
     vy: 105,
   });
   powers.push(power);
@@ -321,24 +312,64 @@ function registerBrickHit(brick) {
 }
 
 function applyPower(power) {
+  const oldPaddleWidth = paddle.w;
+  const oldBallCount = balls.length;
   if (power.kind === "paddle") {
-    paddle.w = Math.max(INITIAL_PADDLE, Math.min(W, paddle.w * power.factor));
+    const factor = power.operation === "divide" ? 1 / power.value : power.value;
+    paddle.w = Math.max(MIN_PADDLE, Math.min(W, paddle.w * factor));
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
-  } else {
-    const remaining = Math.max(1, bricks.length);
-    if (power.factor >= 1) {
-      const target = Math.min(remaining, MAX_BALLS, Math.max(1, Math.floor(balls.length * power.factor)));
-      const source = balls[0];
-      while (source && balls.length < target) {
-        if (!activateBall(undefined, source, false)) break;
+  } else if (power.kind === "balls") {
+    const target = targetBallCount(balls.length, power, MAX_BALLS);
+    if (target > balls.length) {
+      if (power.operation === "add") {
+        while (balls.length < target) {
+          const paddleSource = {
+            x: paddle.x + paddle.w / 2,
+            y: paddle.y - BALL_R - 1,
+            vx: (Math.random() - 0.5) * 90,
+            vy: -buildLevelSpec(levelIndex).speed,
+          };
+          if (!activateBall(undefined, paddleSource, false)) break;
+        }
+      } else {
+        const sources = balls.slice();
+        let sourceIndex = 0;
+        while (sources.length && balls.length < target) {
+          if (!activateBall(undefined, sources[sourceIndex % sources.length], false)) break;
+          sourceIndex++;
+        }
       }
     } else {
-      const target = Math.max(1, Math.ceil(balls.length * power.factor));
       while (balls.length > target) releaseBallAt(balls.length - 1);
     }
+  } else if (power.kind === "reset") {
+    paddle.w = INITIAL_PADDLE;
+    paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+    while (balls.length > 1) releaseBallAt(balls.length - 1);
   }
+  showResourceNotice(power, oldPaddleWidth, oldBallCount);
   haptic(16);
   updateHud();
+}
+
+function showResourceNotice(power, oldPaddleWidth, oldBallCount) {
+  const notice = document.getElementById("resourceNotice");
+  if (!notice) return;
+  const oldPaddle = `${Math.round((oldPaddleWidth / INITIAL_PADDLE) * 10) / 10}×`;
+  const newPaddle = `${Math.round((paddle.w / INITIAL_PADDLE) * 10) / 10}×`;
+  const result = power.kind === "paddle"
+    ? `${oldPaddle} → ${newPaddle}`
+    : power.kind === "balls"
+      ? `${oldBallCount} → ${balls.length}`
+      : `托盘 1× · 球 ${oldBallCount} → 1`;
+  notice.textContent = `${power.label}　${result}`;
+  notice.style.setProperty("--resource-color", power.color);
+  notice.style.color = power.textColor || "#fff";
+  notice.hidden = false;
+  clearTimeout(showResourceNotice.timer);
+  showResourceNotice.timer = setTimeout(() => {
+    notice.hidden = true;
+  }, 1800);
 }
 
 function moveBallStep(ball, dt) {
@@ -500,13 +531,15 @@ function draw() {
 
   for (const power of powers) {
     const g = ctx.createLinearGradient(power.x, power.y, power.x + power.w, power.y + power.h);
-    g.addColorStop(0, power.good ? "#35c759" : "#ff453a");
-    g.addColorStop(1, power.good ? "#0d7530" : "#8c1714");
+    g.addColorStop(0, power.color);
+    g.addColorStop(1, `${power.color}a8`);
     ctx.fillStyle = g;
     drawRoundedRect(power.x, power.y, power.w, power.h, 5);
     ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = "700 12px Arial";
+    ctx.strokeStyle = "rgba(255,255,255,.42)";
+    ctx.stroke();
+    ctx.fillStyle = power.textColor || "#fff";
+    ctx.font = "700 13px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(power.label, power.x + power.w / 2, power.y + power.h / 2);

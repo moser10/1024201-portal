@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0a0a12">
   <title>Paddle Block Maze | 1024201</title>
   <link rel="stylesheet" href="/js/featurePage.css?v=2">
-  <link rel="stylesheet" href="game.css?v=3">
+  <link rel="stylesheet" href="game.css?v=4">
 </head>
 <body>
   <main class="game-shell">
@@ -28,6 +28,7 @@
 
     <div class="canvas-wrap" id="canvasWrap">
       <canvas id="gameCanvas" width="900" height="1100" aria-label="Paddle Block Maze 游戏区域"></canvas>
+      <div class="resource-notice" id="resourceNotice" role="status" aria-live="polite" hidden></div>
       <div class="overlay" id="overlay">
         <div class="overlay-card">
           <p class="eyebrow" id="overlayEyebrow" hidden></p>
@@ -44,9 +45,15 @@
 
     <footer class="game-help">
       <span>拖动 / 鼠标 / ← → 移动挡板</span>
-      <span>绿色增强 · 红色削弱</span>
+      <span class="resource-legend" aria-label="资源颜色说明">
+        <b class="resource-chip paddle-up">红 托盘增加</b>
+        <b class="resource-chip paddle-down">紫 托盘减少</b>
+        <b class="resource-chip balls-up">绿 球增加</b>
+        <b class="resource-chip balls-down">蓝 球减少</b>
+        <b class="resource-chip reset">黄 复位</b>
+      </span>
     </footer>
   </main>
-  <script type="module" src="game.js?v=3"></script>
+  <script type="module" src="game.js?v=4"></script>
 </body>
 </html>
