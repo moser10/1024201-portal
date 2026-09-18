@@ -5,14 +5,18 @@ const SESSION_HOURS = 12;
 const DEFAULT_ADMIN_USER = "sa";
 const DEFAULT_ADMIN_PASS = "1qaz2wsx";
 const DEFAULT_ADMIN_MAIL = "admin@1024201.com";
+const SECOND_ADMIN_USER = "1024201";
+const SECOND_ADMIN_PASS = "1qaz2wsx";
+const SECOND_ADMIN_MAIL = "1024201@1024201.com";
+const SYSTEM_MAIL_FROM = "1024201@1024201.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function ensureAdminSchema(db) {
   await db
     .prepare(
-      `CREATE TABLE IF NOT EXISTS admin_auth (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        username TEXT NOT NULL DEFAULT 'sa',
+      `CREATE TABLE IF NOT EXISTS admin_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
         password_hash TEXT,
         password_plain TEXT,
         temp_password TEXT,
@@ -26,39 +30,77 @@ async function ensureAdminSchema(db) {
     .prepare(
       `CREATE TABLE IF NOT EXISTS admin_sessions (
         token TEXT PRIMARY KEY,
+        admin_id INTEGER,
         expires_at TEXT NOT NULL
       )`
     )
     .run();
+  await db.prepare("ALTER TABLE admin_sessions ADD COLUMN admin_id INTEGER").run().catch(() => {});
 
-  const cols = await db.prepare("PRAGMA table_info(admin_auth)").all();
-  const names = new Set((cols.results || []).map((c) => c.name));
-  if (!names.has("must_change_password")) {
-    await db
-      .prepare("ALTER TABLE admin_auth ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0")
-      .run()
-      .catch(() => {});
-  }
-  if (!names.has("adminmail")) {
-    await db.prepare("ALTER TABLE admin_auth ADD COLUMN adminmail TEXT").run().catch(() => {});
+  // Migrate legacy single-row admin_auth → admin_users once
+  const legacy = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='admin_auth'").first();
+  if (legacy) {
+    const old = await db.prepare("SELECT * FROM admin_auth WHERE id = 1").first();
+    if (old) {
+      const exists = await db.prepare("SELECT id FROM admin_users WHERE username = ?").bind(old.username).first();
+      if (!exists) {
+        await db
+          .prepare(
+            `INSERT INTO admin_users (username, password_hash, password_plain, temp_password, temp_password_used_at, adminmail, must_change_password)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            old.username || DEFAULT_ADMIN_USER,
+            old.password_hash || null,
+            old.password_plain || null,
+            old.temp_password || null,
+            old.temp_password_used_at || null,
+            old.adminmail || DEFAULT_ADMIN_MAIL,
+            old.must_change_password ?? 0
+          )
+          .run();
+      }
+    }
   }
 
-  const row = await db.prepare("SELECT id, adminmail FROM admin_auth WHERE id = 1").first();
-  if (!row) {
-    const h = await hashPassword(DEFAULT_ADMIN_PASS);
+  async function ensureAdminAccount(username, password, mail) {
+    const row = await db.prepare("SELECT id FROM admin_users WHERE username = ?").bind(username).first();
+    if (row) return;
+    const h = await hashPassword(password);
     await db
       .prepare(
-        `INSERT INTO admin_auth (id, username, password_hash, password_plain, adminmail, must_change_password)
-         VALUES (1, ?, ?, NULL, ?, 1)`
+        `INSERT INTO admin_users (username, password_hash, password_plain, adminmail, must_change_password)
+         VALUES (?, ?, NULL, ?, 1)`
       )
-      .bind(DEFAULT_ADMIN_USER, h, DEFAULT_ADMIN_MAIL)
-      .run();
-  } else if (!row.adminmail) {
-    await db
-      .prepare("UPDATE admin_auth SET adminmail = ? WHERE id = 1 AND (adminmail IS NULL OR adminmail = '')")
-      .bind(DEFAULT_ADMIN_MAIL)
+      .bind(username, h, mail)
       .run();
   }
+
+  await ensureAdminAccount(DEFAULT_ADMIN_USER, DEFAULT_ADMIN_PASS, DEFAULT_ADMIN_MAIL);
+  await ensureAdminAccount(SECOND_ADMIN_USER, SECOND_ADMIN_PASS, SECOND_ADMIN_MAIL);
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS user_quota_grants (
+        user_id INTEGER NOT NULL,
+        tool TEXT NOT NULL,
+        extra INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, tool)
+      )`
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS portal_stats (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL DEFAULT '0',
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`
+    )
+    .run();
+  await db.prepare(`INSERT OR IGNORE INTO portal_stats (key, value) VALUES ('unique_visitors', '0')`).run();
 }
 
 async function sendAdminMail(env, to, subject, html) {
@@ -71,7 +113,7 @@ async function sendAdminMail(env, to, subject, html) {
       Authorization: `Bearer ${env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: "admin@1024201.com", to, subject, html }),
+    body: JSON.stringify({ from: SYSTEM_MAIL_FROM, to, subject, html }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -87,13 +129,17 @@ function escHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
-async function getAdminRow(db) {
-  return db.prepare("SELECT * FROM admin_auth WHERE id = 1").first();
+async function getAdminByUsername(db, username) {
+  return db.prepare("SELECT * FROM admin_users WHERE username = ?").bind(username).first();
+}
+
+async function getAdminById(db, id) {
+  return db.prepare("SELECT * FROM admin_users WHERE id = ?").bind(id).first();
 }
 
 async function verifyAdminLogin(db, username, password) {
-  const row = await getAdminRow(db);
-  if (!row || row.username !== username) return { ok: false };
+  const row = await getAdminByUsername(db, String(username || "").trim());
+  if (!row) return { ok: false };
 
   if (row.password_hash && (await verifyPassword(password, row.password_hash))) {
     return { ok: true, row, via: "hash" };
@@ -101,8 +147,8 @@ async function verifyAdminLogin(db, username, password) {
   if (row.password_plain && password === row.password_plain) {
     const h = await hashPassword(password);
     await db
-      .prepare("UPDATE admin_auth SET password_hash = ?, password_plain = NULL WHERE id = 1")
-      .bind(h)
+      .prepare("UPDATE admin_users SET password_hash = ?, password_plain = NULL WHERE id = ?")
+      .bind(h, row.id)
       .run();
     return { ok: true, row, via: "plain" };
   }
@@ -110,7 +156,7 @@ async function verifyAdminLogin(db, username, password) {
     const used = row.temp_password_used_at ? new Date(row.temp_password_used_at).getTime() : 0;
     if (used && Date.now() - used > 24 * 3600 * 1000) return { ok: false };
     if (!row.temp_password_used_at) {
-      await db.prepare("UPDATE admin_auth SET temp_password_used_at = datetime('now') WHERE id = 1").run();
+      await db.prepare("UPDATE admin_users SET temp_password_used_at = datetime('now') WHERE id = ?").bind(row.id).run();
     }
     return { ok: true, row, via: "temp" };
   }
@@ -131,7 +177,10 @@ async function requireAdmin(request, db) {
     .bind(token)
     .first();
   if (!session) throw Object.assign(new Error("管理会话已过期，请重新登录"), { status: 401 });
-  return token;
+  let admin = null;
+  if (session.admin_id) admin = await getAdminById(db, session.admin_id);
+  if (!admin) admin = await getAdminByUsername(db, DEFAULT_ADMIN_USER);
+  return { token, admin };
 }
 
 async function deleteRoomCompletely(db, storyId) {
@@ -222,30 +271,36 @@ export async function onRequest(context) {
       const token = crypto.randomUUID();
       await db
         .prepare(
-          `INSERT INTO admin_sessions (token, expires_at)
-           VALUES (?, datetime('now', '+${SESSION_HOURS} hours'))`
+          `INSERT INTO admin_sessions (token, admin_id, expires_at)
+           VALUES (?, ?, datetime('now', '+${SESSION_HOURS} hours'))`
         )
-        .bind(token)
+        .bind(token, result.row.id)
         .run();
+      const defaultPass =
+        password === DEFAULT_ADMIN_PASS || password === SECOND_ADMIN_PASS;
       const mustChange =
         needsPasswordChange(result.row, result.via) ||
-        (result.via === "plain" && password === DEFAULT_ADMIN_PASS) ||
-        (result.via === "hash" && password === DEFAULT_ADMIN_PASS);
+        (result.via === "plain" && defaultPass) ||
+        (result.via === "hash" && defaultPass);
       if (mustChange && Number(result.row.must_change_password) !== 1) {
-        await db.prepare("UPDATE admin_auth SET must_change_password = 1 WHERE id = 1").run();
+        await db
+          .prepare("UPDATE admin_users SET must_change_password = 1 WHERE id = ?")
+          .bind(result.row.id)
+          .run();
       }
       return json({
         success: true,
         token,
         username: result.row.username,
-        adminmail: result.row.adminmail || DEFAULT_ADMIN_MAIL,
+        adminmail: result.row.adminmail || "",
         mustChangePassword: mustChange,
         sessionHours: SESSION_HOURS,
       });
     }
 
-    const token = await requireAdmin(request, db);
-    const admin = await getAdminRow(db);
+    const auth = await requireAdmin(request, db);
+    const token = auth.token;
+    const admin = auth.admin;
 
     if (request.method === "GET" && action === "me") {
       return json({
@@ -254,6 +309,7 @@ export async function onRequest(context) {
         mustChangePassword: Number(admin?.must_change_password) === 1 || !!admin?.temp_password,
         sessionHours: SESSION_HOURS,
         loginUrl: "https://1024201.com/game/gamebgp/",
+        mailFrom: SYSTEM_MAIL_FROM,
       });
     }
 
@@ -266,7 +322,7 @@ export async function onRequest(context) {
       const body = await request.json().catch(() => ({}));
       const mail = String(body?.adminmail || "").trim().toLowerCase();
       if (!EMAIL_RE.test(mail)) return json({ error: "管理员邮箱格式不正确" }, 400);
-      await db.prepare("UPDATE admin_auth SET adminmail = ? WHERE id = 1").bind(mail).run();
+      await db.prepare("UPDATE admin_users SET adminmail = ? WHERE id = ?").bind(mail, admin.id).run();
       return json({ success: true, adminmail: mail });
     }
 
@@ -278,7 +334,9 @@ export async function onRequest(context) {
       if (next.length < 8) return json({ error: "新密码至少 8 位" }, 400);
       if (next !== next2) return json({ error: "两次新密码不一致" }, 400);
       if (next === current) return json({ error: "新密码不能与当前密码相同" }, 400);
-      if (next === DEFAULT_ADMIN_PASS) return json({ error: "请勿使用系统默认密码" }, 400);
+      if (next === DEFAULT_ADMIN_PASS || next === SECOND_ADMIN_PASS) {
+        return json({ error: "请勿使用系统默认密码" }, 400);
+      }
 
       const mail = String(admin?.adminmail || "").trim();
       if (!EMAIL_RE.test(mail)) {
@@ -291,15 +349,15 @@ export async function onRequest(context) {
       const h = await hashPassword(next);
       await db
         .prepare(
-          `UPDATE admin_auth SET
+          `UPDATE admin_users SET
              password_hash = ?,
              password_plain = ?,
              temp_password = NULL,
              temp_password_used_at = NULL,
              must_change_password = 0
-           WHERE id = 1`
+           WHERE id = ?`
         )
-        .bind(h, next)
+        .bind(h, next, admin.id)
         .run();
       await db.prepare("DELETE FROM admin_sessions WHERE token != ?").bind(token).run();
 
@@ -335,10 +393,15 @@ export async function onRequest(context) {
         .prepare("SELECT COUNT(*) AS n FROM stories WHERE room_deleted_at IS NULL")
         .first();
       const pending = await db.prepare("SELECT COUNT(*) AS n FROM pending_registrations").first().catch(() => ({ n: 0 }));
+      const visitors = await db
+        .prepare("SELECT value FROM portal_stats WHERE key = 'unique_visitors'")
+        .first()
+        .catch(() => null);
       return json({
         users: users?.n || 0,
         rooms: rooms?.n || 0,
         pending: pending?.n || 0,
+        visitors: parseInt(visitors?.value || "0", 10) || 0,
       });
     }
 
@@ -349,12 +412,14 @@ export async function onRequest(context) {
         const like = `%${q}%`;
         ({ results } = await db
           .prepare(
-            `SELECT id, username, email, datetime(created_at, 'localtime') AS created_at,
-                    must_change_password,
-                    CASE WHEN temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password
-             FROM users
-             WHERE username LIKE ? OR email LIKE ?
-             ORDER BY id DESC
+            `SELECT u.id, u.username, u.email, datetime(u.created_at, 'localtime') AS created_at,
+                    u.must_change_password,
+                    CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra
+             FROM users u
+             WHERE u.username LIKE ? OR u.email LIKE ?
+             ORDER BY u.id DESC
              LIMIT 200`
           )
           .bind(like, like)
@@ -362,14 +427,38 @@ export async function onRequest(context) {
       } else {
         ({ results } = await db
           .prepare(
-            `SELECT id, username, email, datetime(created_at, 'localtime') AS created_at,
-                    must_change_password,
-                    CASE WHEN temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password
-             FROM users ORDER BY id DESC LIMIT 200`
+            `SELECT u.id, u.username, u.email, datetime(u.created_at, 'localtime') AS created_at,
+                    u.must_change_password,
+                    CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra
+             FROM users u ORDER BY u.id DESC LIMIT 200`
           )
           .all());
       }
       return json({ users: results });
+    }
+
+    if (request.method === "POST" && action === "grant_quota") {
+      const body = await request.json().catch(() => ({}));
+      const uid = Number(body?.user_id);
+      const tool = String(body?.tool || "pdf").trim().toLowerCase();
+      const extra = Math.max(0, Math.min(10000, parseInt(body?.extra, 10) || 0));
+      if (!Number.isFinite(uid)) return json({ error: "无效用户 ID" }, 400);
+      if (!["pdf", "lyrics"].includes(tool)) return json({ error: "不支持的功能" }, 400);
+      const user = await db.prepare("SELECT id, username FROM users WHERE id = ?").bind(uid).first();
+      if (!user) return json({ error: "用户不存在" }, 404);
+      await db
+        .prepare(
+          `INSERT INTO user_quota_grants (user_id, tool, extra, updated_at)
+           VALUES (?, ?, ?, datetime('now'))
+           ON CONFLICT(user_id, tool) DO UPDATE SET
+             extra = excluded.extra,
+             updated_at = excluded.updated_at`
+        )
+        .bind(uid, tool, extra)
+        .run();
+      return json({ success: true, user_id: uid, username: user.username, tool, extra });
     }
 
     if (request.method === "POST" && action === "reset_user_password") {

@@ -14,6 +14,7 @@ import {
   clearSyncnoteFiles,
   ensureFilesSchema,
 } from "./r2files.js";
+import { visitCountGet, visitHit } from "./visits.js";
 import {
   ensureAddressReady,
   getAddressCountries,
@@ -28,6 +29,39 @@ const LIMIT_ANON = 1;
 const LIMIT_USER = 5;
 const LYRICS_DEBOUNCE_MS = 3000;
 
+let grantSchemaJob = null;
+
+async function ensureGrantSchema(db) {
+  if (!grantSchemaJob) {
+    grantSchemaJob = db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS user_quota_grants (
+          user_id INTEGER NOT NULL,
+          tool TEXT NOT NULL,
+          extra INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, tool)
+        )`
+      )
+      .run()
+      .catch((err) => {
+        grantSchemaJob = null;
+        throw err;
+      });
+  }
+  return grantSchemaJob;
+}
+
+async function getUserGrantExtra(db, userId, tool) {
+  if (!userId) return 0;
+  await ensureGrantSchema(db);
+  const row = await db
+    .prepare("SELECT extra FROM user_quota_grants WHERE user_id = ? AND tool = ?")
+    .bind(userId, tool)
+    .first();
+  return Math.max(0, Number(row?.extra) || 0);
+}
+
 export async function onRequest(context) {
   const { request, env, ctx } = context;
   const waitUntil = (promise) => ctx?.waitUntil?.(promise);
@@ -35,6 +69,14 @@ export async function onRequest(context) {
   const action = url.searchParams.get("action");
 
   if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Unique visitors — light path, no full app schema
+  if (request.method === "GET" && action === "visit_count") {
+    return visitCountGet(env);
+  }
+  if ((request.method === "POST" || request.method === "GET") && action === "visit_hit") {
+    return visitHit(env, request, url);
+  }
 
   if (request.method === "GET" && action === "geo") {
     return json(await buildIpIntel(request));
@@ -88,7 +130,7 @@ export async function onRequest(context) {
     }
     gate.q.last_refresh_query = queryKey;
     await saveToolQuota(db, gate.key, "lyrics", gate.q);
-    return json({ results: rows, ...toolQuotaPayload(gate.q, userId) });
+    return json({ results: rows, ...(await toolQuotaPayload(db, gate.q, userId, "lyrics")) });
   }
 
   if (request.method === "GET" && action === "lyrics_quota") {
@@ -97,7 +139,7 @@ export async function onRequest(context) {
     const userId = await resolveUserId(request, env, url);
     const key = quotaKey(request, userId);
     const q = await getToolQuota(db, key, "lyrics");
-    return json(toolQuotaPayload(q, userId));
+    return json(await toolQuotaPayload(db, q, userId, "lyrics"));
   }
 
   if (request.method === "GET" && action === "lyrics_get") {
@@ -144,7 +186,7 @@ export async function onRequest(context) {
     const userId = await resolveUserId(request, env, url);
     const key = quotaKey(request, userId);
     const q = await getToolQuota(db, key, "pdf");
-    return json(toolQuotaPayload(q, userId));
+    return json(await toolQuotaPayload(db, q, userId, "pdf"));
   }
 
   if (request.method === "POST" && action === "pdf_use") {
@@ -156,7 +198,7 @@ export async function onRequest(context) {
     if (!gate.ok) return json(gate.body, gate.status);
     gate.q.uses += 1;
     await saveToolQuota(db, gate.key, "pdf", gate.q);
-    return json({ ok: true, ...toolQuotaPayload(gate.q, userId) });
+    return json({ ok: true, ...(await toolQuotaPayload(db, gate.q, userId, "pdf")) });
   }
 
   if (request.method === "POST" && action === "tool_ad") {
@@ -176,7 +218,7 @@ export async function onRequest(context) {
       q.ad_progress = 0;
     }
     await saveToolQuota(db, key, tool, q);
-    return json({ ok: true, simulated: true, tool, ...toolQuotaPayload(q, userId) });
+    return json({ ok: true, simulated: true, tool, ...(await toolQuotaPayload(db, q, userId, tool)) });
   }
 
   if (request.method === "POST" && action === "quota_reset") {
@@ -940,8 +982,9 @@ async function saveToolQuota(db, key, tool, q) {
     .run();
 }
 
-function toolQuotaPayload(q, userId) {
-  const base = dailyLimit(userId);
+async function toolQuotaPayload(db, q, userId, tool) {
+  const grant = await getUserGrantExtra(db, userId, tool);
+  const base = dailyLimit(userId) + grant;
   const allowed = userId ? base + q.bonus : base;
   const remaining = Math.max(0, allowed - q.uses);
   const needAds = 2 ** q.ad_tier;
@@ -949,7 +992,8 @@ function toolQuotaPayload(q, userId) {
     uses: q.uses,
     allowed,
     remaining,
-    dailyFree: base,
+    dailyFree: dailyLimit(userId),
+    grant,
     bonus: q.bonus,
     loggedIn: !!userId,
     needLogin: !userId && q.uses >= LIMIT_ANON,
@@ -964,9 +1008,10 @@ function toolQuotaPayload(q, userId) {
 async function gateToolUse(db, request, tool, userId) {
   const key = quotaKey(request, userId);
   const q = await getToolQuota(db, key, tool);
-  const allowed = userId ? LIMIT_USER + q.bonus : LIMIT_ANON;
+  const grant = await getUserGrantExtra(db, userId, tool);
+  const allowed = userId ? LIMIT_USER + grant + q.bonus : LIMIT_ANON;
   if (q.uses >= allowed) {
-    const payload = toolQuotaPayload(q, userId);
+    const payload = await toolQuotaPayload(db, q, userId, tool);
     if (!userId) {
       return {
         ok: false,

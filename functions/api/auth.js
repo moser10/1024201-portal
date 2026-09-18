@@ -91,7 +91,7 @@ async function sendMail(env, to, subject, html) {
       Authorization: `Bearer ${env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: "admin@1024201.com", to, subject, html }),
+    body: JSON.stringify({ from: "1024201@1024201.com", to, subject, html }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
