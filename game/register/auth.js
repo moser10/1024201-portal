@@ -1,6 +1,7 @@
 import { setUser } from "../js/store.js";
 import { bindNameCheck } from "../onesentence/js/nameCheck.js";
 import { mountAccountChrome } from "/js/accountChrome.js";
+import { getPortalLang } from "/js/langTabs.js";
 
 const API = "";
 const CODE_WINDOW_MS = 60_000;
@@ -116,9 +117,9 @@ function renderShell() {
     returnPath: returnTo.replace(/^\//, "") || "",
   });
   const back = document.getElementById("authBackLink");
-  const dest = resolveDest();
-  back.href = dest;
-  back.textContent = dest === "/" || dest === "/index.html" ? "返回门户" : "返回";
+  const backCopy = { en: "Back to portal", zh: "返回门户", ja: "ポータルへ" };
+  back.href = "/";
+  back.textContent = backCopy[getPortalLang()] || backCopy.en;
 }
 
 function switchTab(name) {

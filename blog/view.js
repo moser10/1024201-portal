@@ -5,7 +5,7 @@ import { renderMarkdown, formatBlogDate } from "./md.js";
 const UI = {
   en: {
     back: "Blog",
-    backPortal: "Portal",
+    backPortal: "Back to portal",
     updated: "Updated",
     author: "By",
     like: "Like",
@@ -27,7 +27,7 @@ const UI = {
   },
   ja: {
     back: "ブログ",
-    backPortal: "ポータル",
+    backPortal: "ポータルへ",
     updated: "更新",
     author: "作者",
     like: "いいね",
@@ -57,7 +57,7 @@ async function boot() {
   const ui = t();
   const lang = getPortalLang();
 
-  document.getElementById("backLink").textContent = ui.back;
+  document.getElementById("backLink").textContent = ui.backPortal;
 
   if (!id) {
     errBox.hidden = false;

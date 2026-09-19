@@ -128,7 +128,7 @@ const COPY = {
   en: {
     pageTitle: "CLI",
     pageSub: "Run 1024201 tools from the terminal · same API & quotas as the web",
-    backLink: "Portal",
+    backLink: "Back to portal",
     statusBadge: "CLI v1.2 is live",
     introTitle: "Overview",
     intro:
@@ -248,7 +248,7 @@ const COPY = {
   ja: {
     pageTitle: "CLI",
     pageSub: "ターミナルから 1024201 ツール · Web と同じ API・割当",
-    backLink: "ポータル",
+    backLink: "ポータルへ",
     statusBadge: "CLI v1.2 稼働中",
     introTitle: "概要",
     intro:

@@ -5,7 +5,7 @@ const UI = {
   en: {
     title: "Music",
     sub: "Deezer chart · 30s preview clips (full tracks via Deezer link)",
-    back: "Portal",
+    back: "Back to portal",
     lyrics: "Lyrics",
     play: "Play",
     pause: "Pause",
@@ -41,7 +41,7 @@ const UI = {
   ja: {
     title: "音楽",
     sub: "Deezerチャート · 30秒プレビュー（フルはDeezerへ）",
-    back: "ポータル",
+    back: "ポータルへ",
     lyrics: "歌詞",
     play: "再生",
     pause: "一時停止",

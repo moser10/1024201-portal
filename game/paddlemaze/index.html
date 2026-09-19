@@ -11,7 +11,7 @@
 <body>
   <main class="game-shell">
     <header class="game-top">
-      <a class="game-back" href="/">返回门户</a>
+      <a class="game-back" id="gameBack" href="/">Back to portal</a>
       <div class="game-title">
         <strong>PADDLE BLOCK MAZE</strong>
         <span id="levelText">LEVEL 01 / 24</span>
@@ -53,6 +53,13 @@
       </div>
     </div>
   </main>
+  <script>
+    (function () {
+      var lang = localStorage.getItem("portal_lang") || "en";
+      var copy = { en: "Back to portal", zh: "返回门户", ja: "ポータルへ" };
+      document.getElementById("gameBack").textContent = copy[lang] || copy.en;
+    })();
+  </script>
   <script type="module" src="game.js?v=7"></script>
 </body>
 </html>

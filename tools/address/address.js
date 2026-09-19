@@ -7,7 +7,7 @@ const UI = {
   en: {
     title: "Address Lookup",
     sub: "Rental & sale addresses · postal codes · local phone prefixes",
-    back: "Portal",
+    back: "Back to portal",
     lblCountry: "Country / region",
     lblCity: "City",
     lblKind: "Listing type",
@@ -67,7 +67,7 @@ const UI = {
   ja: {
     title: "住所検索",
     sub: "賃貸・売買 · 住所 · 郵便番号 · 電話番号",
-    back: "ポータル",
+    back: "ポータルへ",
     lblCountry: "国・地域",
     lblCity: "都市",
     lblKind: "種別",

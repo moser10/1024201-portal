@@ -13,7 +13,9 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <title>游戏中心</title>
     <style>html,body{background:#f2f2f7}body{margin:0}</style>
-    <link rel="stylesheet" href="css/hub.css?v=3">
+    <link rel="modulepreload" href="/js/langTabs.js">
+    <link rel="modulepreload" href="/js/accountChrome.js">
+    <link rel="stylesheet" href="css/hub.css?v=4">
     <link rel="stylesheet" href="/js/featurePage.css?v=3">
     <link rel="stylesheet" href="/js/langTabs.css">
     <link rel="stylesheet" href="/js/accountChrome.css">
@@ -23,8 +25,8 @@
     <div id="app">
       <div class="hub">
         <div class="hub-top">
-          <a href="/" class="feature-back" id="hubBack">返回门户</a>
-          <div id="hubAccountChrome"></div>
+          <a href="/" class="feature-back" id="hubBack">Back to portal</a>
+          <div id="hubAccountChrome" class="hub-account-slot"></div>
         </div>
         <h1 id="hubTitle">游戏中心</h1>
         <div class="grid" id="gameGrid">
@@ -43,7 +45,7 @@
     </div>
     <script>
       (function () {
-        var lang = localStorage.getItem("portal_lang") || "zh";
+        var lang = localStorage.getItem("portal_lang") || "en";
         var text = {
           zh: { title:"游戏中心", back:"返回门户", osn:"一人一句，一句成书", paddlemaze:"挡板方块迷宫" },
           en: { title:"Game Center", back:"Back to portal", osn:"One sentence, one novel", paddlemaze:"Paddle Block Maze" },
@@ -56,7 +58,7 @@
         document.querySelector('[data-label="paddlemaze"]').textContent = text.paddlemaze;
       })();
     </script>
-    <script type="module" src="js/hub.js?v=2"></script>
+    <script type="module" src="js/hub.js?v=3"></script>
     <script src="/pwa.js" defer></script>
 </body>
 </html>

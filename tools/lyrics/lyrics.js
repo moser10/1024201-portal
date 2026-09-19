@@ -8,7 +8,7 @@ const UI = {
   en: {
     title: "Find Lyrics",
     sub: "LRCLIB + Deezer · search by song or artist",
-    back: "Portal",
+    back: "Back to portal",
     lblTitle: "Song title",
     lblArtist: "Artist",
     hint: "Enter a song title, an artist, or both. Quota counts list refreshes (3s debounce). Guests: 1/day; registered: 5/day.",
@@ -62,7 +62,7 @@ const UI = {
   ja: {
     title: "歌詞検索",
     sub: "LRCLIB + Deezer · 曲名またはアーティスト",
-    back: "ポータル",
+    back: "ポータルへ",
     lblTitle: "曲名",
     lblArtist: "アーティスト",
     hint: "曲名のみ、アーティストのみ、または両方（両方は積集合）。3秒以内の連続更新は1回扱い。ゲスト1日1回、登録5回。",

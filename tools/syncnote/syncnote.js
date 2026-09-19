@@ -35,7 +35,7 @@ const MAX_FILE_MB = 5;
 const UI = {
   en: {
     title: "Text Relay",
-    back: "Portal",
+    back: "Back to portal",
     loginDesc: "Sign in to use Text Relay.",
     loginBtn: "Sign in / Register",
     slot: (n) => `Relay ${n}`,
@@ -115,7 +115,7 @@ const UI = {
   },
   ja: {
     title: "テキスト中継",
-    back: "ポータル",
+    back: "ポータルへ",
     loginDesc: "テキスト中継を使うにはログインしてください。",
     loginBtn: "ログイン / 登録",
     slot: (n) => `中継 ${n}`,

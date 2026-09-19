@@ -36,6 +36,7 @@ document.getElementById("hubBack").textContent = t.back;
 mountAccountChrome(document.getElementById("hubAccountChrome"), {
   variant: "game",
   returnPath: "game/",
+  layout: "horizontal",
 });
 
 const grid = document.getElementById("gameGrid");
