@@ -5,7 +5,7 @@ import { renderMarkdown, formatBlogDate } from "./md.js";
 const UI = {
   en: {
     back: "Blog",
-    backPortal: "Portal",
+    backPortal: "Back to portal",
     updated: "Updated",
     author: "By",
     like: "Like",
@@ -16,7 +16,7 @@ const UI = {
   },
   zh: {
     back: "博客",
-    backPortal: "门户",
+    backPortal: "返回门户",
     updated: "更新",
     author: "作者",
     like: "点赞",
@@ -27,7 +27,7 @@ const UI = {
   },
   ja: {
     back: "ブログ",
-    backPortal: "ポータル",
+    backPortal: "ポータルへ",
     updated: "更新",
     author: "作者",
     like: "いいね",
@@ -57,7 +57,7 @@ async function boot() {
   const ui = t();
   const lang = getPortalLang();
 
-  document.getElementById("backLink").textContent = ui.back;
+  document.getElementById("backLink").textContent = ui.backPortal;
 
   if (!id) {
     errBox.hidden = false;
@@ -137,12 +137,8 @@ async function boot() {
     }
   }
 
-  if (data.is_owner) {
-    document.getElementById("backLink").href = "/blog/";
-  } else {
-    document.getElementById("backLink").href = "/";
-    document.getElementById("backLink").textContent = ui.backPortal;
-  }
+  document.getElementById("backLink").href = "/";
+  document.getElementById("backLink").textContent = ui.backPortal;
 }
 
 boot();

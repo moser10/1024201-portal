@@ -12,7 +12,7 @@ const UI = {
   en: {
     title: "Portfolio",
     sub: "",
-    back: "Toolbox",
+    back: "Back to portal",
     loginDesc: "Sign in to upload portfolio works.",
     loginBtn: "Sign in / Register",
     lblTitle: "Title",
@@ -40,7 +40,7 @@ const UI = {
   zh: {
     title: "作品展示",
     sub: "",
-    back: "返回工具箱",
+    back: "返回门户",
     loginDesc: "请登录后上传作品。",
     loginBtn: "登录 / 注册",
     lblTitle: "作品标题",
@@ -67,7 +67,7 @@ const UI = {
   ja: {
     title: "作品展示",
     sub: "",
-    back: "ツールボックス",
+    back: "ポータルへ",
     loginDesc: "ログインして作品をアップロード。",
     loginBtn: "ログイン / 登録",
     lblTitle: "タイトル",
@@ -171,6 +171,7 @@ function applyI18n() {
     subEl.hidden = !t.sub;
   }
   document.getElementById("backLink").textContent = t.back;
+  document.getElementById("backLink").href = "/";
   document.getElementById("loginDesc").textContent = t.loginDesc;
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/showcase/");

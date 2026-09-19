@@ -1,5 +1,5 @@
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: #f2f2f7;
   color: #1c1c1e;
   margin: 0;
@@ -25,6 +25,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 20px;
+  margin-top: 28px;
 }
 .game-card {
   display: flex;
@@ -68,6 +69,13 @@ body {
   flex: 0 1 auto;
   max-width: min(100%, 240px);
 }
+.hub-account-slot {
+  min-width: 186px;
+  min-height: 40px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
 .hub-top-right {
   display: flex;
   align-items: flex-start;
@@ -78,6 +86,7 @@ body {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  min-height: 40px;
   margin-bottom: 8px;
 }
 .hub-top .back { margin-bottom: 0; }
@@ -101,4 +110,14 @@ body {
   color: #007aff;
   text-decoration: none;
   font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .hub-account-slot {
+    min-width: 150px;
+    min-height: 72px;
+  }
+  .hub-top {
+    min-height: 72px;
+  }
 }

@@ -3,7 +3,7 @@ import { deferWork } from "../js/toolPageBoot.js";
 
 const UI = {
   en: {
-    back: "Search",
+    back: "Back to portal",
     err: "Failed to load lyrics",
     loading: "Loading lyrics…",
     translating: "Translating…",
@@ -11,7 +11,7 @@ const UI = {
     noLyrics: "No lyrics available",
   },
   zh: {
-    back: "返回搜索",
+    back: "返回门户",
     err: "歌词加载失败",
     loading: "正在加载歌词…",
     translating: "正在翻译…",
@@ -19,7 +19,7 @@ const UI = {
     noLyrics: "暂无歌词",
   },
   ja: {
-    back: "検索",
+    back: "ポータルへ",
     err: "歌詞の読み込みに失敗",
     loading: "歌詞を読み込み中…",
     translating: "翻訳中…",
@@ -46,14 +46,7 @@ const contentEl = document.getElementById("viewContent");
 function applyI18n() {
   const back = document.getElementById("backLink");
   back.textContent = t.back;
-  back.href = "/tools/lyrics/";
-  back.onclick = (e) => {
-    // Prefer real history so edge-swipe / back stack stay consistent
-    if (window.history.length > 1) {
-      e.preventDefault();
-      window.history.back();
-    }
-  };
+  back.href = "/";
 }
 
 function readCache(id) {

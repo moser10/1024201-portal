@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v68";
+const CACHE = "1042-pwa-v84";
 const SHELL = [
   "/",
   "/index.html",
@@ -6,9 +6,36 @@ const SHELL = [
   "/pwa.js",
   "/js/langTabs.css",
   "/js/langTabs.js",
+  "/js/accountChrome.js",
+  "/js/accountChrome.css",
+  "/js/device.js",
   "/js/featurePage.css",
+  "/js/featurePage.css?v=3",
   "/js/edgeBack.js",
-  "/game/css/userBar.css?v=6",
+  "/game/css/userBar.css?v=7",
+  "/game/",
+  "/game/index.html",
+  "/game/css/hub.css?v=4",
+  "/game/js/hub.js?v=3",
+  "/tools/",
+  "/tools/index.html",
+  "/tools/css/icons.css",
+  "/tools/js/hub.js?v=6",
+  "/game/register/",
+  "/game/register/index.html",
+  "/game/register/auth.css?v=3",
+  "/game/register/auth.js?v=14",
+  "/game/paddlemaze/",
+  "/game/paddlemaze/index.html",
+  "/game/paddlemaze/game.css?v=12",
+  "/game/paddlemaze/game.js?v=12",
+  "/game/paddlemaze/levels.js?v=12",
+  "/game/paddlemaze/resources.js?v=12",
+  "/game/paddlemaze/welfare.js?v=12",
+  "/blog/",
+  "/blog/index.html",
+  "/blog/blog.css?v=5",
+  "/blog/blog-app.js?v=3",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
@@ -77,6 +104,21 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => null);
+
+      // Authentication navigations must use the latest HTML on iOS standalone.
+      // Fall back to cache only when offline; never keep a stale/blank auth shell.
+      if (request.mode === "navigate" && url.pathname.startsWith("/game/register")) {
+        const fresh = await networkPromise;
+        if (fresh) return fresh;
+        return cached || (await cache.match("/game/register/index.html")) ||
+          new Response("Offline", { status: 503 });
+      }
+
+      if (url.pathname.startsWith("/game/paddlemaze")) {
+        const fresh = await networkPromise;
+        if (fresh) return fresh;
+        return cached || new Response("", { status: 504, statusText: "Offline" });
+      }
 
       // Instant paint from cache; refresh in background
       if (cached) {

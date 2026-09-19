@@ -5,7 +5,7 @@ const UI = {
   en: {
     title: "Music",
     sub: "Deezer chart · 30s preview clips (full tracks via Deezer link)",
-    back: "Toolbox",
+    back: "Back to portal",
     lyrics: "Lyrics",
     play: "Play",
     pause: "Pause",
@@ -23,7 +23,7 @@ const UI = {
   zh: {
     title: "音乐",
     sub: "Deezer 榜单 · 30 秒试听（完整版请跳转 Deezer）",
-    back: "返回工具箱",
+    back: "返回门户",
     lyrics: "歌词",
     play: "播放",
     pause: "暂停",
@@ -41,7 +41,7 @@ const UI = {
   ja: {
     title: "音楽",
     sub: "Deezerチャート · 30秒プレビュー（フルはDeezerへ）",
-    back: "ツールボックス",
+    back: "ポータルへ",
     lyrics: "歌詞",
     play: "再生",
     pause: "一時停止",
@@ -85,6 +85,7 @@ function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
   document.getElementById("pageSub").textContent = t.sub;
   document.getElementById("backLink").textContent = t.back;
+  document.getElementById("backLink").href = "/";
   document.getElementById("lyricsTitle").textContent = t.lyrics;
   document.getElementById("modalClose").textContent = t.close;
   prevBtn.textContent = t.prev;

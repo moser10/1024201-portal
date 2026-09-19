@@ -1,10 +1,25 @@
 /* Keep scroll containment on the shell — NOT on html/body.
    overflow:hidden on the document breaks Safari's edge-swipe back gesture. */
+:root {
+  --portal-font:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
 html.feature-page,
 html.feature-page body {
   height: 100%;
   overflow: visible;
   overscroll-behavior-y: none;
+  font-family: var(--portal-font);
+}
+
+.feature-page button,
+.feature-page input,
+.feature-page textarea,
+.feature-page select {
+  font-family: inherit;
 }
 
 .feature-shell {

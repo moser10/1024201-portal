@@ -8,7 +8,7 @@ const UI = {
   en: {
     title: "PDF Convert",
     sub: "Word / TXT / MD → PDF (client-side)",
-    back: "Toolbox",
+    back: "Back to portal",
     pick: "Choose file",
     hint: ".docx .txt .md",
     convert: "Generate PDF",
@@ -39,7 +39,7 @@ const UI = {
   zh: {
     title: "PDF 转换",
     sub: "Word / TXT / MD → PDF（本地转换）",
-    back: "返回工具箱",
+    back: "返回门户",
     pick: "选择文件",
     hint: ".docx .txt .md",
     convert: "生成 PDF",
@@ -70,7 +70,7 @@ const UI = {
   ja: {
     title: "PDF変換",
     sub: "Word / TXT / MD → PDF（ローカル）",
-    back: "ツールボックス",
+    back: "ポータルへ",
     pick: "ファイルを選択",
     hint: ".docx .txt .md",
     convert: "PDFを生成",
@@ -115,6 +115,7 @@ function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
   document.getElementById("pageSub").textContent = t.sub;
   document.getElementById("backLink").textContent = t.back;
+  document.getElementById("backLink").href = "/";
   document.getElementById("pickLabel").textContent = t.pick;
   document.getElementById("pickHint").textContent = t.hint;
   convertBtn.textContent = t.convert;

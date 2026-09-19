@@ -82,40 +82,26 @@ let t = HUB_I18N[lang] || HUB_I18N.en;
 
 function render() {
   t = HUB_I18N[lang] || HUB_I18N.en;
-  app.innerHTML = `
-    <div class="hub">
-      <div class="hub-top">
-        <a href="/" class="feature-back">${t.back}</a>
-        <div id="hubAccountChrome"></div>
-      </div>
-      <h1>${t.title}</h1>
-      <p class="sub">${t.sub}</p>
-      <div class="grid" id="toolGrid"></div>
-    </div>`;
+  document.getElementById("hubBack").textContent = t.back;
+  document.getElementById("hubTitle").textContent = t.title;
+  document.getElementById("hubSub").textContent = t.sub;
+  for (const tool of TOOLS) {
+    const card = document.querySelector(`[data-tool-card="${tool.id}"]`);
+    if (!card) continue;
+    card.querySelector("[data-title]").textContent = tool.title[lang] || tool.title.en;
+    card.querySelector("[data-sub]").textContent = tool.sub[lang] || tool.sub.en;
+  }
 
   mountAccountChrome(document.getElementById("hubAccountChrome"), {
     variant: "game",
     returnPath: "tools/",
     active: lang,
+    layout: "horizontal",
     onLangChange: (next) => {
       lang = next;
       render();
     },
   });
-
-  const grid = document.getElementById("toolGrid");
-  grid.innerHTML = TOOLS.map((tool) => {
-    const label = tool.title[lang] || tool.title.en;
-    const sub = tool.sub[lang] || tool.sub.en;
-    return `
-      <a class="game-card" href="${tool.href}">
-        <div class="game-icon" style="background:${tool.gradient}">
-          ${tool.icon}
-        </div>
-        <div class="game-label">${label}</div>
-        <div class="game-full">${sub}</div>
-      </a>`;
-  }).join("");
 }
 
 render();

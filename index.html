@@ -14,6 +14,8 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <title>1024201 | Portal</title>
     <style>
+        @view-transition { navigation: auto; }
+        html { background: #f2f2f7; }
         :root {
             --ios-bg: #f2f2f7;
             --ios-card: #ffffff;
@@ -22,7 +24,7 @@
             --ios-blue: #007aff;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
         body {
             background-color: var(--ios-bg);
@@ -57,6 +59,7 @@
         .time-zones { width: 100%; }
 
         .device-widget {
+            min-height: 96px;
             border: 1px solid rgba(0, 122, 255, 0.12);
             background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
             box-shadow: 0 4px 14px rgba(0, 122, 255, 0.08);
@@ -163,6 +166,8 @@
             align-items: center;
             flex-shrink: 0;
             gap: 6px;
+            min-width: 150px;
+            min-height: 68px;
         }
 
         main {
@@ -233,6 +238,21 @@
             line-height: 1;
         }
 
+        .visitor-widget {
+            min-height: 64px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .visitor-count {
+            color: #007aff;
+            font-size: 22px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+
         .app-grid {
             display: grid;
             grid-template-columns: repeat(3, auto);
@@ -263,7 +283,7 @@
         .app-icon svg { width: 44px; height: 44px; fill: white; }
         .icon-tools svg { width: 38px; height: 38px; }
         .icon-blog .blog-glyph {
-            font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+            font-family: inherit;
             font-size: 34px;
             font-weight: 700;
             color: #fff;
@@ -275,7 +295,8 @@
 
         footer { font-size: 12px; color: var(--ios-text-secondary); padding: 10px 0; position: relative; z-index: 1; }
 
-        #userBarSlot { display: flex; align-items: center; justify-content: center; }
+        #userBarSlot { min-height: 31px; display: flex; align-items: center; justify-content: center; }
+        #langSlot { min-height: 31px; }
         #userBarSlot .user-bar { align-items: center; }
 
         @media (max-width: 768px) {
@@ -405,6 +426,11 @@
                     <div class="ip-tags" id="ipTags" hidden></div>
                 </div>
             </div>
+
+            <div class="widget-card visitor-widget" id="portalVisits" aria-live="polite">
+                <div class="widget-label" id="visitLabel">Visitors</div>
+                <div class="visitor-count" id="visitCount">—</div>
+            </div>
         </div>
 
         <div class="controls">
@@ -426,7 +452,7 @@
                     </div>
                     <div class="app-label" id="app-mail">Mail</div>
                 </a>
-                <a href="/game/" class="app-item">
+                <a href="/game/" class="app-item" id="appGameLink">
                     <div class="app-icon icon-game">
                         <svg viewBox="0 0 24 24"><path d="M15.5 6c-1.1 0-2 .9-2 2v2H10.5V8c0-1.1-.9-2-2-2s-2 .9-2 2v2H5c-1.1 0-2 .9-2 2v5c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5c0-1.1-.9-2-2-2h-1.5V8c0-1.1-.9-2-2-2zm-6 9.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm5 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
                     </div>
@@ -438,7 +464,7 @@
                     </div>
                     <div class="app-label" id="app-fx">Rates</div>
                 </a>
-                <a href="/tools/" class="app-item">
+                <a href="/tools/" class="app-item" id="appToolsLink">
                     <div class="app-icon icon-tools">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
                     </div>
@@ -470,21 +496,21 @@
                 mail: 'Mail', game: 'Game Center', fx: 'Rates', tools: 'Toolbox', blog: 'Blog',
                 locTitle: 'IP Location', locating: 'Locating…', locUnavailable: 'Location unavailable',
                 netResidential: 'Home broadband', netDatacenter: 'Datacenter', netMobile: 'Mobile network',
-                purity: 'Purity', proxy: 'Proxy/VPN'
+                purity: 'Purity', proxy: 'Proxy/VPN', visits: 'Visitors'
             },
             ja: {
                 us: 'サンノゼ', jp: '大阪', cn: '北京', se: 'ヨーテボリ',
                 mail: 'メール', game: 'ゲームセンター', fx: '為替', tools: 'ツールボックス', blog: 'ブログ',
                 locTitle: 'IP位置', locating: '取得中…', locUnavailable: '位置を取得できません',
                 netResidential: '家庭用回線', netDatacenter: 'データセンター', netMobile: 'モバイル回線',
-                purity: '純度', proxy: 'プロキシ/VPN'
+                purity: '純度', proxy: 'プロキシ/VPN', visits: '訪問者'
             },
             zh: {
                 us: '圣何塞', jp: '大阪', cn: '北京', se: '哥德堡',
                 mail: '邮箱', game: '游戏中心', fx: '汇率', tools: '工具箱', blog: '博客',
                 locTitle: 'IP 位置', locating: '定位中…', locUnavailable: '无法获取位置',
                 netResidential: '家庭宽带', netDatacenter: '机房网络', netMobile: '移动网络',
-                purity: '纯净度', proxy: '代理/VPN'
+                purity: '纯净度', proxy: '代理/VPN', visits: '访客'
             }
         };
 
@@ -508,6 +534,8 @@
             document.getElementById('app-tools').innerText = t.tools;
             document.getElementById('app-blog').innerText = t.blog;
             document.getElementById('locTitle').innerText = t.locTitle;
+            const visitLabel = document.getElementById('visitLabel');
+            if (visitLabel) visitLabel.textContent = t.visits;
             const locEl = document.getElementById('deviceLocation');
             if (locEl.classList.contains('is-loading')) {
                 locEl.innerText = t.locating;
@@ -547,13 +575,18 @@
             applyI18n(lang);
             localStorage.setItem('portal_lang', lang);
             setLangActive(lang);
-            import('/game/js/userBar.js?v=7').then(({ mountUserBar }) => {
-                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '', showHint: true });
+            import('/game/js/userBar.js?v=8').then(({ mountUserBar }) => {
+                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '/', showHint: true });
             });
             updateClocks();
-            fetch('/api/portal?action=geo').then((r) => r.json()).then((data) => {
-                renderIpWidget(data, i18n[lang] || i18n.en);
-            }).catch(() => loadDeviceLocation());
+            const cachedGeo = sessionStorage.getItem('portal_geo_v1');
+            if (cachedGeo) {
+                try {
+                    renderIpWidget(JSON.parse(cachedGeo), i18n[lang] || i18n.en);
+                    return;
+                } catch (_) {}
+            }
+            loadDeviceLocation();
         }
 
         const DATE_LOCALE = { zh: 'zh-CN', en: 'en-US', ja: 'ja-JP' };
@@ -592,17 +625,59 @@
             document.getElementById('zoneDate').innerText = now.toLocaleDateString(DATE_LOCALE[lang] || 'en-US', { ...dateOpts, timeZone: activeRow.dataset.tz });
         }
 
+        function paintVisitCount(n) {
+            const el = document.getElementById('visitCount');
+            if (!el || n == null || Number.isNaN(Number(n))) return;
+            el.textContent = String(n);
+            try { localStorage.setItem('portal_visits_n', String(n)); } catch (_) {}
+        }
+
+        // Instant paint from local text cache (GoatCounter-style uniques, not vanity pageviews)
+        try {
+            const cachedN = localStorage.getItem('portal_visits_n');
+            if (cachedN) paintVisitCount(cachedN);
+        } catch (_) {}
+
+        async function syncVisits() {
+            let uid = '';
+            try {
+                const u = JSON.parse(localStorage.getItem('osn_user') || 'null');
+                if (u && u.id) uid = String(u.id);
+            } catch (_) {}
+            try {
+                const hitQs = new URLSearchParams({ action: 'visit_hit' });
+                if (uid) hitQs.set('user_id', uid);
+                const hit = await fetch(`/api/portal?${hitQs}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(uid ? { user_id: Number(uid) } : {}) });
+                const data = await hit.json();
+                if (data && data.n != null) paintVisitCount(data.n);
+            } catch (_) {
+                try {
+                    const res = await fetch('/api/portal?action=visit_count');
+                    const data = await res.json();
+                    if (data && data.n != null) paintVisitCount(data.n);
+                } catch (_) {}
+            }
+        }
+
         async function loadDeviceLocation() {
             const locEl = document.getElementById('deviceLocation');
             const tagsEl = document.getElementById('ipTags');
             const lang = localStorage.getItem('portal_lang') || 'en';
             const t = i18n[lang] || i18n.en;
+            try {
+                const cached = sessionStorage.getItem('portal_geo_v1');
+                if (cached) {
+                    renderIpWidget(JSON.parse(cached), t);
+                    return;
+                }
+            } catch (_) {}
             locEl.classList.add('is-loading');
             locEl.innerText = t.locating;
             tagsEl.hidden = true;
             try {
                 const res = await fetch('/api/portal?action=geo');
                 const data = await res.json();
+                try { sessionStorage.setItem('portal_geo_v1', JSON.stringify(data)); } catch (_) {}
                 renderIpWidget(data, t);
             } catch (_) {
                 locEl.classList.remove('is-loading');
@@ -614,19 +689,57 @@
         let savedLang = localStorage.getItem('portal_lang') || 'en';
         if (!i18n[savedLang]) savedLang = 'en';
         setActiveDateZone(activeDateZone);
+        updateClocks();
         import('/js/langTabs.js').then(({ mountLangTabs }) => {
             mountLangTabs(document.getElementById('langSlot'), { onChange: changeLang });
             changeLang(savedLang);
         });
         setInterval(updateClocks, 1000);
 
+        const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1));
+        idle(() => syncVisits(), { timeout: 800 });
+        idle(() => loadDeviceLocation(), { timeout: 2500 });
+
         window.addEventListener('pageshow', () => {
-            const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1));
-            import('/game/js/userBar.js?v=7').then(({ mountUserBar }) => {
-                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '', showHint: true });
+            import('/game/js/userBar.js?v=8').then(({ mountUserBar }) => {
+                mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '/', showHint: true });
             });
-            idle(() => loadDeviceLocation(), { timeout: 1200 });
         });
+
+        // Warm lightweight destination shells so portal taps paint immediately.
+        (function warmDestinationShells() {
+            const groups = [
+                {
+                    link: 'appBlogLink',
+                    urls: ['/blog/', '/blog/blog.css?v=5', '/blog/blog-app.js?v=3', '/js/featurePage.css?v=3']
+                },
+                {
+                    link: 'appGameLink',
+                    urls: ['/game/', '/game/css/hub.css?v=4', '/game/js/hub.js?v=3', '/js/accountChrome.js', '/js/langTabs.js']
+                },
+                {
+                    link: 'appToolsLink',
+                    urls: ['/tools/', '/game/css/hub.css?v=4', '/tools/css/icons.css', '/tools/js/hub.js?v=6', '/js/accountChrome.js', '/js/langTabs.js']
+                }
+            ];
+            function prefetch(url) {
+                if (document.querySelector(`link[rel="prefetch"][href="${url}"], link[rel="modulepreload"][href="${url}"]`)) return;
+                const link = document.createElement('link');
+                link.rel = url.endsWith('.js') || url.includes('.js?') ? 'modulepreload' : 'prefetch';
+                link.href = url;
+                if (link.rel === 'modulepreload') link.as = 'script';
+                document.head.appendChild(link);
+            }
+            const idlePrefetch = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
+            idlePrefetch(() => groups.flatMap((group) => group.urls).forEach(prefetch), { timeout: 3000 });
+            for (const group of groups) {
+                const target = document.getElementById(group.link);
+                if (!target) continue;
+                const warm = () => group.urls.forEach(prefetch);
+                target.addEventListener('pointerdown', warm, { passive: true });
+                target.addEventListener('mouseenter', warm, { once: true });
+            }
+        })();
     </script>
     <script src="/js/edgeBack.js" defer></script>
     <script src="/pwa.js" defer></script>

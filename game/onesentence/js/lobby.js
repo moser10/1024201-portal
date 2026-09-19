@@ -14,6 +14,11 @@ export function renderLobby(app, onEnterRoom, game) {
   }
   let todoTimer = null;
   let lobbyDisposed = false;
+  const portalBack = {
+    en: "Back to portal",
+    zh: "返回门户",
+    ja: "ポータルへ",
+  }[getPortalLang()] || "Back to portal";
 
   app.innerHTML = `
     <div class="card">
@@ -25,7 +30,7 @@ export function renderLobby(app, onEnterRoom, game) {
         <div class="row header-lang-row" style="margin:0;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;">
           <div id="lobbyLangSlot"></div>
           <div id="lobbyUserBar"></div>
-          <button type="button" id="leaveLobbyBtn" class="btn-secondary btn-small">返回游戏中心</button>
+          <button type="button" id="leaveLobbyBtn" class="btn-secondary btn-small">${portalBack}</button>
         </div>
       </div>
 
@@ -80,7 +85,7 @@ export function renderLobby(app, onEnterRoom, game) {
   document.getElementById("leaveLobbyBtn").onclick = () => {
     clearInterval(todoTimer);
     clearRoom();
-    window.location.href = "/game/";
+    window.location.href = "/";
   };
 
   bindNameCheck({

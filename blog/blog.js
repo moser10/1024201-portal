@@ -5,7 +5,7 @@ const UI = {
   en: {
     title: "Blog",
     sub: "Image & text posts. Drafts stay private until you publish.",
-    back: "Portal",
+    back: "Back to portal",
     loginDesc: "Sign in to write and manage your blog.",
     loginBtn: "Sign in / Register",
     newPost: "New post",
@@ -18,7 +18,7 @@ const UI = {
   zh: {
     title: "博客",
     sub: "图文博客。草稿默认不公开，发布后按展现状态决定是否可访问。",
-    back: "门户",
+    back: "返回门户",
     loginDesc: "登录后可写博客、管理已发布内容。",
     loginBtn: "登录 / 注册",
     newPost: "新建博客",
@@ -31,7 +31,7 @@ const UI = {
   ja: {
     title: "ブログ",
     sub: "画像とテキストのブログ。下書きは非公開、公開後は表示設定に従います。",
-    back: "ポータル",
+    back: "ポータルへ",
     loginDesc: "ログインしてブログを作成・管理。",
     loginBtn: "ログイン / 登録",
     newPost: "新規作成",

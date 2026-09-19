@@ -5,16 +5,71 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#636366">
   <title>Toolbox | 1024201</title>
-  <link rel="stylesheet" href="/game/css/hub.css">
-  <link rel="stylesheet" href="/js/featurePage.css?v=2">
+  <style>html,body{background:#f2f2f7}body{margin:0}</style>
+  <link rel="modulepreload" href="/js/langTabs.js">
+  <link rel="modulepreload" href="/js/accountChrome.js">
+  <link rel="stylesheet" href="/game/css/hub.css?v=4">
+  <link rel="stylesheet" href="/js/featurePage.css?v=3">
   <link rel="stylesheet" href="css/icons.css">
   <link rel="stylesheet" href="/js/langTabs.css">
   <link rel="stylesheet" href="/js/accountChrome.css">
   <link rel="stylesheet" href="/game/css/userBar.css?v=7">
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <div class="hub">
+      <div class="hub-top">
+        <a href="/" class="feature-back" id="hubBack">Back to portal</a>
+        <div id="hubAccountChrome" class="hub-account-slot"></div>
+      </div>
+      <h1 id="hubTitle">Toolbox</h1>
+      <p class="sub" id="hubSub">Handy tools · pick one</p>
+      <div class="grid" id="toolGrid">
+        <a class="game-card" href="showcase/" data-tool-card="showcase">
+          <div class="game-icon" style="background:linear-gradient(135deg,#5e5ce6 0%,#bf5af2 100%)"><svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="#fff" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2M8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/></svg></div>
+          <div class="game-label" data-title>Portfolio</div><div class="game-full" data-sub>Watermark · share safely</div>
+        </a>
+        <a class="game-card" href="syncnote/" data-tool-card="syncnote">
+          <div class="game-icon" style="background:linear-gradient(135deg,#30d158 0%,#34c759 100%)"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" aria-hidden="true"><path fill="#fff" d="M4 7.5h10v1.6H4V7.5zm0 4.2h7.5v1.6H4v-1.6zm0 4.2h9v1.6H4v-1.6z"/><path stroke="#fff" stroke-width="1.7" stroke-linecap="round" d="M15.8 8.2c1.9.4 3.2 2 3.2 3.9s-1.3 3.5-3.2 3.9"/></svg></div>
+          <div class="game-label" data-title>Text Relay</div><div class="game-full" data-sub>Cross-device paste</div>
+        </a>
+        <a class="game-card" href="music/" data-tool-card="music">
+          <div class="game-icon" style="background:linear-gradient(135deg,#bf5af2 0%,#5856d6 100%)"><svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="#fff" d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
+          <div class="game-label" data-title>Music</div><div class="game-full" data-sub>Deezer previews</div>
+        </a>
+        <a class="game-card" href="pdf/" data-tool-card="pdf">
+          <div class="game-icon" style="background:linear-gradient(135deg,#ff9f0a 0%,#ff375f 100%)"><span class="game-code">PDF</span></div>
+          <div class="game-label" data-title>PDF Convert</div><div class="game-full" data-sub>Word/TXT/MD</div>
+        </a>
+        <a class="game-card" href="lyrics/" data-tool-card="lyrics">
+          <div class="game-icon" style="background:linear-gradient(135deg,#5ac8fa 0%,#007aff 100%)"><div class="tool-icon-lyrics-text"><span>歌詞</span><span class="en">Lyrics</span></div></div>
+          <div class="game-label" data-title>Find Lyrics</div><div class="game-full" data-sub>LRCLIB</div>
+        </a>
+        <a class="game-card" href="cli/" data-tool-card="cli">
+          <div class="game-icon" style="background:linear-gradient(135deg,#636366 0%,#1c1c1e 100%)"><span class="tool-icon-cli">CLI</span></div>
+          <div class="game-label" data-title>CLI</div><div class="game-full" data-sub>Commands, register & quotas</div>
+        </a>
+        <a class="game-card" href="address/" data-tool-card="address">
+          <div class="game-icon" style="background:linear-gradient(135deg,#34c759 0%,#30b0c7 100%)"><span class="tool-icon-block">ADDR</span></div>
+          <div class="game-label" data-title>Address Lookup</div><div class="game-full" data-sub>Rent/sale · postal · phone</div>
+        </a>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var lang = localStorage.getItem("portal_lang") || "en";
+      var copy = {
+        zh:{title:"工具箱",sub:"实用小工具 · 选一个开始",back:"返回门户",showcase:["作品展示","水印保护 · 分享展示"],syncnote:["文本中转站","跨设备复制粘贴"],music:["音乐","Deezer 试听"],pdf:["PDF 转换","Word/TXT/MD"],lyrics:["找歌词","LRCLIB"],cli:["命令行","命令、注册与配额"],address:["地址查找","租售地址 · 邮编 · 区号"]},
+        en:{title:"Toolbox",sub:"Handy tools · pick one",back:"Back to portal",showcase:["Portfolio","Watermark · share safely"],syncnote:["Text Relay","Cross-device paste"],music:["Music","Deezer previews"],pdf:["PDF Convert","Word/TXT/MD"],lyrics:["Find Lyrics","LRCLIB"],cli:["CLI","Commands, register & quotas"],address:["Address Lookup","Rent/sale · postal · phone"]},
+        ja:{title:"ツールボックス",sub:"便利ツール · 選んで開始",back:"ポータルへ",showcase:["作品展示","透かし付き展示"],syncnote:["テキスト中継","端末間コピー"],music:["音楽","Deezerプレビュー"],pdf:["PDF変換","Word/TXT/MD"],lyrics:["歌詞検索","LRCLIB"],cli:["CLI","コマンド・登録と割当"],address:["住所検索","賃貸売買・郵便・電話"]}
+      }[lang] || null;
+      if (!copy) return;
+      document.getElementById("hubTitle").textContent=copy.title; document.getElementById("hubSub").textContent=copy.sub; document.getElementById("hubBack").textContent=copy.back;
+      document.querySelectorAll("[data-tool-card]").forEach(function(card){var c=copy[card.dataset.toolCard];if(c){card.querySelector("[data-title]").textContent=c[0];card.querySelector("[data-sub]").textContent=c[1];}});
+    })();
+  </script>
   <script src="/js/edgeBack.js"></script>
-  <script type="module" src="js/hub.js?v=5"></script>
+  <script type="module" src="js/hub.js?v=6"></script>
 </body>
 </html>
