@@ -1,4 +1,4 @@
-import { buildLevelSpec, mazeRingPlan } from "./levels.js";
+import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js";
 import { pickPower, targetBallCount, targetPaddleWidth } from "./resources.js";
 
 const canvas = document.getElementById("gameCanvas");
@@ -97,6 +97,7 @@ function makeMazeWalls(cfg, field) {
   const result = [];
   const thick = 11;
   const plan = mazeRingPlan(cfg.number - 1);
+  const entryPath = mazeEntryPath(cfg.number - 1);
   const ringOffsets = [27, 57, 87, 117].slice(0, plan.ringCount);
 
   const addHorizontalWithGates = (y, left, right, centers, gateWidth) => {
@@ -117,21 +118,17 @@ function makeMazeWalls(cfg, field) {
     const right = field.x + field.w + offset;
     const top = field.y - offset;
     const bottom = field.y + field.h + offset;
-    const sourceGate = cfg.gates[ring % cfg.gates.length];
-    const nextGate = cfg.gates[(ring + 1) % cfg.gates.length];
-    const first = W / 2 + sourceGate * (ring % 2 ? -0.48 : 0.42);
-    const second = W / 2 - nextGate * 0.46 + (ring % 2 ? 22 : -22);
+    const bottomEntry = W / 2 + entryPath.ringCenters[ring];
     const gateWidth = 58 + ring * 6;
     let topCenters = [];
-    let bottomCenters = [];
+    const bottomCenters = [bottomEntry];
 
     if (plan.openingsPerRing === 1) {
-      // Four rings: one deliberate entrance per layer, alternating top/bottom.
-      if (ring % 2 === 0) topCenters = [first];
-      else bottomCenters = [first];
+      // Hard levels use one bottom entrance per ring, aligned as a readable diagonal.
+      topCenters = [];
     } else if (plan.openingsPerRing === 2) {
-      topCenters = [first];
-      bottomCenters = [second];
+      // Easier levels also offer an exit on top, but preserve the same entry route.
+      topCenters = [bottomEntry - entryPath.direction * 84];
     }
 
     addHorizontalWithGates(top, left, right, topCenters, gateWidth);
@@ -142,11 +139,14 @@ function makeMazeWalls(cfg, field) {
 
   // Lower deflectors continue the orbit after the outer ring.
   const outerBottom = field.y + field.h + ringOffsets[ringOffsets.length - 1];
-  for (const [barIndex, [sourceY, openingOffset]] of cfg.bars.entries()) {
+  for (const [barIndex, [sourceY]] of cfg.bars.entries()) {
     const y = outerBottom + 38 + barIndex * 62 + (sourceY % 11);
-    const openingX = W / 2 + openingOffset;
-    result.push({ x: 42, y, w: Math.max(70, openingX - 42), h: thick });
-    result.push({ x: openingX + 78, y, w: Math.max(48, W - 42 - openingX - 78), h: thick });
+    const center = Math.max(90, Math.min(W - 90, W / 2 + entryPath.deflectorCenters[barIndex]));
+    const gateWidth = 72;
+    const gateLeft = center - gateWidth / 2;
+    const gateRight = center + gateWidth / 2;
+    result.push({ x: 42, y, w: gateLeft - 42, h: thick });
+    result.push({ x: gateRight, y, w: W - 42 - gateRight, h: thick });
   }
   return result;
 }

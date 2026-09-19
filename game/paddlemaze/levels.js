@@ -45,6 +45,22 @@ export function mazeRingPlan(index) {
   };
 }
 
+/**
+ * One readable diagonal route from the lowest deflector through every ring.
+ * Coordinates are offsets from the board center; inner ring comes first.
+ */
+export function mazeEntryPath(index) {
+  const bp = LEVEL_BLUEPRINTS[index];
+  if (!bp) throw new RangeError(`Unknown level ${index + 1}`);
+  const { ringCount } = mazeRingPlan(index);
+  const direction = bp.guides[0] >= 0 ? 1 : -1;
+  const base = Math.max(-55, Math.min(55, bp.gates[0] * 0.22));
+  const ringCenters = Array.from({ length: ringCount }, (_, ring) => base + direction * ring * 52);
+  const outer = ringCenters[ringCenters.length - 1];
+  const deflectorCenters = bp.bars.map((_, bar) => outer + direction * (bar + 1) * 48);
+  return { direction, ringCenters, deflectorCenters };
+}
+
 function baseShape(shape, row, col, rows, cols) {
   const cx = (cols - 1) / 2;
   const cy = (rows - 1) / 2;
