@@ -1,6 +1,6 @@
-import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=10";
-import { pickPower, targetBallCount, targetPaddleWidth } from "./resources.js?v=10";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare } from "./welfare.js?v=10";
+import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=11";
+import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=11";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare } from "./welfare.js?v=11";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -32,7 +32,7 @@ const ballPool = Array.from({ length: MAX_BALLS }, () => ({
 }));
 const itemPool = Array.from({ length: MAX_ITEMS }, () => ({
   active: false, x: 0, y: 0, w: 72, h: 26, vy: 105,
-  kind: "balls", operation: "add", value: 2, label: "球 +2", color: "#34c759",
+  kind: "balls", operation: "add", value: 2, label: "+2", color: "#ff453a", buff: true,
 }));
 const particlePool = Array.from({ length: 120 }, () => ({
   active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, hue: 320,
@@ -290,13 +290,14 @@ function bounceRect(ball, rect) {
 function activatePowerDrop(type, x, y) {
   const power = itemPool.find((entry) => !entry.active);
   if (!power) return;
-  if (type.kind === "balls" && type.operation === "multiply") dropsSinceBallMultiplier = 0;
+  const spec = materializePower(type);
+  if (spec.kind === "balls" && spec.operation === "multiply") dropsSinceBallMultiplier = 0;
   else dropsSinceBallMultiplier++;
-  Object.assign(power, type, {
+  Object.assign(power, spec, {
     active: true,
     x,
     y,
-    w: 72,
+    w: 56,
     h: 26,
     vy: 105,
   });
@@ -305,12 +306,12 @@ function activatePowerDrop(type, x, y) {
 
 function spawnPower(brick) {
   const type = pickPower(Math.random, { forceBallMultiplier: dropsSinceBallMultiplier >= 2 });
-  activatePowerDrop(type, brick.x + brick.w / 2 - 36, brick.y + brick.h / 2 - 13);
+  activatePowerDrop(type, brick.x + brick.w / 2 - 28, brick.y + brick.h / 2 - 13);
 }
 
 function spawnWelfareDrop(kind) {
   const type = pickWelfarePower(kind);
-  activatePowerDrop(type, paddle.x + paddle.w / 2 - 36, Math.max(36, paddle.y - 220));
+  activatePowerDrop(type, paddle.x + paddle.w / 2 - 28, Math.max(36, paddle.y - 220));
 }
 
 function registerBrickHit(brick) {
@@ -327,14 +328,15 @@ function registerBrickHit(brick) {
 }
 
 function applyPower(power) {
-  if (power.kind === "paddle") {
-    paddle.w = targetPaddleWidth(paddle.w, power, INITIAL_PADDLE, MIN_PADDLE, W);
+  const spec = materializePower(power);
+  if (spec.kind === "paddle") {
+    paddle.w = targetPaddleWidth(paddle.w, spec, INITIAL_PADDLE, MIN_PADDLE, W);
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
-  } else if (power.kind === "balls") {
+  } else if (spec.kind === "balls") {
     const ballCap = Math.max(1, Math.min(MAX_BALLS, bricks.length));
-    const target = targetBallCount(balls.length, power, ballCap);
+    const target = targetBallCount(balls.length, spec, ballCap);
     if (target > balls.length) {
-      if (power.operation === "add") {
+      if (spec.operation === "add") {
         while (balls.length < target) {
           const paddleSource = {
             x: paddle.x + paddle.w / 2,
@@ -355,7 +357,7 @@ function applyPower(power) {
     } else {
       while (balls.length > target) releaseBallAt(balls.length - 1);
     }
-  } else if (power.kind === "reset") {
+  } else if (spec.kind === "reset") {
     paddle.w = INITIAL_PADDLE;
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
     while (balls.length > 1) releaseBallAt(balls.length - 1);
@@ -527,19 +529,20 @@ function draw() {
   }
 
   for (const power of powers) {
+    const spec = materializePower(power);
     const g = ctx.createLinearGradient(power.x, power.y, power.x + power.w, power.y + power.h);
-    g.addColorStop(0, power.color);
-    g.addColorStop(1, `${power.color}a8`);
+    g.addColorStop(0, spec.color);
+    g.addColorStop(1, `${spec.color}c2`);
     ctx.fillStyle = g;
     drawRoundedRect(power.x, power.y, power.w, power.h, 5);
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,.42)";
     ctx.stroke();
-    ctx.fillStyle = power.textColor || "#fff";
-    ctx.font = "700 13px Arial";
+    ctx.font = "800 15px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(power.label, power.x + power.w / 2, power.y + power.h / 2);
+    ctx.fillStyle = RESOURCE_LABEL_COLOR;
+    ctx.fillText(spec.label, power.x + power.w / 2, power.y + power.h / 2 + 0.5);
   }
 
   if (!reducedVisuals) {

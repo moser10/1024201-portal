@@ -274,11 +274,11 @@ canvas {
   stroke-linejoin: round;
 }
 
-.resource-icon.paddle-up { color: #0a84ff; }
-.resource-icon.paddle-down { color: #30d158; }
+.resource-icon.paddle-up { color: #30d158; }
+.resource-icon.paddle-down { color: #0a84ff; }
 .resource-icon.balls-up { color: #ff453a; width: 49px; }
 .resource-icon.balls-down { color: #bf5af2; width: 49px; }
-.resource-icon.reset { color: #ffd60a; }
+.resource-icon.reset { color: #e6c200; }
 
 #startBtn {
   min-width: 150px;

@@ -1,4 +1,4 @@
-import { POWER_TYPES } from "./resources.js";
+import { POWER_TYPES, materializePower } from "./resources.js";
 
 /** Seconds without a brick hit before the next consolation drop. */
 export const WELFARE_INTERVALS = Object.freeze([120, 90, 60]);
@@ -22,16 +22,14 @@ export function noteWelfareBrickHit(state) {
 }
 
 export function pickWelfarePower(kind, random = Math.random) {
-  const candidates = POWER_TYPES.filter((power) =>
-    power.kind === kind && (power.operation === "multiply" || power.operation === "add")
-  );
+  const candidates = POWER_TYPES.filter((power) => power.kind === kind && power.buff);
   const total = candidates.reduce((sum, power) => sum + power.weight, 0);
   let roll = random() * total;
   for (const power of candidates) {
     roll -= power.weight;
-    if (roll < 0) return power;
+    if (roll < 0) return materializePower(power);
   }
-  return candidates[candidates.length - 1];
+  return materializePower(candidates[candidates.length - 1]);
 }
 
 /**

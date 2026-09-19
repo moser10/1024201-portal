@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v82";
+const CACHE = "1042-pwa-v83";
 const SHELL = [
   "/",
   "/index.html",
@@ -27,11 +27,11 @@ const SHELL = [
   "/game/register/auth.js?v=14",
   "/game/paddlemaze/",
   "/game/paddlemaze/index.html",
-  "/game/paddlemaze/game.css?v=10",
-  "/game/paddlemaze/game.js?v=10",
-  "/game/paddlemaze/levels.js?v=10",
-  "/game/paddlemaze/resources.js?v=10",
-  "/game/paddlemaze/welfare.js?v=10",
+  "/game/paddlemaze/game.css?v=11",
+  "/game/paddlemaze/game.js?v=11",
+  "/game/paddlemaze/levels.js?v=11",
+  "/game/paddlemaze/resources.js?v=11",
+  "/game/paddlemaze/welfare.js?v=11",
   "/blog/",
   "/blog/index.html",
   "/blog/blog.css?v=5",
