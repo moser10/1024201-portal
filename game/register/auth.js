@@ -103,9 +103,9 @@ function renderShell() {
   </div>
   <div id="verifyModal" class="verify-modal" hidden>
     <div class="verify-modal-card" role="dialog" aria-modal="true">
-      <h2>输入注册码</h2>
+      <h2>输入邮箱验证码</h2>
       <p class="sub" id="verifyModalSub">验证码已发送至您的邮箱</p>
-      <input type="text" id="verifyCodeInput" maxlength="4" autocomplete="one-time-code" inputmode="text" placeholder="4位注册码">
+      <input type="text" id="verifyCodeInput" maxlength="4" autocomplete="one-time-code" inputmode="text" placeholder="4位验证码">
       <p id="verifyCodeErr" class="hint err verify-err" hidden></p>
       <button type="button" id="verifySubmitBtn" class="btn-primary">确认</button>
       <button type="button" id="verifyCancelBtn" class="btn-link">取消</button>
@@ -142,7 +142,7 @@ function syncRegBtn() {
     return;
   }
   if (awaitingCode && canReopenCodePopup()) {
-    btn.textContent = "请输入注册码";
+    btn.textContent = "请输入验证码";
     btn.disabled = false;
     return;
   }
@@ -155,7 +155,7 @@ function syncRegBtn() {
 
 function showVerifyModal(email) {
   const modal = document.getElementById("verifyModal");
-  document.getElementById("verifyModalSub").textContent = `注册码已发送至 ${email}`;
+  document.getElementById("verifyModalSub").textContent = `邮箱验证码已发送至 ${email}`;
   document.getElementById("verifyCodeInput").value = "";
   hideVerifyError();
   modal.hidden = false;
@@ -261,7 +261,7 @@ async function submitVerifyCode() {
   const email = document.getElementById("regEmail").value.trim();
   const code = document.getElementById("verifyCodeInput").value.trim();
   if (!code) {
-    showVerifyError("请输入注册码");
+    showVerifyError("请输入验证码");
     return;
   }
   try {
@@ -283,11 +283,11 @@ async function submitVerifyCode() {
       mailSentAt = null;
       document.getElementById("regSpamHint").hidden = false;
       syncRegBtn();
-      alert("注册码错误次数过多，请重新发送注册邮件");
+      alert("验证码错误次数过多，请重新发送验证邮件");
       return;
     }
     syncRegBtn();
-    showVerifyError(e.message || "注册码错误");
+    showVerifyError(e.message || "验证码错误");
   }
 }
 
@@ -327,6 +327,8 @@ regEmail.addEventListener("input", () => {
   regEmailHint.textContent = "";
   regEmailHint.className = "hint";
   syncRegBtn();
+  // Invitation validity is bound to this exact email, so re-check short names.
+  document.getElementById("regName").dispatchEvent(new Event("input"));
   clearTimeout(emailTimer);
   emailTimer = setTimeout(checkEmailField, 400);
 });

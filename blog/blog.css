@@ -6,6 +6,10 @@
   --blog-line: #e5e5ea;
   --blog-card: #ffffff;
   --blog-bg: #f2f2f7;
+  --portal-font:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 html.blog-page,
@@ -15,6 +19,14 @@ html.blog-page body {
   overflow: auto;
   background: var(--blog-bg);
   color: var(--blog-text);
+  font-family: var(--portal-font);
+}
+
+.blog-page button,
+.blog-page input,
+.blog-page textarea,
+.blog-page select {
+  font-family: inherit;
 }
 
 @view-transition {
@@ -254,7 +266,7 @@ html.blog-page body {
   color: #636366;
   cursor: pointer;
   text-align: left;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: inherit;
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -270,7 +282,7 @@ html.blog-page body {
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1.2;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: inherit;
 }
 
 .blog-switch-desc {
@@ -280,7 +292,7 @@ html.blog-page body {
   font-weight: 400;
   color: var(--blog-muted);
   line-height: 1.3;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: inherit;
 }
 
 .blog-switch-opt.is-on .blog-switch-desc {
@@ -291,7 +303,7 @@ html.blog-page body {
   margin: -4px 0 0;
   font-size: 12px;
   color: var(--blog-muted);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: inherit;
 }
 
 .blog-vis {

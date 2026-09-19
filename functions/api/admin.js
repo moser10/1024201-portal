@@ -411,18 +411,18 @@ export async function onRequest(context) {
           "[邀请码] 1024201 [Invitation Code]",
           `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.8;color:#1c1c1e">
 <p style="margin:0 0 14px;font-weight:600;color:#636366">中文</p>
-<p>你收到了一枚 1024201 注册邀请码：</p>
+<p>你收到了一枚 <span style="color:#1c1c1e!important;text-decoration:none!important">1024201</span> 注册邀请码：</p>
 <p style="margin:16px 0;padding:14px;background:#f5f5f7;border-radius:10px;text-align:center">
-  <strong style="font-size:20px;letter-spacing:2px">${escHtml(code)}</strong>
+  <strong style="font-size:20px;letter-spacing:2px;color:#007aff;font-weight:800">${escHtml(code)}</strong>
 </p>
 <p>请使用收件邮箱 <strong>${escHtml(email)}</strong> 注册。</p>
 <p style="margin:24px 0 14px;font-weight:600;color:#636366">English</p>
-<p>You have received a 1024201 invitation code:</p>
+<p>You have received a <span style="color:#1c1c1e!important;text-decoration:none!important">1024201</span> invitation code:</p>
 <p style="margin:16px 0;padding:14px;background:#f5f5f7;border-radius:10px;text-align:center">
-  <strong style="font-size:20px;letter-spacing:2px">${escHtml(code)}</strong>
+  <strong style="font-size:20px;letter-spacing:2px;color:#007aff;font-weight:800">${escHtml(code)}</strong>
 </p>
 <p>Register with <strong>${escHtml(email)}</strong>.</p>
-<p style="margin-top:24px"><strong>1024201</strong></p>
+<p style="margin-top:24px"><strong style="color:#1c1c1e!important;text-decoration:none!important">1024201</strong></p>
 </div>`
         );
       } catch (error) {
@@ -461,7 +461,9 @@ export async function onRequest(context) {
                     u.must_change_password,
                     CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
-                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra,
+                    5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_allowed,
+                    5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_allowed
              FROM users u
              WHERE u.username LIKE ? OR u.email LIKE ?
              ORDER BY u.id DESC
@@ -476,7 +478,9 @@ export async function onRequest(context) {
                     u.must_change_password,
                     CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
-                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra,
+                    5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_allowed,
+                    5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_allowed
              FROM users u ORDER BY u.id DESC LIMIT 200`
           )
           .all());

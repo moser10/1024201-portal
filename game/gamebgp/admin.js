@@ -96,6 +96,60 @@ function confirmDialog({ title, message, confirmText = "确定", cancelText = "�
   });
 }
 
+function quotaGrantDialog({ username, pdfExtra, lyricsExtra, pdfAllowed, lyricsAllowed }) {
+  return new Promise((resolve) => {
+    const backdrop = document.createElement("div");
+    backdrop.className = "gbp-modal";
+    backdrop.innerHTML = `
+      <div class="gbp-modal-card" role="dialog" aria-modal="true" aria-labelledby="quotaDialogTitle">
+        <h2 id="quotaDialogTitle">设置功能可用次数</h2>
+        <p class="gbp-modal-msg">用户：${esc(username)}<br>当前每日可用：PDF ${pdfAllowed} 次 · 歌词 ${lyricsAllowed} 次</p>
+        <div class="field">
+          <label>功能</label>
+          <select class="quota-tool">
+            <option value="pdf">PDF 转换</option>
+            <option value="lyrics">歌词搜索</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>额外次数（默认每日 5 次；填 0 清除额外次数）</label>
+          <input class="quota-extra" type="number" min="0" max="10000" step="1" value="${pdfExtra}">
+        </div>
+        <div class="gbp-modal-actions">
+          <button type="button" class="gbp-btn gbp-btn-cancel">取消</button>
+          <button type="button" class="gbp-btn gbp-btn-primary">保存</button>
+        </div>
+      </div>`;
+    const tool = backdrop.querySelector(".quota-tool");
+    const extra = backdrop.querySelector(".quota-extra");
+    const close = (value) => {
+      backdrop.remove();
+      resolve(value);
+    };
+    tool.onchange = () => {
+      extra.value = tool.value === "pdf" ? pdfExtra : lyricsExtra;
+      extra.focus();
+      extra.select();
+    };
+    backdrop.querySelector(".gbp-btn-cancel").onclick = () => close(null);
+    backdrop.querySelector(".gbp-btn-primary").onclick = () => {
+      const n = Number.parseInt(extra.value, 10);
+      if (!Number.isFinite(n) || n < 0 || n > 10000) {
+        extra.setCustomValidity("请输入 0–10000 的整数");
+        extra.reportValidity();
+        return;
+      }
+      close({ tool: tool.value, extra: n });
+    };
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) close(null);
+    });
+    document.body.appendChild(backdrop);
+    extra.focus();
+    extra.select();
+  });
+}
+
 function renderLogin(errorMsg = "") {
   app.innerHTML = `
     <div class="login-wrap">
@@ -218,9 +272,8 @@ function userRowHtml(u, i) {
   const flags = [];
   if (Number(u.must_change_password) === 1) flags.push(`<span class="badge badge-warn">需改密</span>`);
   if (Number(u.has_temp_password) === 1) flags.push(`<span class="badge">临时密码</span>`);
-  const grants = [];
-  if (Number(u.pdf_extra) > 0) grants.push(`PDF+${u.pdf_extra}`);
-  if (Number(u.lyrics_extra) > 0) grants.push(`歌词+${u.lyrics_extra}`);
+  const pdfAllowed = Number(u.pdf_allowed) || 5;
+  const lyricsAllowed = Number(u.lyrics_allowed) || 5;
   return `
     <tr data-user-id="${u.id}">
       <td>${i + 1}</td>
@@ -228,10 +281,13 @@ function userRowHtml(u, i) {
       <td>${esc(u.email)}</td>
       <td>${esc(u.created_at || "—")}</td>
       <td>${flags.join(" ") || `<span class="badge badge-ok">正常</span>`}</td>
-      <td>${grants.length ? esc(grants.join(" · ")) : "—"}</td>
+      <td><span class="quota-count">PDF ${pdfAllowed}</span> <span class="quota-count">歌词 ${lyricsAllowed}</span></td>
       <td>
         <div class="row-actions">
-          <button type="button" class="btn btn-ghost btn-small grant-user" data-id="${u.id}" data-name="${esc(u.username)}">加次数</button>
+          <button type="button" class="btn btn-ghost btn-small grant-user"
+            data-id="${u.id}" data-name="${esc(u.username)}"
+            data-pdf-extra="${Number(u.pdf_extra) || 0}" data-lyrics-extra="${Number(u.lyrics_extra) || 0}"
+            data-pdf-allowed="${pdfAllowed}" data-lyrics-allowed="${lyricsAllowed}">加次数</button>
           <button type="button" class="btn btn-ghost btn-small reset-user" data-id="${u.id}">重置密码</button>
           <button type="button" class="btn btn-danger btn-small del-user" data-id="${u.id}">删除</button>
         </div>
@@ -282,7 +338,7 @@ function panelUsers() {
         ${
           state.users.length
             ? `<table>
-          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>状态</th><th>额外次数</th><th>操作</th></tr></thead>
+          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>状态</th><th>功能可用次数</th><th>操作</th></tr></thead>
           <tbody>${state.users.map((u, i) => userRowHtml(u, i)).join("")}</tbody>
         </table>`
             : `<p class="empty">没有匹配的用户</p>`
@@ -435,27 +491,25 @@ function bindDashboardEvents() {
   document.querySelectorAll(".grant-user").forEach((btn) => {
     btn.onclick = async () => {
       const name = btn.dataset.name || "";
-      const tool = window.prompt(`给「${name}」增加次数的功能（pdf / lyrics）`, "pdf");
-      if (!tool) return;
-      const t = String(tool).trim().toLowerCase();
-      if (!["pdf", "lyrics"].includes(t)) {
-        toast("功能仅支持 pdf 或 lyrics");
-        return;
-      }
-      const raw = window.prompt(`额外次数（永久叠加在每日免费额度上，填 0 清除）`, "3");
-      if (raw == null) return;
-      const extra = parseInt(raw, 10);
-      if (!Number.isFinite(extra) || extra < 0) {
-        toast("请输入有效数字");
-        return;
-      }
+      const selection = await quotaGrantDialog({
+        username: name,
+        pdfExtra: Number(btn.dataset.pdfExtra) || 0,
+        lyricsExtra: Number(btn.dataset.lyricsExtra) || 0,
+        pdfAllowed: Number(btn.dataset.pdfAllowed) || 5,
+        lyricsAllowed: Number(btn.dataset.lyricsAllowed) || 5,
+      });
+      if (!selection) return;
       btn.disabled = true;
       try {
         const data = await api("grant_quota", {
           method: "POST",
-          body: JSON.stringify({ user_id: Number(btn.dataset.id), tool: t, extra }),
+          body: JSON.stringify({
+            user_id: Number(btn.dataset.id),
+            tool: selection.tool,
+            extra: selection.extra,
+          }),
         });
-        toast(`已为 ${data.username} 设置 ${t} 额外 ${data.extra} 次`);
+        toast(`已为 ${data.username} 设置 ${data.tool} 额外 ${data.extra} 次`);
         await refreshQuiet();
       } catch (e) {
         btn.disabled = false;

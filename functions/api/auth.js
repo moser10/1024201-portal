@@ -35,15 +35,17 @@ function welcomeEmailHtml(name, verifyCode, today, { cli = false } = {}) {
     : "";
   const pageZh = cli ? "在终端输入此注册码完成注册。" : "请在注册页面输入此验证码完成注册。";
   const pageEn = cli ? "Enter this code in the CLI to finish sign-up." : "Enter this code on the registration page to complete sign-up.";
+  const codeLabelZh = cli ? "注册码" : "邮箱验证码";
+  const codeLabelEn = cli ? "Registration code" : "Email verification code";
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.8;color:#1c1c1e;">
 <p style="margin:0 0 14px;font-weight:600;color:#636366;">中文</p>
 <p style="margin:0 0 12px;">欢迎 ${safeName}：</p>
-<p style="margin:0 0 8px;padding-left:1em;">注册码：<strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong>${caseNote.zh}</p>
+<p style="margin:0 0 8px;padding-left:1em;">${codeLabelZh}：<strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong>${caseNote.zh}</p>
 ${cliHintZh}
 <p style="margin:0 0 20px;padding-left:1em;">${pageZh}</p>
 <p style="margin:0 0 14px;font-weight:600;color:#636366;">English</p>
 <p style="margin:0 0 12px;">Welcome ${safeName},</p>
-<p style="margin:0 0 8px;padding-left:1em;">Registration code: <strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong> ${caseNote.en}</p>
+<p style="margin:0 0 8px;padding-left:1em;">${codeLabelEn}: <strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong> ${caseNote.en}</p>
 ${cliHintEn}
 <p style="margin:0 0 20px;padding-left:1em;">${pageEn}</p>
 <p style="margin:24px 0 0;"><strong>1024201</strong></p>
@@ -313,7 +315,7 @@ export async function onRequest(context) {
         await sendMail(
           env,
           mail,
-          cliChannel ? "1024201 · CLI 注册码 / CLI Registration Code" : "1024201 · 注册验证码 / Registration Code",
+          cliChannel ? "1024201 · CLI 注册码 / CLI Registration Code" : "1024201 · 邮箱验证码 / Email Verification Code",
           welcomeEmailHtml(name, verifyCode, today, { cli: cliChannel })
         );
       } catch (err) {
