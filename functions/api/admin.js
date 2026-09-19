@@ -1,11 +1,11 @@
 import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
 import { hashPassword, verifyPassword } from "./_crypto.js";
+import { SYSTEM_MAIL_FROM } from "./_mail.js";
 
 const SESSION_HOURS = 12;
 const DEFAULT_ADMIN_USER = "sa";
 const DEFAULT_ADMIN_PASS = "1qaz2wsx";
 const DEFAULT_ADMIN_MAIL = "admin@1024201.com";
-const SYSTEM_MAIL_FROM = "1024201@1024201.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function ensureAdminSchema(db) {
