@@ -86,7 +86,9 @@ async function serveStatic(request, env) {
   // Cache static shells aggressively; HTML short-cache for snappy repeat visits
   const headers = new Headers(response.headers);
   const lower = pathname.toLowerCase();
-  if (lower.includes("/game/paddlemaze") && (lower.endsWith("/") || lower.endsWith(".html"))) {
+  if (lower.endsWith("/sw.js") || lower === "/sw.js") {
+    headers.set("Cache-Control", "no-cache");
+  } else if (lower.includes("/game/paddlemaze") && (lower.endsWith("/") || lower.endsWith(".html"))) {
     headers.set("Cache-Control", "no-cache");
   } else if (/\.(css|js|png|jpg|jpeg|webp|svg|ico|woff2|webmanifest)$/.test(lower)) {
     headers.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
