@@ -85,20 +85,23 @@ body {
   gap: 6px;
 }
 
-.hud > div {
+.hud-stat,
+.hud-pause {
   padding: 8px 10px;
   border: 1px solid #292936;
   border-radius: 8px;
   background: #111119;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   gap: 7px;
 }
 
-.hud span {
-  color: var(--muted);
-  font-size: 10px;
+.hud-pause {
+  appearance: none;
+  color: #f5f5f7;
+  font: 800 16px/1 Arial, sans-serif;
+  cursor: pointer;
 }
 
 .hud strong {
@@ -106,9 +109,39 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.hud-brick,
+.hud-ball,
+.hud-paddle {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.hud-brick {
+  width: 18px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--pink);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .28);
+}
+
+.hud-ball {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 5px rgba(255, 255, 255, .55);
+}
+
+.hud-paddle {
+  width: 24px;
+  height: 7px;
+  border-radius: 4px;
+  background: #ff6b63;
+}
+
 .canvas-wrap {
   position: relative;
-  width: min(100%, max(300px, calc((100dvh - 250px) * 0.8182)));
+  width: min(100%, max(300px, calc((100dvh - 300px) * 0.8182)));
   max-width: 900px;
   aspect-ratio: 900 / 1100;
   min-height: 0;
@@ -172,16 +205,17 @@ canvas {
 .overlay p:empty { display: none; }
 
 .control-zone {
-  width: min(100%, max(300px, calc((100dvh - 250px) * 0.8182)));
+  width: min(100%, max(300px, calc((100dvh - 300px) * 0.8182)));
   max-width: 900px;
-  min-height: clamp(76px, 10dvh, 120px);
+  min-height: clamp(108px, 14dvh, 148px);
   margin: 0 auto;
   border: 1px dashed #30303e;
   border-radius: 12px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   color: #686878;
   background: #0d0d14;
   font: 700 10px/1 Arial, sans-serif;
@@ -197,6 +231,14 @@ canvas {
   line-height: 1;
 }
 
+.control-row {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .control-paddle {
   width: 54px;
   height: 24px;
@@ -205,12 +247,11 @@ canvas {
 }
 
 .resource-icons {
-  display: inline-flex;
+  min-height: 38px;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 3px;
-  margin-left: 10px;
-  padding-left: 12px;
-  border-left: 1px solid #30303e;
 }
 
 .resource-icon {
@@ -230,8 +271,11 @@ canvas {
   stroke-linejoin: round;
 }
 
-.resource-icon.paddle-native { color: #ff6b63; }
-.resource-icon.balls-native { color: #fff; width: 49px; }
+.resource-icon.paddle-up { color: #0a84ff; }
+.resource-icon.paddle-down { color: #30d158; }
+.resource-icon.balls-up { color: #ff453a; width: 49px; }
+.resource-icon.balls-down { color: #bf5af2; width: 49px; }
+.resource-icon.reset { color: #ffd60a; }
 
 #startBtn {
   min-width: 150px;
@@ -249,16 +293,16 @@ canvas {
   .game-shell { gap: 7px; padding-left: 6px; padding-right: 6px; }
   .game-top { grid-template-columns: 68px 1fr 68px; }
   .game-back { padding: 9px 8px; }
-  .hud > div { padding: 6px 3px; gap: 4px; }
-  .hud span { font-size: 9px; }
+  .hud-stat,
+  .hud-pause { padding: 6px 3px; gap: 4px; }
   .hud strong { font-size: 12px; }
   .canvas-wrap,
   .control-zone { width: 100%; }
   .canvas-wrap { min-height: 0; }
-  .control-zone { min-height: 54px; height: 54px; }
-  .control-zone { gap: 4px; }
-  .resource-icons { gap: 1px; margin-left: 4px; padding-left: 6px; }
+  .control-zone { min-height: 92px; height: 92px; gap: 2px; }
+  .resource-icons { min-height: 42px; gap: 1px; }
   .resource-icon { width: 34px; height: 23px; }
-  .resource-icon.balls-native { width: 41px; }
+  .resource-icon.balls-up,
+  .resource-icon.balls-down { width: 41px; }
   .control-paddle { width: 42px; }
 }

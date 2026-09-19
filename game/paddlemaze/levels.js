@@ -41,7 +41,7 @@ export function mazeRingPlan(index) {
   if (!ringCount) throw new RangeError(`Unknown level ${index + 1}`);
   return {
     ringCount,
-    openingsPerRing: ringCount === 2 ? 3 : ringCount === 3 ? 2 : 1,
+    openingsPerRing: ringCount === 2 ? 2 : 1,
   };
 }
 

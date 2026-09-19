@@ -246,7 +246,7 @@ export async function onRequest(context) {
       if (!name) return json({ error: "昵称不能为空" }, 400);
       if (name.length < 6) {
         const invitation = await validInvitation(db, invite_code, email);
-        if (!invitation || Number(invitation.is_special) !== 1) {
+        if (!invitation) {
           return json({ error: "昵称至少需要 6 个字符" }, 400);
         }
       }
@@ -279,7 +279,7 @@ export async function onRequest(context) {
       if (inviteCode && !invitation) {
         return json({ error: "邀请码无效、已使用或与当前邮箱不匹配" }, 400);
       }
-      if (name.length < 6 && Number(invitation?.is_special) !== 1) {
+      if (name.length < 6 && !invitation) {
         return json({ error: "昵称至少需要 6 个字符" }, 400);
       }
 

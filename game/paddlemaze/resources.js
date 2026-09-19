@@ -1,8 +1,8 @@
 export const RESOURCE_COLORS = Object.freeze({
-  paddleUp: "#ff3b30",
-  paddleDown: "#af52de",
-  ballsUp: "#34c759",
-  ballsDown: "#0a84ff",
+  paddleUp: "#0a84ff",
+  paddleDown: "#30d158",
+  ballsUp: "#ff453a",
+  ballsDown: "#bf5af2",
   reset: "#ffd60a",
 });
 

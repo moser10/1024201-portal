@@ -10,11 +10,11 @@ test("all 24 maze blueprints remain unique", () => {
 test("opening count decreases as ring count increases", () => {
   const plans = LEVEL_BLUEPRINTS.map((_, index) => mazeRingPlan(index));
   const openings = new Map(plans.map((plan) => [plan.ringCount, plan.openingsPerRing]));
-  assert.equal(openings.get(2), 3);
-  assert.equal(openings.get(3), 2);
+  assert.equal(openings.get(2), 2);
+  assert.equal(openings.get(3), 1);
   assert.equal(openings.get(4), 1);
   assert.ok(openings.get(2) > openings.get(3));
-  assert.ok(openings.get(3) > openings.get(4));
+  assert.ok(openings.get(3) >= openings.get(4));
 });
 
 test("pacing includes relief after hard four-ring stages", () => {

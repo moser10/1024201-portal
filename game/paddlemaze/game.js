@@ -52,17 +52,9 @@ let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 1
 let paddleDrag = null;
 const keys = { left: false, right: false };
 
-function seeded(seed) {
-  let n = seed >>> 0;
-  return () => {
-    n = (n * 1664525 + 1013904223) >>> 0;
-    return n / 4294967296;
-  };
-}
-
 function makeLevel(index) {
   const cfg = buildLevelSpec(index);
-  const rand = seeded(cfg.seed);
+  const levelHue = (292 + cfg.number * 29) % 360;
   const field = { x: 142, y: 190, w: 616, h: 430 };
   const fineRows = cfg.rows * 2;
   const fineCols = cfg.cols * 2;
@@ -79,7 +71,7 @@ function makeLevel(index) {
         w: brickW,
         h: brickH,
         hp: index >= 12 && (r * 5 + c * 3 + index) % 17 === 0 ? 2 : 1,
-        hue: 318 + Math.round(rand() * 18),
+        hue: levelHue,
       });
     }
   }
@@ -95,6 +87,7 @@ function makeLevel(index) {
   releaseAllParticles();
   paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 58, w: INITIAL_PADDLE, h: 12 };
   activateBall(cfg.speed, null, true);
+  document.getElementById("targetIcon").style.background = `hsl(${levelHue} 90% 52%)`;
   updateHud();
   document.getElementById("levelText").textContent =
     `LEVEL ${String(cfg.number).padStart(2, "0")} / ${TOTAL_LEVELS}`;
@@ -104,7 +97,7 @@ function makeMazeWalls(cfg, field) {
   const result = [];
   const thick = 11;
   const plan = mazeRingPlan(cfg.number - 1);
-  const ringOffsets = [27, 62, 97, 132].slice(0, plan.ringCount);
+  const ringOffsets = [27, 57, 87, 117].slice(0, plan.ringCount);
 
   const addHorizontalWithGates = (y, left, right, centers, gateWidth) => {
     let cursor = left;
@@ -126,10 +119,9 @@ function makeMazeWalls(cfg, field) {
     const bottom = field.y + field.h + offset;
     const sourceGate = cfg.gates[ring % cfg.gates.length];
     const nextGate = cfg.gates[(ring + 1) % cfg.gates.length];
-    const first = W / 2 + sourceGate * (ring % 2 ? -0.72 : 0.58);
-    const second = W / 2 - nextGate * 0.68 + (ring % 2 ? 54 : -54);
-    const third = W / 2 + ((cfg.number * 71 + ring * 97) % 340) - 170;
-    const gateWidth = 50 + ring * 6;
+    const first = W / 2 + sourceGate * (ring % 2 ? -0.48 : 0.42);
+    const second = W / 2 - nextGate * 0.46 + (ring % 2 ? 22 : -22);
+    const gateWidth = 58 + ring * 6;
     let topCenters = [];
     let bottomCenters = [];
 
@@ -140,10 +132,6 @@ function makeMazeWalls(cfg, field) {
     } else if (plan.openingsPerRing === 2) {
       topCenters = [first];
       bottomCenters = [second];
-    } else {
-      // Two rings: more forgiving routes while the player learns the board.
-      topCenters = [first];
-      bottomCenters = [second, third];
     }
 
     addHorizontalWithGates(top, left, right, topCenters, gateWidth);
@@ -576,7 +564,6 @@ function updateHud() {
   document.getElementById("ballCount").textContent = balls.length;
   document.getElementById("paddleCount").textContent =
     `${Math.max(1, Math.round((paddle.w / INITIAL_PADDLE) * 10) / 10)}×`;
-  document.getElementById("scoreCount").textContent = score;
 }
 
 function loop(time) {
