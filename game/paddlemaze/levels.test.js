@@ -42,3 +42,11 @@ test("all levels keep ring and lower-wall entrances on one readable diagonal", (
     }
   }
 });
+
+test("every ring has a matching bottom entrance on the diagonal", () => {
+  for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
+    const { ringCount } = mazeRingPlan(index);
+    const path = mazeEntryPath(index);
+    assert.equal(path.ringCenters.length, ringCount, `level ${index + 1} missing ring gates`);
+  }
+});

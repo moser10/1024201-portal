@@ -1,5 +1,5 @@
-import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js";
-import { pickPower, targetBallCount, targetPaddleWidth } from "./resources.js";
+import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=9";
+import { pickPower, targetBallCount, targetPaddleWidth } from "./resources.js?v=9";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -119,17 +119,13 @@ function makeMazeWalls(cfg, field) {
     const top = field.y - offset;
     const bottom = field.y + field.h + offset;
     const bottomEntry = W / 2 + entryPath.ringCenters[ring];
-    const gateWidth = 58 + ring * 6;
-    let topCenters = [];
+    const isInner = ring === 0;
+    // Inner gate stays wide so a ball that already entered can reach bricks.
+    const gateWidth = (isInner ? 78 : 50) + ring * 4;
     const bottomCenters = [bottomEntry];
-
-    if (plan.openingsPerRing === 1) {
-      // Hard levels use one bottom entrance per ring, aligned as a readable diagonal.
-      topCenters = [];
-    } else if (plan.openingsPerRing === 2) {
-      // Easier levels also offer an exit on top, but preserve the same entry route.
-      topCenters = [bottomEntry - entryPath.direction * 84];
-    }
+    const topCenters = plan.openingsPerRing >= 2 && isInner
+      ? [bottomEntry - entryPath.direction * 36]
+      : [];
 
     addHorizontalWithGates(top, left, right, topCenters, gateWidth);
     addHorizontalWithGates(bottom, left, right, bottomCenters, gateWidth);
