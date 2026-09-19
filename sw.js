@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v83";
+const CACHE = "1042-pwa-v84";
 const SHELL = [
   "/",
   "/index.html",
@@ -27,11 +27,11 @@ const SHELL = [
   "/game/register/auth.js?v=14",
   "/game/paddlemaze/",
   "/game/paddlemaze/index.html",
-  "/game/paddlemaze/game.css?v=11",
-  "/game/paddlemaze/game.js?v=11",
-  "/game/paddlemaze/levels.js?v=11",
-  "/game/paddlemaze/resources.js?v=11",
-  "/game/paddlemaze/welfare.js?v=11",
+  "/game/paddlemaze/game.css?v=12",
+  "/game/paddlemaze/game.js?v=12",
+  "/game/paddlemaze/levels.js?v=12",
+  "/game/paddlemaze/resources.js?v=12",
+  "/game/paddlemaze/welfare.js?v=12",
   "/blog/",
   "/blog/index.html",
   "/blog/blog.css?v=5",
@@ -112,6 +112,12 @@ self.addEventListener("fetch", (event) => {
         if (fresh) return fresh;
         return cached || (await cache.match("/game/register/index.html")) ||
           new Response("Offline", { status: 503 });
+      }
+
+      if (url.pathname.startsWith("/game/paddlemaze")) {
+        const fresh = await networkPromise;
+        if (fresh) return fresh;
+        return cached || new Response("", { status: 504, statusText: "Offline" });
       }
 
       // Instant paint from cache; refresh in background

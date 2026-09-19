@@ -55,6 +55,19 @@ test("eating a color always matches the numeric effect", () => {
   }
 });
 
+test("green and red increase, blue and purple decrease", () => {
+  assert.equal(RESOURCE_COLORS.paddleUp, "#30d158");
+  assert.equal(RESOURCE_COLORS.paddleDown, "#0a84ff");
+  assert.equal(RESOURCE_COLORS.ballsUp, "#ff453a");
+  assert.equal(RESOURCE_COLORS.ballsDown, "#bf5af2");
+  const paddleUp = materializePower({ kind: "paddle", operation: "multiply", value: 2 });
+  const paddleDown = materializePower({ kind: "paddle", operation: "divide", value: 2 });
+  assert.equal(paddleUp.color, "#30d158");
+  assert.equal(paddleDown.color, "#0a84ff");
+  assert.ok(targetPaddleWidth(240, paddleUp, 120, 120, 900) > 240);
+  assert.ok(targetPaddleWidth(240, paddleDown, 120, 120, 900) < 240);
+});
+
 test("labels stay numeric and the chip text color is the UI white", () => {
   assert.equal(resourceLabel("add", 2), "+2");
   assert.equal(resourceLabel("subtract", 3), "-3");

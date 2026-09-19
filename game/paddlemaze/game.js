@@ -1,6 +1,6 @@
-import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=11";
-import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=11";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare } from "./welfare.js?v=11";
+import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=12";
+import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=12";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare } from "./welfare.js?v=12";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
