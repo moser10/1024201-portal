@@ -1,6 +1,6 @@
-import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=12";
-import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=12";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare } from "./welfare.js?v=12";
+import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=13";
+import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=13";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare } from "./welfare.js?v=13";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -37,6 +37,19 @@ const itemPool = Array.from({ length: MAX_ITEMS }, () => ({
 const particlePool = Array.from({ length: 120 }, () => ({
   active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, hue: 320,
 }));
+const brickCountEl = document.getElementById("brickCount");
+const ballCountEl = document.getElementById("ballCount");
+const paddleCountEl = document.getElementById("paddleCount");
+const levelTextEl = document.getElementById("levelText");
+const targetIconEl = document.getElementById("targetIcon");
+const overlayTitleEl = document.getElementById("overlayTitle");
+const overlayTextEl = document.getElementById("overlayText");
+const overlayEyebrowEl = document.getElementById("overlayEyebrow");
+const staticLayer = document.createElement("canvas");
+staticLayer.width = W;
+staticLayer.height = H;
+const staticCtx = staticLayer.getContext("2d", { alpha: false });
+let lastHudKey = "";
 let running = false;
 let paused = false;
 let lastTime = 0;
@@ -85,15 +98,37 @@ function makeLevel(index) {
   noteWelfareBrickHit(welfare);
   initialDropInterval = bricks.length <= 60 ? 3 : bricks.length <= 90 ? 4 : 5;
   walls = makeMazeWalls(cfg, field);
+  bakeStaticLayer();
   releaseAllBalls();
   releaseAllItems();
   releaseAllParticles();
   paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 58, w: INITIAL_PADDLE, h: 12 };
   activateBall(cfg.speed, null, true);
-  document.getElementById("targetIcon").style.background = `hsl(${levelHue} 90% 52%)`;
+  targetIconEl.style.background = `hsl(${levelHue} 90% 52%)`;
+  lastHudKey = "";
   updateHud();
-  document.getElementById("levelText").textContent =
+  levelTextEl.textContent =
     `LEVEL ${String(cfg.number).padStart(2, "0")} / ${TOTAL_LEVELS}`;
+}
+
+function bakeStaticLayer() {
+  const s = staticCtx;
+  s.fillStyle = "#0c0c14";
+  s.fillRect(0, 0, W, H);
+  s.strokeStyle = "rgba(255,255,255,.03)";
+  s.lineWidth = 1;
+  s.beginPath();
+  for (let x = 0; x <= W; x += 60) {
+    s.moveTo(x + 0.5, 0);
+    s.lineTo(x + 0.5, H);
+  }
+  for (let y = 0; y <= H; y += 60) {
+    s.moveTo(0, y + 0.5);
+    s.lineTo(W, y + 0.5);
+  }
+  s.stroke();
+  s.fillStyle = "#3a3a48";
+  for (const wall of walls) s.fillRect(wall.x, wall.y, wall.w, wall.h);
 }
 
 function makeMazeWalls(cfg, field) {
@@ -487,62 +522,22 @@ function update(dt) {
   updateHud();
 }
 
-function drawRoundedRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
-}
-
 function draw() {
-  const gradient = ctx.createLinearGradient(0, 0, 0, H);
-  gradient.addColorStop(0, "#11111b");
-  gradient.addColorStop(1, "#050509");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, W, H);
-
-  // Subtle grid gives the board a technical maze look.
-  ctx.strokeStyle = "rgba(255,255,255,.025)";
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= W; x += 30) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-  }
-  for (let y = 0; y <= H; y += 30) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-  }
+  ctx.drawImage(staticLayer, 0, 0);
 
   for (const brick of bricks) {
-    const g = ctx.createLinearGradient(brick.x, brick.y, brick.x, brick.y + brick.h);
-    g.addColorStop(0, `hsl(${brick.hue} 92% ${brick.hp > 1 ? 67 : 57}%)`);
-    g.addColorStop(1, `hsl(${brick.hue} 88% 39%)`);
-    ctx.fillStyle = g;
-    drawRoundedRect(brick.x, brick.y, brick.w, brick.h, 3);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,.16)";
-    ctx.stroke();
-  }
-
-  for (const wall of walls) {
-    ctx.fillStyle = "#393945";
-    drawRoundedRect(wall.x, wall.y, wall.w, wall.h, 3);
-    ctx.fill();
-    ctx.strokeStyle = "#5b5b69";
-    ctx.stroke();
+    ctx.fillStyle = `hsl(${brick.hue} 90% ${brick.hp > 1 ? 62 : 52}%)`;
+    ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
   }
 
   for (const power of powers) {
-    const spec = materializePower(power);
-    const g = ctx.createLinearGradient(power.x, power.y, power.x + power.w, power.y + power.h);
-    g.addColorStop(0, spec.color);
-    g.addColorStop(1, `${spec.color}c2`);
-    ctx.fillStyle = g;
-    drawRoundedRect(power.x, power.y, power.w, power.h, 5);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,.42)";
-    ctx.stroke();
+    ctx.fillStyle = power.color;
+    ctx.fillRect(power.x, power.y, power.w, power.h);
     ctx.font = "800 15px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = RESOURCE_LABEL_COLOR;
-    ctx.fillText(spec.label, power.x + power.w / 2, power.y + power.h / 2 + 0.5);
+    ctx.fillText(power.label, power.x + power.w / 2, power.y + power.h / 2 + 0.5);
   }
 
   if (!reducedVisuals) {
@@ -555,43 +550,40 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
-  const pg = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.h);
-  pg.addColorStop(0, "#ff9c98");
-  pg.addColorStop(1, "#ff5e57");
-  ctx.fillStyle = pg;
-  ctx.shadowColor = "rgba(255,94,87,.45)";
-  ctx.shadowBlur = reducedVisuals ? 0 : 12;
-  drawRoundedRect(paddle.x, paddle.y, paddle.w, paddle.h, 6);
-  ctx.fill();
-  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#ff6b64";
+  ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
 
   ctx.fillStyle = "#fff";
-  ctx.shadowColor = "rgba(255,255,255,.7)";
-  ctx.shadowBlur = reducedVisuals ? 0 : 10;
   for (const ball of balls) {
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.shadowBlur = 0;
 }
 
 function updateHud() {
-  document.getElementById("brickCount").textContent = bricks.length;
-  document.getElementById("ballCount").textContent = balls.length;
-  document.getElementById("paddleCount").textContent =
+  const key = `${bricks.length}:${balls.length}:${paddle.w}`;
+  if (key === lastHudKey) return;
+  lastHudKey = key;
+  brickCountEl.textContent = bricks.length;
+  ballCountEl.textContent = balls.length;
+  paddleCountEl.textContent =
     `${Math.max(1, Math.round((paddle.w / INITIAL_PADDLE) * 10) / 10)}×`;
 }
 
 function loop(time) {
   const rawDt = Math.max(0, (time - lastTime) / 1000 || 0);
-  const dt = Math.min(0.025, rawDt);
   lastTime = time;
+  if (rawDt > 0.08) {
+    animationId = requestAnimationFrame(loop);
+    return;
+  }
+  const dt = Math.min(0.04, rawDt);
   if (rawDt > 0) {
     const fps = Math.min(120, 1 / rawDt);
     fpsAverage = fpsAverage * 0.94 + fps * 0.06;
     lowFpsFrames = fpsAverage < 45 ? lowFpsFrames + 1 : Math.max(0, lowFpsFrames - 2);
-    reducedVisuals = balls.length > 40 || lowFpsFrames > 20;
+    reducedVisuals = balls.length > 32 || lowFpsFrames > 12;
   }
   if (running && !paused) update(dt);
   draw();
@@ -599,15 +591,15 @@ function loop(time) {
 }
 
 function showOverlay(title, text, button, eyebrow = "PADDLE BLOCK MAZE") {
-  document.getElementById("overlayTitle").textContent = title;
-  document.getElementById("overlayText").textContent = text;
-  document.getElementById("overlayEyebrow").textContent = eyebrow;
+  overlayTitleEl.textContent = title;
+  overlayTextEl.textContent = text;
+  overlayEyebrowEl.textContent = eyebrow;
   startBtn.textContent = button;
   overlay.hidden = false;
 }
 
 function startLevel() {
-  if (levelIndex === 0 && document.getElementById("overlayTitle").textContent === "全部通关") score = 0;
+  if (levelIndex === 0 && overlayTitleEl.textContent === "全部通关") score = 0;
   makeLevel(levelIndex);
   overlay.hidden = true;
   paused = false;
