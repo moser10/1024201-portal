@@ -1,5 +1,6 @@
-import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=9";
-import { pickPower, targetBallCount, targetPaddleWidth } from "./resources.js?v=9";
+import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=10";
+import { pickPower, targetBallCount, targetPaddleWidth } from "./resources.js?v=10";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare } from "./welfare.js?v=10";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -48,6 +49,7 @@ let consecutiveHits = 0;
 let hitsSinceDrop = 0;
 let initialDropInterval = 5;
 let dropsSinceBallMultiplier = 0;
+const welfare = createWelfareState();
 let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
 let paddleDrag = null;
 const keys = { left: false, right: false };
@@ -80,6 +82,7 @@ function makeLevel(index) {
   consecutiveHits = 0;
   hitsSinceDrop = 0;
   dropsSinceBallMultiplier = 0;
+  noteWelfareBrickHit(welfare);
   initialDropInterval = bricks.length <= 60 ? 3 : bricks.length <= 90 ? 4 : 5;
   walls = makeMazeWalls(cfg, field);
   releaseAllBalls();
@@ -284,16 +287,15 @@ function bounceRect(ball, rect) {
   return true;
 }
 
-function spawnPower(brick) {
+function activatePowerDrop(type, x, y) {
   const power = itemPool.find((entry) => !entry.active);
   if (!power) return;
-  const type = pickPower(Math.random, { forceBallMultiplier: dropsSinceBallMultiplier >= 2 });
   if (type.kind === "balls" && type.operation === "multiply") dropsSinceBallMultiplier = 0;
   else dropsSinceBallMultiplier++;
   Object.assign(power, type, {
     active: true,
-    x: brick.x + brick.w / 2 - 36,
-    y: brick.y + brick.h / 2 - 13,
+    x,
+    y,
     w: 72,
     h: 26,
     vy: 105,
@@ -301,7 +303,18 @@ function spawnPower(brick) {
   powers.push(power);
 }
 
+function spawnPower(brick) {
+  const type = pickPower(Math.random, { forceBallMultiplier: dropsSinceBallMultiplier >= 2 });
+  activatePowerDrop(type, brick.x + brick.w / 2 - 36, brick.y + brick.h / 2 - 13);
+}
+
+function spawnWelfareDrop(kind) {
+  const type = pickWelfarePower(kind);
+  activatePowerDrop(type, paddle.x + paddle.w / 2 - 36, Math.max(36, paddle.y - 220));
+}
+
 function registerBrickHit(brick) {
+  noteWelfareBrickHit(welfare);
   consecutiveHits++;
   hitsSinceDrop++;
   const interval =
@@ -410,6 +423,11 @@ function update(dt) {
     if (balls[i].y - balls[i].r >= H + 20) releaseBallAt(i);
   }
   if (balls.length && !balls.some((ball) => ball.primary)) balls[0].primary = true;
+
+  if (bricks.length && balls.length) {
+    const drop = tickWelfare(welfare, dt);
+    if (drop) spawnWelfareDrop(drop.kind);
+  }
 
   for (let i = powers.length - 1; i >= 0; i--) {
     const power = powers[i];
