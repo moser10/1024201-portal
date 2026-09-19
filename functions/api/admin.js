@@ -5,9 +5,6 @@ const SESSION_HOURS = 12;
 const DEFAULT_ADMIN_USER = "sa";
 const DEFAULT_ADMIN_PASS = "1qaz2wsx";
 const DEFAULT_ADMIN_MAIL = "admin@1024201.com";
-const SECOND_ADMIN_USER = "1024201";
-const SECOND_ADMIN_PASS = "1qaz2wsx";
-const SECOND_ADMIN_MAIL = "1024201@1024201.com";
 const SYSTEM_MAIL_FROM = "1024201@1024201.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -77,7 +74,6 @@ async function ensureAdminSchema(db) {
   }
 
   await ensureAdminAccount(DEFAULT_ADMIN_USER, DEFAULT_ADMIN_PASS, DEFAULT_ADMIN_MAIL);
-  await ensureAdminAccount(SECOND_ADMIN_USER, SECOND_ADMIN_PASS, SECOND_ADMIN_MAIL);
 
   await db
     .prepare(
@@ -276,8 +272,7 @@ export async function onRequest(context) {
         )
         .bind(token, result.row.id)
         .run();
-      const defaultPass =
-        password === DEFAULT_ADMIN_PASS || password === SECOND_ADMIN_PASS;
+      const defaultPass = password === DEFAULT_ADMIN_PASS;
       const mustChange =
         needsPasswordChange(result.row, result.via) ||
         (result.via === "plain" && defaultPass) ||
@@ -334,7 +329,7 @@ export async function onRequest(context) {
       if (next.length < 8) return json({ error: "新密码至少 8 位" }, 400);
       if (next !== next2) return json({ error: "两次新密码不一致" }, 400);
       if (next === current) return json({ error: "新密码不能与当前密码相同" }, 400);
-      if (next === DEFAULT_ADMIN_PASS || next === SECOND_ADMIN_PASS) {
+      if (next === DEFAULT_ADMIN_PASS) {
         return json({ error: "请勿使用系统默认密码" }, 400);
       }
 
