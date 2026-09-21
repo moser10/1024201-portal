@@ -1,7 +1,7 @@
-import { buildLevelSpec } from "./levels.js?v=17";
-import { buildWallRects } from "./walls.js?v=17";
-import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=17";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=17";
+import { buildLevelSpec } from "./levels.js?v=18";
+import { buildWallRects } from "./walls.js?v=18";
+import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=18";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=18";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -33,7 +33,7 @@ const ballPool = Array.from({ length: MAX_BALLS }, () => ({
 }));
 const itemPool = Array.from({ length: MAX_ITEMS }, () => ({
   active: false, x: 0, y: 0, w: 72, h: 26, vy: 105,
-  kind: "balls", operation: "add", value: 2, label: "+2", color: "#ff453a", buff: true,
+  kind: "balls", operation: "subtract", value: 2, label: "-2", color: "#bf5af2", buff: false,
 }));
 const particlePool = Array.from({ length: 120 }, () => ({
   active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, hue: 320,
@@ -316,6 +316,8 @@ function activatePowerDrop(type, x, y) {
     w: 56,
     h: 26,
     vy: 105,
+    label: resourceLabel(spec.operation, spec.value),
+    color: spec.color,
   });
   powers.push(power);
 }
@@ -548,7 +550,11 @@ function draw() {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = RESOURCE_LABEL_COLOR;
-    ctx.fillText(power.label, power.x + power.w / 2, power.y + power.h / 2 + 0.5);
+    ctx.fillText(
+      resourceLabel(power.operation, power.value),
+      power.x + power.w / 2,
+      power.y + power.h / 2 + 0.5,
+    );
   }
 
   if (!reducedVisuals) {

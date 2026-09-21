@@ -13,12 +13,14 @@ export function isBuffOperation(operation) {
 }
 
 export function resourceLabel(operation, value) {
+  const amount = Math.max(1, Number(value) || 1);
   if (operation === "reset") return "♻️";
-  if (operation === "add") return `+${value}`;
-  if (operation === "subtract") return `-${value}`;
-  if (operation === "multiply") return `×${value}`;
-  if (operation === "divide") return `÷${value}`;
-  return `${value}`;
+  if (operation === "add") return `+${amount}`;
+  if (operation === "subtract") return `-${amount}`;
+  if (operation === "multiply") return `×${amount}`;
+  if (operation === "divide") return `÷${amount}`;
+  // Unknown ops must not inherit a leftover plus from the item pool.
+  return `-${amount}`;
 }
 
 export function resourceColor(kind, operation) {
@@ -31,14 +33,19 @@ export function materializePower(source) {
   const kind = source.kind === "paddle" || source.kind === "reset" ? source.kind : "balls";
   const operation = source.operation || "add";
   const value = Math.max(1, Number(source.value) || 1);
+  const buff = kind !== "reset" && isBuffOperation(operation);
+  const label = resourceLabel(operation, value);
+  if (kind !== "reset" && !buff && label.startsWith("+")) {
+    throw new Error(`decrease ${kind}/${operation} cannot show ${label}`);
+  }
   return {
     kind,
     operation,
     value,
     weight: Number(source.weight) || 0,
-    label: resourceLabel(operation, value),
+    label,
     color: resourceColor(kind, operation),
-    buff: kind !== "reset" && isBuffOperation(operation),
+    buff,
   };
 }
 

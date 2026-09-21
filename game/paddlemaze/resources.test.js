@@ -77,6 +77,34 @@ test("labels stay numeric and the chip text color is the UI white", () => {
   assert.equal(RESOURCE_LABEL_COLOR, "#f5f5f7");
 });
 
+test("a reused pool item that still says +2 becomes a blue decrease with ÷ not +", () => {
+  const pool = {
+    active: false,
+    kind: "balls",
+    operation: "add",
+    value: 2,
+    label: "+2",
+    color: "#ff453a",
+    buff: true,
+  };
+  const spec = materializePower({ kind: "paddle", operation: "divide", value: 2 });
+  Object.assign(pool, spec, { label: resourceLabel(spec.operation, spec.value) });
+  assert.equal(pool.color, RESOURCE_COLORS.paddleDown);
+  assert.equal(pool.label, "÷2");
+  assert.equal(pool.label.startsWith("+"), false);
+  assert.equal(resourceLabel(pool.operation, pool.value), "÷2");
+});
+
+test("no decrease resource is allowed to keep a plus sign", () => {
+  for (const power of POWER_TYPES) {
+    if (power.kind === "reset" || power.buff) continue;
+    assert.equal(power.label.startsWith("+"), false, power.label);
+    assert.match(power.label, /^[-÷]\d+$/u);
+  }
+  assert.equal(resourceLabel("subtract", 2), "-2");
+  assert.equal(resourceLabel("divide", 2), "÷2");
+});
+
 test("materializePower drops leftover pool fields and rebuilds color/label together", () => {
   const dirty = materializePower({
     kind: "balls",
