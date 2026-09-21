@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { purityClass, shortPlace } from "./geoDisplay.js";
+import { purityClass, shortPlace, formatNetSpeed } from "./geoDisplay.js";
 
 test("high purity is dark green and black is reserved for the worst scores", () => {
   assert.equal(purityClass(92), "g1");
@@ -21,4 +21,11 @@ test("places collapse to city abbr plus country code", () => {
   assert.equal(shortPlace({ city: "Tokyo", country: "JP" }), "Tokyo, JP");
   assert.equal(shortPlace({ city: "Osaka", country: "JP" }), "Osaka, JP");
   assert.equal(shortPlace({ city: "Someville", country: "DE" }), "Someville, DE");
+});
+
+test("speed prefers Mbps and falls back to RTT", () => {
+  assert.equal(formatNetSpeed({ mbps: 12.4 }), "12M");
+  assert.equal(formatNetSpeed({ mbps: 1.25 }), "1.3M");
+  assert.equal(formatNetSpeed({ rttMs: 28.2 }), "28ms");
+  assert.equal(formatNetSpeed({}), "—");
 });

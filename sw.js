@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v95";
+const CACHE = "1042-pwa-v96";
 const SHELL = [
   "/",
   "/index.html",
@@ -11,7 +11,7 @@ const SHELL = [
   "/js/device.js",
   "/js/featurePage.css",
   "/js/featurePage.css?v=3",
-  "/js/geoDisplay.js?v=1",
+  "/js/geoDisplay.js?v=2",
   "/game/css/userBar.css?v=7",
   "/game/",
   "/game/index.html",

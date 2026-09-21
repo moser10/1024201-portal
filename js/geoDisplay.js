@@ -144,6 +144,16 @@ function compactCity(city) {
     .trim();
 }
 
+export function formatNetSpeed({ mbps, rttMs } = {}) {
+  const down = Number(mbps);
+  if (Number.isFinite(down) && down > 0) {
+    return down >= 10 ? `${Math.round(down)}M` : `${Math.round(down * 10) / 10}M`;
+  }
+  const rtt = Number(rttMs);
+  if (Number.isFinite(rtt) && rtt > 0) return `${Math.round(rtt)}ms`;
+  return "—";
+}
+
 export function shortPlace(data = {}) {
   const cc = countryCode(data.country);
   const rawCity = compactCity(data.city);

@@ -71,7 +71,9 @@ export async function onRequest(context) {
 
   if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // Unique visitors — light path, no full app schema
+  if (request.method === "GET" && action === "ping") {
+    return json({ ok: true, t: Date.now() });
+  }
   if (request.method === "GET" && action === "visit_count") {
     return visitCountGet(env);
   }

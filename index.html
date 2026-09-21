@@ -237,16 +237,18 @@
             line-height: 1;
         }
 
-        .device-visits {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
+        .device-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
             margin-top: 10px;
             padding-top: 8px;
             border-top: 1px solid rgba(0, 122, 255, 0.12);
         }
-        .device-visits .widget-label { margin-bottom: 0; }
+        .device-stat {
+            min-width: 0;
+        }
+        .device-stat .widget-label { margin-bottom: 4px; }
         .visitor-count {
             color: var(--ios-text);
             font-size: 15px;
@@ -428,9 +430,15 @@
                     <div class="ip-line is-loading" id="deviceLocation">Locating…</div>
                     <div class="ip-tags" id="ipTags" hidden></div>
                 </div>
-                <div class="device-visits" id="portalVisits" aria-live="polite">
-                    <div class="widget-label" id="visitLabel">Visits</div>
-                    <div class="visitor-count" id="visitCount">—</div>
+                <div class="device-stats" id="portalVisits">
+                    <div class="device-stat">
+                        <div class="widget-label" id="speedLabel">Speed</div>
+                        <div class="visitor-count" id="netSpeed">—</div>
+                    </div>
+                    <div class="device-stat">
+                        <div class="widget-label" id="visitLabel">Visits</div>
+                        <div class="visitor-count" id="visitCount">—</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -490,7 +498,7 @@
     <footer>&copy; 2026 1024201.com</footer>
 
     <script type="module">
-        import { purityClass, shortPlace } from '/js/geoDisplay.js?v=1';
+        import { purityClass, shortPlace, formatNetSpeed } from '/js/geoDisplay.js?v=2';
         const ZONE_MIGRATE = { bj: 'cn', sk: 'us', db: 'jp', jdm: 'se' };
 
         const i18n = {
@@ -499,21 +507,21 @@
                 mail: 'Mail', game: 'Game Center', fx: 'Rates', tools: 'Toolbox', blog: 'Blog',
                 locTitle: 'IP', locating: 'Locating…', locUnavailable: 'Location unavailable',
                 netResidential: 'Home', netDatacenter: 'DC', netMobile: 'Mobile',
-                purity: 'Purity', proxy: 'VPN', visits: 'Visits'
+                purity: 'Purity', proxy: 'VPN', visits: 'Visits', speed: 'Speed'
             },
             ja: {
                 us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
                 mail: 'メール', game: 'ゲームセンター', fx: '為替', tools: 'ツールボックス', blog: 'ブログ',
                 locTitle: 'IP', locating: '取得中…', locUnavailable: '位置を取得できません',
                 netResidential: '回線', netDatacenter: 'DC', netMobile: '携帯',
-                purity: '純度', proxy: 'VPN', visits: '訪問'
+                purity: '純度', proxy: 'VPN', visits: '訪問', speed: '速度'
             },
             zh: {
                 us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
                 mail: '邮箱', game: '游戏中心', fx: '汇率', tools: '工具箱', blog: '博客',
                 locTitle: 'IP', locating: '定位中…', locUnavailable: '无法获取位置',
                 netResidential: '家庭宽带', netDatacenter: '机房', netMobile: '移动',
-                purity: '纯净度', proxy: '代理', visits: '访问'
+                purity: '纯净度', proxy: '代理', visits: '访问', speed: '网速'
             }
         };
 
@@ -539,6 +547,8 @@
             document.getElementById('locTitle').innerText = t.locTitle;
             const visitLabel = document.getElementById('visitLabel');
             if (visitLabel) visitLabel.textContent = t.visits;
+            const speedLabel = document.getElementById('speedLabel');
+            if (speedLabel) speedLabel.textContent = t.speed;
             const locEl = document.getElementById('deviceLocation');
             if (locEl.classList.contains('is-loading')) {
                 locEl.innerText = t.locating;
@@ -623,6 +633,30 @@
             document.getElementById('zoneDate').innerText = now.toLocaleDateString(DATE_LOCALE[lang] || 'en-US', { ...dateOpts, timeZone: activeRow.dataset.tz });
         }
 
+        function paintNetSpeed(text) {
+            const el = document.getElementById('netSpeed');
+            if (!el || !text) return;
+            el.textContent = text;
+            try { sessionStorage.setItem('portal_net_speed', text); } catch (_) {}
+        }
+
+        async function measureSpeed() {
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            const mbps = Number(conn?.downlink);
+            let rttMs = 0;
+            try {
+                await fetch(`/api/portal?action=ping&n=${Math.random()}`, { cache: 'no-store' });
+                const t0 = performance.now();
+                await fetch(`/api/portal?action=ping&n=${Math.random()}`, { cache: 'no-store' });
+                rttMs = performance.now() - t0;
+            } catch (_) {}
+            paintNetSpeed(formatNetSpeed(
+                rttMs > 0
+                    ? { rttMs }
+                    : { mbps: Number.isFinite(mbps) && mbps > 0 ? mbps : undefined },
+            ));
+        }
+
         function paintVisitCount(n) {
             const el = document.getElementById('visitCount');
             if (!el || n == null || Number.isNaN(Number(n))) return;
@@ -634,6 +668,8 @@
         try {
             const cachedN = localStorage.getItem('portal_visits_n');
             if (cachedN) paintVisitCount(cachedN);
+            const cachedSpeed = sessionStorage.getItem('portal_net_speed');
+            if (cachedSpeed) paintNetSpeed(cachedSpeed);
         } catch (_) {}
 
         async function syncVisits() {
@@ -696,6 +732,7 @@
 
         const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1));
         idle(() => syncVisits(), { timeout: 800 });
+        idle(() => measureSpeed(), { timeout: 1200 });
         idle(() => loadDeviceLocation(), { timeout: 2500 });
 
         window.addEventListener('pageshow', () => {
