@@ -72,30 +72,31 @@ test("every stage keeps a paddle-facing gate in the lower apron", () => {
   }
 });
 
-test("level two hides a long interior run behind a tight mouth", () => {
-  const spec = buildLevelSpec(1);
-  const last = spec.steel[spec.rows - 1];
-  const mouth = last.filter((cell) => cell === 0).length;
-  assert.ok(mouth <= 4, `level 2 outer mouth is ${mouth} cells`);
-  const plugRow = spec.rows - 2;
-  for (let c = 0; c < spec.cols; c++) {
-    if (last[c] !== 0) continue;
-    assert.equal(spec.mask[spec.rows - 1][c], 1, "outer notch should be bricks, not an air cave");
-    assert.equal(spec.mask[plugRow][c], 1, "outer slit should stay bricked on the next row");
-    assert.equal(spec.steel[plugRow][c], 0, "outer slit must not open a steel cave on the edge");
-  }
-  let airDeep = 0;
-  let airInterior = 0;
-  for (let r = 0; r < spec.rows; r++) {
+test("every stage hides a long interior run behind a tight recessed mouth", () => {
+  for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
+    const spec = buildLevelSpec(index);
+    const last = spec.steel[spec.rows - 1];
+    const mouth = last.filter((cell) => cell === 0).length;
+    assert.ok(mouth <= 4, `level ${index + 1} outer mouth is ${mouth} cells`);
+    const plugRow = spec.rows - 2;
     for (let c = 0; c < spec.cols; c++) {
-      const air = !spec.mask[r][c] && !spec.steel[r][c];
-      if (!air) continue;
-      if (r < Math.floor(spec.rows / 2)) airDeep++;
-      if (r < spec.rows - 2 && c > 0 && c < spec.cols - 1) airInterior++;
+      if (last[c] !== 0) continue;
+      assert.equal(spec.mask[spec.rows - 1][c], 1, `level ${index + 1} outer notch should be bricks`);
+      assert.equal(spec.mask[plugRow][c], 1, `level ${index + 1} apron should stay bricked`);
     }
+    let airDeep = 0;
+    let airInterior = 0;
+    for (let r = 0; r < spec.rows; r++) {
+      for (let c = 0; c < spec.cols; c++) {
+        const air = !spec.mask[r][c] && !spec.steel[r][c];
+        if (!air) continue;
+        if (r < Math.floor(spec.rows / 2)) airDeep++;
+        if (r < spec.rows - 2 && c > 0 && c < spec.cols - 1) airInterior++;
+      }
+    }
+    assert.ok(airDeep >= 8, `level ${index + 1} has no upper-field channel (${airDeep})`);
+    assert.ok(airInterior >= 50, `level ${index + 1} interior run is too short (${airInterior} air cells)`);
   }
-  assert.ok(airDeep >= 8, "level 2 should keep an air channel in the upper field");
-  assert.ok(airInterior >= 40, `level 2 interior run is too short (${airInterior} air cells)`);
 });
 
 test("no stage exposes a two-row cave in the outer bottom edge", () => {

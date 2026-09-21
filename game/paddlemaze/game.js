@@ -1,8 +1,8 @@
-import { buildLevelSpec } from "./levels.js?v=21";
-import { buildWallRects } from "./walls.js?v=21";
-import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=21";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=21";
-import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=21";
+import { buildLevelSpec } from "./levels.js?v=22";
+import { buildWallRects } from "./walls.js?v=22";
+import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=22";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=22";
+import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=22";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");

@@ -229,8 +229,8 @@ function pinchGate(steel, mask, c, lane = 2) {
 /** Interior corner door into a short vestibule that turns; no straight shaft. */
 function innerPocket(steel, mask, doorR, mouthC, index) {
   const C = mask[0].length;
-  const fromLeft = index % 2 === 0;
-  const side = fromLeft ? 2 : C - 4;
+  const doorChoices = [2, 5, C - 7, C - 4];
+  const side = clampLaneCol(doorChoices[index % 4], C);
   for (let col = 1; col < C - 1; col++) {
     setSteel(steel, mask, doorR, col);
     setSteel(steel, mask, doorR - 2, col);
@@ -291,141 +291,210 @@ function paintRectLoop(steel, mask, r0, c0, r1, c1, lane = 2) {
   vLane(steel, mask, r0, r1, c1, lane);
 }
 
-function feedTo(steel, mask, mouthC, mouthR, targetC, targetR) {
-  hLane(steel, mask, mouthC, targetC, mouthR, 2);
-  vLane(steel, mask, mouthR, targetR, targetC, 2);
+function paintPoly(steel, mask, pts, lane = 2) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [r0, c0] = pts[i];
+    const [r1, c1] = pts[i + 1];
+    if (r0 === r1) hLane(steel, mask, c0, c1, r0, lane);
+    else if (c0 === c1) vLane(steel, mask, r0, r1, c0, lane);
+    else {
+      const steps = Math.max(Math.abs(r1 - r0), Math.abs(c1 - c0));
+      dLane(steel, mask, r0, c0, steps + 1, Math.sign(r1 - r0) || 0, Math.sign(c1 - c0) || 0, lane);
+    }
+  }
 }
 
 function paintApproach(steel, mask, kind, index) {
   const { C, mouthC, mouthR, doorR } = recessedMouth(steel, mask, index);
-  const boxC = 7 + (index % 5);
-  const boxR = 3 + (index % 2);
-  const boxW = 14;
-  const boxH = 10;
-  const c1 = Math.min(C - 4, boxC + boxW);
-  const r1 = boxR + boxH;
+  const left = 3 + (index % 3);
+  const right = C - 6 - (index % 3);
+  const top = 2 + (index % 2);
 
   switch (kind) {
     case "doubleloop":
       paintRectLoop(steel, mask, 3, 6, 14, 24);
       paintRectLoop(steel, mask, 6, 9, 11, 21);
       dLane(steel, mask, 11, 12, 5, -1, 1, 2);
-      feedTo(steel, mask, mouthC, mouthR, 14, 14);
+      paintPoly(steel, mask, [[mouthR, mouthC], [14, mouthC], [14, 14]]);
+      break;
+    case "spiral3":
+      paintRectLoop(steel, mask, 4, 7, 12, 23);
+      paintPoly(steel, mask, [[12, 10], [8, 10], [8, 20], [mouthR, mouthC], [12, 7]]);
+      break;
+    case "switch4":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [12, left], [12, right],
+        [8, right], [8, left], [5, left], [5, right - 3],
+      ]);
       break;
     case "boxslash":
-      paintChamber(steel, mask, boxR, boxC + 2, 8, 12);
-      feedTo(steel, mask, mouthC, mouthR, clampLaneCol(boxC + 2, C), r1 - 1);
-      dLane(steel, mask, r1 - 1, clampLaneCol(boxC + 2, C), 8, -1, 1, 2);
+      paintChamber(steel, mask, 3, 12, 8, 11);
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [14, 4], [14, 4], [4, 18],
+        [4, 24], [12, 24], [12, 16],
+      ]);
+      break;
+    case "hookJ":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [mouthR, right], [top, right], [top, left],
+        [12, left], [12, 16], [5, 16], [5, 10],
+      ]);
       break;
     case "coil":
-      paintRectLoop(steel, mask, boxR, boxC, r1, c1);
-      vLane(steel, mask, r1, boxR + 3, boxC + 4, 2);
-      hLane(steel, mask, boxC + 4, c1 - 3, boxR + 3, 2);
-      vLane(steel, mask, boxR + 3, r1 - 3, c1 - 3, 2);
-      feedTo(steel, mask, mouthC, mouthR, clampLaneCol(boxC, C), r1);
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, left], [13, right], [4, right], [4, left],
+        [10, left], [10, right - 4], [7, right - 4], [7, left + 4],
+      ]);
       break;
-    case "switchback":
-      hLane(steel, mask, boxC, c1, mouthR, 2);
-      vLane(steel, mask, mouthR, mouthR - 3, boxC, 2);
-      hLane(steel, mask, boxC, c1, mouthR - 3, 2);
-      vLane(steel, mask, mouthR - 3, mouthR - 6, c1, 2);
-      hLane(steel, mask, c1, boxC, mouthR - 6, 2);
-      vLane(steel, mask, mouthR - 6, boxR, boxC, 2);
-      hLane(steel, mask, boxC, boxC + 8, boxR, 2);
+    case "twinwell":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [mouthR, left], [4, left], [4, right],
+        [12, right], [8, right], [8, left + 4], [12, 16],
+      ]);
       break;
-    case "shaft":
-      paintChamber(steel, mask, boxR, boxC + 4, 7, 9);
-      feedTo(steel, mask, mouthC, mouthR, clampLaneCol(boxC + 6, C), r1);
-      vLane(steel, mask, r1, boxR + 1, clampLaneCol(boxC + 6, C), 2);
-      hLane(steel, mask, clampLaneCol(boxC + 6, C), boxC + 1, boxR + 1, 2);
+    case "ustem":
+      paintChamber(steel, mask, 3, 10, 7, 12);
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, left], [13, right], [6, right], [6, left],
+        [6, 14], [3, 14], [10, 14],
+      ]);
       break;
-    case "dogleg":
-      feedTo(steel, mask, mouthC, mouthR, c1, r1);
-      hLane(steel, mask, c1, boxC, r1, 2);
-      vLane(steel, mask, r1, boxR, boxC, 2);
-      hLane(steel, mask, boxC, boxC + 8, boxR, 2);
-      vLane(steel, mask, boxR, boxR + 5, boxC + 8, 2);
+    case "dogleg3":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, 6], [13, 22], [8, 22], [8, 6],
+        [4, 6], [4, 18], [11, 18], [11, 12],
+      ]);
       break;
-    case "loop":
-      paintRectLoop(steel, mask, boxR, boxC, r1, c1);
-      dLane(steel, mask, r1, boxC, 6, -1, 1, 2);
-      feedTo(steel, mask, mouthC, mouthR, clampLaneCol(boxC, C), r1);
+    case "ringcut":
+      paintChamber(steel, mask, 4, 11, 7, 10);
+      paintRectLoop(steel, mask, 3, 6, 13, 24);
+      dLane(steel, mask, 13, 6, 7, -1, 1, 2);
+      paintPoly(steel, mask, [[mouthR, mouthC], [13, mouthC], [13, 12]]);
       break;
-    case "stem":
-      paintChamber(steel, mask, boxR, boxC + 1, 6, 11);
-      hLane(steel, mask, boxC, c1, mouthR, 2);
-      vLane(steel, mask, mouthR, boxR + 6, boxC, 2);
-      vLane(steel, mask, mouthR, boxR + 6, c1, 2);
-      hLane(steel, mask, boxC, c1, boxR + 6, 2);
-      vLane(steel, mask, boxR + 6, boxR + 1, clampLaneCol(boxC + 5, C), 2);
+    case "stairs":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, 4], [13, 9], [10, 9], [10, 14],
+        [7, 14], [7, 19], [4, 19], [4, 24], [4, 8],
+      ]);
       break;
-    case "twin":
-      vLane(steel, mask, mouthR, boxR, boxC, 2);
-      vLane(steel, mask, mouthR, boxR, c1, 2);
-      hLane(steel, mask, boxC, c1, boxR, 2);
-      hLane(steel, mask, mouthC, boxC, mouthR, 2);
+    case "serpentine":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [12, left], [12, right], [8, right],
+        [8, left], [4, left], [4, right - 2], [14, 16],
+      ]);
       break;
-    case "spiral":
-      paintRectLoop(steel, mask, boxR, boxC, r1, c1);
-      paintRectLoop(steel, mask, boxR + 3, boxC + 3, r1 - 3, c1 - 3);
-      feedTo(steel, mask, mouthC, mouthR, clampLaneCol(boxC, C), r1);
+    case "gallery":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [14, left], [14, right], [11, right],
+        [11, left], [8, left], [8, right], [5, right], [5, left + 2],
+      ]);
       break;
-    case "hook":
-      feedTo(steel, mask, mouthC, mouthR, boxC, r1);
-      vLane(steel, mask, r1, boxR, boxC, 2);
-      hLane(steel, mask, boxC, c1, boxR, 2);
-      vLane(steel, mask, boxR, boxR + 6, c1, 2);
-      hLane(steel, mask, c1, boxC + 4, boxR + 6, 2);
+    case "racetrack":
+      paintChamber(steel, mask, 5, 10, 6, 12);
+      paintRectLoop(steel, mask, 3, 5, 14, 25);
+      paintPoly(steel, mask, [[mouthR, mouthC], [14, 12], [8, 12], [8, 18]]);
       break;
-    case "slashrun":
-      paintChamber(steel, mask, boxR, boxC + 4, 8, 10);
-      hLane(steel, mask, mouthC, boxC, mouthR, 2);
-      dLane(steel, mask, mouthR, boxC, 10, -1, 1, 2);
+    case "insetU":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, left], [4, left], [4, right], [13, right],
+        [10, right], [10, left + 3], [7, left + 3], [7, right - 3],
+      ]);
       break;
-    case "ring":
-      paintRectLoop(steel, mask, boxR, boxC, r1, c1);
-      paintChamber(steel, mask, boxR + 3, boxC + 3, 6, 8);
-      dLane(steel, mask, r1, boxC, 5, -1, 1, 2);
-      feedTo(steel, mask, mouthC, mouthR, clampLaneCol(c1, C), r1);
+    case "ribbon":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, 3], [3, 20], [13, 26], [6, 8], [6, 22],
+      ]);
+      break;
+    case "well":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [4, mouthC], [4, left], [13, left],
+        [13, right], [4, right], [8, right], [8, 12], [12, 12],
+      ]);
+      break;
+    case "labyrinth":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [14, 5], [5, 5], [5, 12], [12, 12],
+        [12, 20], [5, 20], [5, 25], [14, 25], [9, 16],
+      ]);
+      break;
+    case "snakenest":
+      paintRectLoop(steel, mask, 5, 9, 12, 21);
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, 6], [4, 6], [4, 24], [10, 14],
+      ]);
+      break;
+    case "cornerbox":
+      paintChamber(steel, mask, 2, 2, 9, 12);
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [mouthR, right], [3, right], [3, 16],
+        [10, 16], [10, 4], [6, 4], [6, 10],
+      ]);
+      break;
+    case "foldback":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [14, left], [14, right], [12, right],
+        [12, left + 2], [9, left + 2], [9, right - 2], [6, right - 2],
+        [6, left + 5], [3, left + 5], [3, 20],
+      ]);
+      break;
+    case "helix":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [12, 5], [12, 14], [8, 14], [8, 5],
+        [5, 5], [5, 22], [12, 22], [3, 22], [3, 10],
+      ]);
+      break;
+    case "canal":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, 4], [4, 4], [4, 14],
+        [13, 14], [13, 24], [4, 24], [8, 24], [8, 8],
+      ]);
+      break;
+    case "meander":
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [13, 8], [9, 8], [9, 18], [5, 18],
+        [5, 6], [13, 6], [13, 24], [3, 24], [3, 12], [8, 12],
+      ]);
       break;
     default:
-      feedTo(steel, mask, mouthC, mouthR, c1, boxR + 2);
-      hLane(steel, mask, c1, boxC, boxR + 2, 2);
+      paintPoly(steel, mask, [
+        [mouthR, mouthC], [12, right], [4, right], [4, left], [10, left], [10, 16],
+      ]);
   }
   innerPocket(steel, mask, doorR, mouthC, index);
 }
 
 const APPROACH = Object.freeze([
-  "boxslash", "doubleloop", "hook", "stem", "coil", "slashrun", "twin", "switchback",
-  "spiral", "stem", "dogleg", "ring", "slashrun", "twin", "hook", "coil",
-  "loop", "stem", "dogleg", "boxslash", "hook", "slashrun", "loop", "switchback",
+  "boxslash", "doubleloop", "hookJ", "ustem", "coil", "ribbon",
+  "twinwell", "switch4", "spiral3", "canal", "dogleg3", "ringcut",
+  "stairs", "gallery", "helix", "snakenest", "insetU", "well",
+  "labyrinth", "cornerbox", "foldback", "serpentine", "racetrack", "meander",
 ]);
 
 export const LEVEL_BLUEPRINTS = [
-  { motif: "shaft" },
+  { motif: "boxslash" },
   { letter: "P" },
   { letter: "R" },
-  { motif: "stem" },
+  { motif: "ustem" },
   { letter: "I" },
-  { motif: "slashrun" },
+  { motif: "ribbon" },
   { letter: "M", letterVariant: 1 },
-  { motif: "twin" },
-  { motif: "spiral" },
-  { motif: "stem" },
+  { motif: "switch4" },
+  { motif: "spiral3" },
+  { motif: "canal" },
   { letter: "E" },
-  { motif: "shaft" },
+  { motif: "ringcut" },
   { letter: "N" },
-  { motif: "twin" },
-  { motif: "hook" },
-  { motif: "spiral" },
+  { motif: "gallery" },
+  { motif: "helix" },
+  { motif: "snakenest" },
   { letter: "U" },
-  { motif: "stem" },
+  { motif: "well" },
   { letter: "M", letterVariant: 2 },
-  { motif: "shaft" },
-  { motif: "hook" },
-  { motif: "slashrun" },
+  { motif: "cornerbox" },
+  { motif: "foldback" },
+  { motif: "serpentine" },
   { letter: "B" },
-  { motif: "loop" },
+  { motif: "meander" },
 ];
 
 export function buildSteelGrid(index) {
