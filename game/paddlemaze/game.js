@@ -1,6 +1,6 @@
-import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=15";
-import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=15";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=15";
+import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=16";
+import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=16";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=16";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -89,6 +89,8 @@ function makeLevel(index) {
   bricks = [];
   for (let r = 0; r < fineRows; r++) {
     for (let c = 0; c < fineCols; c++) {
+      const occupied = cfg.mask[Math.floor(r / 2)]?.[Math.floor(c / 2)];
+      if (!occupied) continue;
       bricks.push({
         x: field.x + c * (brickW + gap),
         y: field.y + r * (brickH + gap),

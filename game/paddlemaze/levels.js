@@ -1,35 +1,341 @@
 /**
- * 24 hand-curated blueprints. Every row has a unique combination of brick
- * topology, gate positions, channel direction and lower maze bars.
+ * 24 original brick layouts. Old procedural shape/cut maps are unused.
+ * Prime stages 2,3,5,7,11,13,17,19,23 spell PRIMENUMB in uppercase bricks.
  */
-export const LEVEL_BLUEPRINTS = [
-  { rows: 7, cols: 12, shape: 0, gates: [-138], guides: [1], bars: [[405, -210]] },
-  { rows: 8, cols: 13, shape: 1, gates: [-196, 164], guides: [-1, 1], bars: [[438, 96]] },
-  { rows: 9, cols: 14, shape: 2, gates: [-224, 0, 206], guides: [1, -1, 1], bars: [[390, -72], [462, 178]] },
-  { rows: 7, cols: 15, shape: 3, gates: [126], guides: [-1], bars: [[432, 204]] },
-  { rows: 8, cols: 12, shape: 4, gates: [-162, 191], guides: [1, -1], bars: [[398, 12], [468, -184]] },
-  { rows: 9, cols: 13, shape: 5, gates: [-208, 18, 222], guides: [-1, 1, -1], bars: [[424, -136]] },
-  { rows: 7, cols: 14, shape: 6, gates: [-68], guides: [1], bars: [[382, 156], [450, -108]] },
-  { rows: 8, cols: 15, shape: 7, gates: [-230, 112], guides: [-1, -1], bars: [[442, 38]] },
-  { rows: 9, cols: 12, shape: 8, gates: [-176, 32, 218], guides: [1, 1, -1], bars: [[396, -196], [474, 84]] },
-  { rows: 7, cols: 13, shape: 9, gates: [218], guides: [-1], bars: [[416, -42]] },
-  { rows: 8, cols: 14, shape: 10, gates: [-104, 210], guides: [1, 1], bars: [[386, 194], [452, -174]] },
-  { rows: 9, cols: 15, shape: 11, gates: [-238, -28, 180], guides: [-1, 1, 1], bars: [[436, -92]] },
-  { rows: 7, cols: 12, shape: 12, gates: [42], guides: [-1], bars: [[402, 118], [470, -224]] },
-  { rows: 8, cols: 13, shape: 13, gates: [-212, 74], guides: [1, -1], bars: [[448, -12]] },
-  { rows: 9, cols: 14, shape: 14, gates: [-188, 24, 236], guides: [-1, -1, 1], bars: [[388, -158], [458, 164]] },
-  { rows: 7, cols: 15, shape: 15, gates: [-226], guides: [1], bars: [[428, 72]] },
-  { rows: 8, cols: 12, shape: 16, gates: [-54, 224], guides: [-1, 1], bars: [[394, -232], [466, 24]] },
-  { rows: 9, cols: 13, shape: 17, gates: [-230, -4, 154], guides: [1, -1, -1], bars: [[440, 212]] },
-  { rows: 7, cols: 14, shape: 18, gates: [172], guides: [1], bars: [[384, -88], [454, 132]] },
-  { rows: 8, cols: 15, shape: 19, gates: [-184, 146], guides: [-1, 1], bars: [[422, -208]] },
-  { rows: 9, cols: 12, shape: 20, gates: [-216, 8, 232], guides: [1, 1, 1], bars: [[400, 54], [476, -152]] },
-  { rows: 7, cols: 13, shape: 21, gates: [-16], guides: [-1], bars: [[446, -198]] },
-  { rows: 8, cols: 14, shape: 22, gates: [-224, 198], guides: [1, -1], bars: [[392, 150], [460, -52]] },
-  { rows: 9, cols: 15, shape: 23, gates: [-204, 56, 226], guides: [-1, 1, -1], bars: [[430, -126], [486, 218]] },
+
+export const PRIME_LETTER_STAGES = Object.freeze({
+  2: "P",
+  3: "R",
+  5: "I",
+  7: "M",
+  11: "E",
+  13: "N",
+  17: "U",
+  19: "M",
+  23: "B",
+});
+
+const LETTER_ART = Object.freeze({
+  P: [
+    "###########....",
+    "##.......##....",
+    "##.......##....",
+    "###########....",
+    "##.............",
+    "##.............",
+    "##.............",
+    "##.............",
+    "##.............",
+  ],
+  R: [
+    "###########....",
+    "##.......##....",
+    "##.......##....",
+    "###########....",
+    "##..##.........",
+    "##...##........",
+    "##....##.......",
+    "##.....##......",
+    "##......##.....",
+  ],
+  I: [
+    "...#########...",
+    ".....#####.....",
+    ".....#####.....",
+    ".....#####.....",
+    ".....#####.....",
+    ".....#####.....",
+    ".....#####.....",
+    ".....#####.....",
+    "...#########...",
+  ],
+  M: [
+    "##.........##..",
+    "###.......###..",
+    "##.##...##.##..",
+    "##..##.##..##..",
+    "##...###...##..",
+    "##....#....##..",
+    "##.........##..",
+    "##.........##..",
+    "##.........##..",
+  ],
+  E: [
+    "##############.",
+    "##.............",
+    "##.............",
+    "###########....",
+    "##.............",
+    "##.............",
+    "##.............",
+    "##.............",
+    "##############.",
+  ],
+  N: [
+    "##.........##..",
+    "###........##..",
+    "##.##......##..",
+    "##..##.....##..",
+    "##...##....##..",
+    "##....##...##..",
+    "##.....##..##..",
+    "##......##.##..",
+    "##.......####..",
+  ],
+  U: [
+    "##.........##..",
+    "##.........##..",
+    "##.........##..",
+    "##.........##..",
+    "##.........##..",
+    "##.........##..",
+    "##.........##..",
+    ".##.......##...",
+    "..#########....",
+  ],
+  B: [
+    "############...",
+    "##........##...",
+    "##........##...",
+    "############...",
+    "##........##...",
+    "##........##...",
+    "##........##...",
+    "##........##...",
+    "############...",
+  ],
+});
+
+/** Second M (stage 19): same letter, extra stem row so the mask is unique. */
+const LETTER_ART_M2 = [
+  ".##.........##.",
+  ".###.......###.",
+  ".##.##...##.##.",
+  ".##..##.##..##.",
+  ".##...###...##.",
+  ".##....#....##.",
+  ".##.........##.",
+  ".##.........##.",
+  ".##.........##.",
+  ".##.........##.",
 ];
 
-// Sawtooth pacing: hard four-ring stages are followed by relief stages.
+const DENSE_ART = Object.freeze({
+  fortress: [
+    "###############",
+    "###############",
+    "###.#.###.#.###",
+    "##....###....##",
+    "###.#.###.#.###",
+    "##....###....##",
+    "###.#.###.#.###",
+    "###############",
+    "###############",
+  ],
+  diamond: [
+    ".....#####.....",
+    "....#######....",
+    "...#########...",
+    "..#####.#####..",
+    ".#####...#####.",
+    "..#####.#####..",
+    "...#########...",
+    "....#######....",
+    ".....#####.....",
+  ],
+  pyramid: [
+    "......##......",
+    ".....####.....",
+    "....######....",
+    "...########...",
+    "..##########..",
+    ".############.",
+    "##############",
+    "##############",
+    "##############",
+  ],
+  nested: [
+    "###############",
+    "###############",
+    "##...........##",
+    "##.#########.##",
+    "##.#########.##",
+    "##.#########.##",
+    "##...........##",
+    "###############",
+    "###############",
+  ],
+  wave: [
+    "###############",
+    "......###......",
+    "#....#####....#",
+    "#...###.##...##",
+    "##.###...##.###",
+    "#####....#####.",
+    ".###......###..",
+    "..#........#...",
+    "###############",
+  ],
+  plus: [
+    "###..#####..###",
+    "###..#####..###",
+    ".....#####.....",
+    "###############",
+    "###############",
+    "###############",
+    ".....#####.....",
+    "###..#####..###",
+    "###..#####..###",
+  ],
+  honeycomb: [
+    "##.##.##.##.##.",
+    ".##.##.##.##.##",
+    "##.##.##.##.##.",
+    ".##.##.##.##.##",
+    "##.##.##.##.##.",
+    ".##.##.##.##.##",
+    "##.##.##.##.##.",
+    ".##.##.##.##.##",
+    "##.##.##.##.##.",
+  ],
+  stairs: [
+    "####.......####",
+    "#####.....#####",
+    "######...######",
+    "#######.#######",
+    "###############",
+    "###############",
+    "###############",
+    "###############",
+    "###############",
+  ],
+  hourglass: [
+    "###############",
+    "###############",
+    "....#######....",
+    ".....#####.....",
+    "......###......",
+    ".....#####.....",
+    "....#######....",
+    "###############",
+    "###############",
+  ],
+  tiles: [
+    "###.###.###.###",
+    "###.###.###.###",
+    "###.###.###.###",
+    "...............",
+    "###.###.###.###",
+    "###.###.###.###",
+    "###.###.###.###",
+    "...............",
+    "###.###.###.###",
+  ],
+  pillars: [
+    "##############",
+    "##.##.##.##.##",
+    "##.##.##.##.##",
+    "##.##.##.##.##",
+    "##############",
+    "##.##.##.##.##",
+    "##.##.##.##.##",
+    "##.##.##.##.##",
+    "##############",
+  ],
+  arch: [
+    "......###......",
+    ".....#####.....",
+    "...#########...",
+    "..###########..",
+    "###############",
+    "###############",
+    "###############",
+    "###############",
+    "###############",
+  ],
+  meander: [
+    "###############",
+    "#####.#######.#",
+    "##.#######.####",
+    "#######.#######",
+    "####.#######.##",
+    "#.#######.#####",
+    "######.########",
+    "###.#######.###",
+    "########.######",
+    "###############",
+  ],
+  bowtie: [
+    "###############",
+    "...###...###...",
+    "....###.###....",
+    ".....#####.....",
+    "......###......",
+    ".....#####.....",
+    "....###.###....",
+    "...###...###...",
+    "###############",
+  ],
+  islands: [
+    "####.####.####.",
+    "##.#.##.#.##.#.",
+    "####.####.####.",
+    "...............",
+    "####.####.####.",
+    "##.#.##.#.##.#.",
+    "####.####.####.",
+    "...............",
+    "####.####.####.",
+  ],
+});
+
+function parseArt(lines) {
+  if (!lines?.length) throw new Error("empty brick art");
+  const cols = lines[0].length;
+  return lines.map((line) => {
+    if (line.length !== cols) throw new Error("ragged brick art");
+    return [...line].map((ch) => (ch === "#" ? 1 : 0));
+  });
+}
+
+function letterArt(letter, variant) {
+  if (letter === "M" && variant === 2) return LETTER_ART_M2;
+  const art = LETTER_ART[letter];
+  if (!art) throw new Error(`Unknown letter ${letter}`);
+  return art;
+}
+
+/**
+ * Maze geometry is independent of brick silhouettes. Sawtooth ring pacing
+ * still follows a hard four-ring stage with a two-ring relief after it.
+ */
+export const LEVEL_BLUEPRINTS = [
+  { rows: 9, cols: 15, gates: [-141], guides: [1], bars: [[403, -201]], motif: "fortress" },
+  { rows: 9, cols: 15, gates: [-188, 171], guides: [-1, 1], bars: [[441, 88]], letter: "P" },
+  { rows: 9, cols: 15, gates: [-219, 8, 198], guides: [1, -1, 1], bars: [[387, -66], [459, 169]], letter: "R" },
+  { rows: 9, cols: 15, gates: [131], guides: [-1], bars: [[428, 211]], motif: "diamond" },
+  { rows: 9, cols: 15, gates: [-159, 184], guides: [1, -1], bars: [[396, 18], [471, -177]], letter: "I" },
+  { rows: 9, cols: 14, gates: [-211, 22, 217], guides: [-1, 1, -1], bars: [[419, -129]], motif: "pyramid" },
+  { rows: 9, cols: 15, gates: [-71], guides: [1], bars: [[379, 149], [448, -101]], letter: "M", letterVariant: 1 },
+  { rows: 9, cols: 15, gates: [-227, 109], guides: [-1, -1], bars: [[437, 41]], motif: "nested" },
+  { rows: 9, cols: 15, gates: [-173, 36, 221], guides: [1, 1, -1], bars: [[393, -191], [477, 91]], motif: "wave" },
+  { rows: 9, cols: 15, gates: [214], guides: [-1], bars: [[411, -39]], motif: "plus" },
+  { rows: 9, cols: 15, gates: [-109, 207], guides: [1, 1], bars: [[381, 188], [455, -169]], letter: "E" },
+  { rows: 9, cols: 15, gates: [-233, -31, 176], guides: [-1, 1, 1], bars: [[433, -88]], motif: "honeycomb" },
+  { rows: 9, cols: 15, gates: [47], guides: [-1], bars: [[399, 121], [468, -219]], letter: "N" },
+  { rows: 9, cols: 15, gates: [-209, 79], guides: [1, -1], bars: [[444, -8]], motif: "stairs" },
+  { rows: 9, cols: 15, gates: [-181, 27, 239], guides: [-1, -1, 1], bars: [[385, -151], [461, 171]], motif: "hourglass" },
+  { rows: 9, cols: 15, gates: [-221], guides: [1], bars: [[425, 77]], motif: "tiles" },
+  { rows: 9, cols: 15, gates: [-58, 219], guides: [-1, 1], bars: [[391, -227], [463, 29]], letter: "U" },
+  { rows: 9, cols: 14, gates: [-228, -9, 151], guides: [1, -1, -1], bars: [[436, 208]], motif: "pillars" },
+  { rows: 10, cols: 15, gates: [169], guides: [1], bars: [[382, -83], [451, 137]], letter: "M", letterVariant: 2 },
+  { rows: 9, cols: 15, gates: [-179, 149], guides: [-1, 1], bars: [[418, -203]], motif: "arch" },
+  { rows: 10, cols: 15, gates: [-213, 11, 228], guides: [1, 1, 1], bars: [[397, 58], [473, -148]], motif: "meander" },
+  { rows: 9, cols: 15, gates: [-19], guides: [-1], bars: [[443, -193]], motif: "bowtie" },
+  { rows: 9, cols: 15, gates: [-221, 193], guides: [1, -1], bars: [[389, 153], [457, -47]], letter: "B" },
+  { rows: 9, cols: 15, gates: [-198, 61, 223], guides: [-1, 1, -1], bars: [[427, -121], [481, 214]], motif: "islands" },
+];
+
 const RING_PACING = Object.freeze([
   2, 2, 3, 3, 4, 2, 3, 4,
   3, 2, 3, 4, 4, 2, 3, 4,
@@ -45,10 +351,6 @@ export function mazeRingPlan(index) {
   };
 }
 
-/**
- * One readable diagonal route from the lowest deflector through every ring.
- * Coordinates are offsets from the board center; inner ring comes first.
- */
 export function mazeEntryPath(index) {
   const bp = LEVEL_BLUEPRINTS[index];
   if (!bp) throw new RangeError(`Unknown level ${index + 1}`);
@@ -61,40 +363,40 @@ export function mazeEntryPath(index) {
   return { direction, ringCenters, deflectorCenters };
 }
 
-function baseShape(shape, row, col, rows, cols) {
-  const cx = (cols - 1) / 2;
-  const cy = (rows - 1) / 2;
-  switch (shape % 8) {
-    case 0: return !(row > 1 && row < rows - 2 && col > 2 && col < cols - 3);
-    case 1: return (row + col) % 3 !== 0;
-    case 2: return Math.abs(col - cx) <= row + 2;
-    case 3: return row % 2 === 0 || col % 3 !== 1;
-    case 4: return Math.abs(col - cx) + Math.abs(row - cy) <= Math.min(rows, cols) * 0.58;
-    case 5: return col < 2 || col >= cols - 2 || row < 2 || row >= rows - 2 || (row + col) % 4 === 0;
-    case 6: return Math.sin((col / cols) * Math.PI * 3 + row * 0.8) > -0.35;
-    default: return (row * 3 + col * 5) % 7 !== 0;
-  }
+function brickArtFor(bp, number) {
+  if (bp.letter) return letterArt(bp.letter, bp.letterVariant);
+  const art = DENSE_ART[bp.motif];
+  if (!art) throw new Error(`Missing motif ${bp.motif} for level ${number}`);
+  return art;
 }
 
 export function buildLevelSpec(index) {
   const bp = LEVEL_BLUEPRINTS[index];
   if (!bp) throw new RangeError(`Unknown level ${index + 1}`);
-  const mask = [];
-  for (let row = 0; row < bp.rows; row++) {
-    const line = [];
-    for (let col = 0; col < bp.cols; col++) {
-      const base = baseShape(bp.shape, row, col, bp.rows, bp.cols);
-      // Per-level cuts make all 24 brick arrays unique, not just rotated copies.
-      const cut = (row * 17 + col * 31 + bp.shape * 13) % (11 + (bp.shape % 5)) === 0;
-      line.push(base && !cut ? 1 : 0);
-    }
-    mask.push(line);
+  const number = index + 1;
+  const expectedLetter = PRIME_LETTER_STAGES[number] || null;
+  if (expectedLetter && bp.letter !== expectedLetter) {
+    throw new Error(`Level ${number} must be letter ${expectedLetter}`);
+  }
+  if (!expectedLetter && bp.letter) {
+    throw new Error(`Level ${number} should not be a letter stage`);
+  }
+  const art = brickArtFor(bp, number);
+  const mask = parseArt(art);
+  if (mask.length !== bp.rows || mask[0].length !== bp.cols) {
+    throw new Error(`Level ${number} art size ${mask.length}x${mask[0].length} != ${bp.rows}x${bp.cols}`);
   }
   return {
-    ...bp,
-    number: index + 1,
+    rows: bp.rows,
+    cols: bp.cols,
+    gates: bp.gates,
+    guides: bp.guides,
+    bars: bp.bars,
+    letter: bp.letter || null,
+    motif: bp.motif || null,
+    number,
     speed: Math.min(430, 300 + index * 5),
-    seed: 1042 + (index + 1) * 201,
+    seed: 1042 + number * 201,
     mask,
   };
 }
