@@ -105,14 +105,13 @@
             min-width: 42px; padding: 3px 8px; border-radius: 6px;
             font-size: 11px; font-weight: 700; color: #fff;
         }
-        /* 8-step: 深绿 → 浅绿 → 浅黄 → 深黄 → 橘 → 红 → 紫 → 黑（低%绿，高%红黑） */
+        /* High purity = dark green. Then yellow → red → black (worst). */
         .purity-pill.g1 { background: #0d5c3d; }
-        .purity-pill.g2 { background: #5bb974; }
+        .purity-pill.g2 { background: #34c759; }
         .purity-pill.y1 { background: #ffe566; color: #3d3200; }
         .purity-pill.y2 { background: #e6a800; color: #1a1400; }
         .purity-pill.or { background: #f08500; }
         .purity-pill.rd { background: #e53935; }
-        .purity-pill.pu { background: #7b1fa2; }
         .purity-pill.bk { background: #111111; }
 
         .zone-date {
@@ -130,7 +129,7 @@
         .zone-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
         .zone-row {
             display: grid;
-            grid-template-columns: 82px 1fr;
+            grid-template-columns: 92px 1fr;
             align-items: center;
             gap: 8px;
             padding: 4px 6px;
@@ -238,19 +237,23 @@
             line-height: 1;
         }
 
-        .visitor-widget {
-            min-height: 64px;
+        .device-visits {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0, 122, 255, 0.12);
         }
-
+        .device-visits .widget-label { margin-bottom: 0; }
         .visitor-count {
-            color: #007aff;
-            font-size: 22px;
+            color: var(--ios-text);
+            font-size: 15px;
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             line-height: 1;
+            letter-spacing: -0.02em;
         }
 
         .app-grid {
@@ -401,35 +404,34 @@
                 <div class="zone-date" id="zoneDate">--</div>
                 <ul class="zone-list">
                     <li class="zone-row" data-zone="us" data-tz="America/Los_Angeles" data-color="#5856d6">
-                        <span class="zone-label" id="lbl-us">San Jose</span>
+                        <span class="zone-label" id="lbl-us">LA, US</span>
                         <span class="zone-time" id="tz-us">--:--</span>
                     </li>
                     <li class="zone-row" data-zone="jp" data-tz="Asia/Tokyo" data-color="#ff9500">
-                        <span class="zone-label" id="lbl-jp">Osaka</span>
+                        <span class="zone-label" id="lbl-jp">Tokyo, JP</span>
                         <span class="zone-time" id="tz-jp">--:--</span>
                     </li>
                     <li class="zone-row" data-zone="cn" data-tz="Asia/Shanghai" data-color="#007aff">
-                        <span class="zone-label" id="lbl-cn">Beijing</span>
+                        <span class="zone-label" id="lbl-cn">BJ, CN</span>
                         <span class="zone-time" id="tz-cn">--:--</span>
                     </li>
                     <li class="zone-row" data-zone="se" data-tz="Europe/Stockholm" data-color="#34c759">
-                        <span class="zone-label" id="lbl-se">Gothenburg</span>
+                        <span class="zone-label" id="lbl-se">GOT, SE</span>
                         <span class="zone-time" id="tz-se">--:--</span>
                     </li>
                 </ul>
             </div>
 
             <div class="widget-card device-widget">
-                <div class="widget-label" id="locTitle">IP Location</div>
+                <div class="widget-label" id="locTitle">IP</div>
                 <div id="ipWidget">
                     <div class="ip-line is-loading" id="deviceLocation">Locating…</div>
                     <div class="ip-tags" id="ipTags" hidden></div>
                 </div>
-            </div>
-
-            <div class="widget-card visitor-widget" id="portalVisits" aria-live="polite">
-                <div class="widget-label" id="visitLabel">Visitors</div>
-                <div class="visitor-count" id="visitCount">—</div>
+                <div class="device-visits" id="portalVisits" aria-live="polite">
+                    <div class="widget-label" id="visitLabel">Visits</div>
+                    <div class="visitor-count" id="visitCount">—</div>
+                </div>
             </div>
         </div>
 
@@ -487,30 +489,31 @@
 
     <footer>&copy; 2026 1024201.com</footer>
 
-    <script>
+    <script type="module">
+        import { purityClass, shortPlace } from '/js/geoDisplay.js?v=1';
         const ZONE_MIGRATE = { bj: 'cn', sk: 'us', db: 'jp', jdm: 'se' };
 
         const i18n = {
             en: {
-                us: 'San Jose', jp: 'Osaka', cn: 'Beijing', se: 'Gothenburg',
+                us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
                 mail: 'Mail', game: 'Game Center', fx: 'Rates', tools: 'Toolbox', blog: 'Blog',
-                locTitle: 'IP Location', locating: 'Locating…', locUnavailable: 'Location unavailable',
-                netResidential: 'Home broadband', netDatacenter: 'Datacenter', netMobile: 'Mobile network',
-                purity: 'Purity', proxy: 'Proxy/VPN', visits: 'Visitors'
+                locTitle: 'IP', locating: 'Locating…', locUnavailable: 'Location unavailable',
+                netResidential: 'Home', netDatacenter: 'DC', netMobile: 'Mobile',
+                purity: 'Purity', proxy: 'VPN', visits: 'Visits'
             },
             ja: {
-                us: 'サンノゼ', jp: '大阪', cn: '北京', se: 'ヨーテボリ',
+                us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
                 mail: 'メール', game: 'ゲームセンター', fx: '為替', tools: 'ツールボックス', blog: 'ブログ',
-                locTitle: 'IP位置', locating: '取得中…', locUnavailable: '位置を取得できません',
-                netResidential: '家庭用回線', netDatacenter: 'データセンター', netMobile: 'モバイル回線',
-                purity: '純度', proxy: 'プロキシ/VPN', visits: '訪問者'
+                locTitle: 'IP', locating: '取得中…', locUnavailable: '位置を取得できません',
+                netResidential: '回線', netDatacenter: 'DC', netMobile: '携帯',
+                purity: '純度', proxy: 'VPN', visits: '訪問'
             },
             zh: {
-                us: '圣何塞', jp: '大阪', cn: '北京', se: '哥德堡',
+                us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
                 mail: '邮箱', game: '游戏中心', fx: '汇率', tools: '工具箱', blog: '博客',
-                locTitle: 'IP 位置', locating: '定位中…', locUnavailable: '无法获取位置',
-                netResidential: '家庭宽带', netDatacenter: '机房网络', netMobile: '移动网络',
-                purity: '纯净度', proxy: '代理/VPN', visits: '访客'
+                locTitle: 'IP', locating: '定位中…', locUnavailable: '无法获取位置',
+                netResidential: '家庭宽带', netDatacenter: '机房', netMobile: '移动',
+                purity: '纯净度', proxy: '代理', visits: '访问'
             }
         };
 
@@ -549,7 +552,7 @@
         }
 
         function buildLocationHtml(data, t) {
-            const label = data.label || [data.city, data.region, data.country].filter(Boolean).join(', ') || t.locUnavailable;
+            const label = shortPlace(data) || data.label || t.locUnavailable;
             if (!data.proxy) return label;
             return `${label}<span class="ip-tag proxy ip-tag-inline">${t.proxy}</span>`;
         }
@@ -559,12 +562,7 @@
             const tagsEl = document.getElementById('ipTags');
             locEl.classList.remove('is-loading');
             locEl.innerHTML = `${buildLocationHtml(data, t)}<div class="ip-sub">${data.ip || ''}</div>`;
-            const allowed = new Set(['g1','g2','y1','y2','or','rd','pu','bk']);
-            let purityCls = allowed.has(data.purityLevel) ? data.purityLevel : '';
-            if (!purityCls) {
-                const p = Number(data.purity) || 0;
-                purityCls = p < 12.5 ? 'g1' : p < 25 ? 'g2' : p < 37.5 ? 'y1' : p < 50 ? 'y2' : p < 62.5 ? 'or' : p < 75 ? 'rd' : p < 87.5 ? 'pu' : 'bk';
-            }
+            const purityCls = purityClass(data.purity);
             const tags = `<span class="ip-tag">${netLabel(data, t)}</span><span class="purity-pill ${purityCls}">${t.purity} ${data.purity}%</span>`;
             tagsEl.innerHTML = tags;
             tagsEl.hidden = false;
@@ -579,7 +577,7 @@
                 mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '/', showHint: true });
             });
             updateClocks();
-            const cachedGeo = sessionStorage.getItem('portal_geo_v1');
+            const cachedGeo = sessionStorage.getItem('portal_geo_v2');
             if (cachedGeo) {
                 try {
                     renderIpWidget(JSON.parse(cachedGeo), i18n[lang] || i18n.en);
@@ -665,7 +663,7 @@
             const lang = localStorage.getItem('portal_lang') || 'en';
             const t = i18n[lang] || i18n.en;
             try {
-                const cached = sessionStorage.getItem('portal_geo_v1');
+                const cached = sessionStorage.getItem('portal_geo_v2');
                 if (cached) {
                     renderIpWidget(JSON.parse(cached), t);
                     return;
@@ -677,7 +675,7 @@
             try {
                 const res = await fetch('/api/portal?action=geo');
                 const data = await res.json();
-                try { sessionStorage.setItem('portal_geo_v1', JSON.stringify(data)); } catch (_) {}
+                try { sessionStorage.setItem('portal_geo_v2', JSON.stringify(data)); } catch (_) {}
                 renderIpWidget(data, t);
             } catch (_) {
                 locEl.classList.remove('is-loading');
