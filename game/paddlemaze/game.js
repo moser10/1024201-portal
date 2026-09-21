@@ -1,8 +1,8 @@
-import { buildLevelSpec } from "./levels.js?v=24";
-import { buildWallRects, playField } from "./walls.js?v=24";
-import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=24";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=24";
-import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=24";
+import { buildLevelSpec } from "./levels.js?v=25";
+import { buildWallRects, playField } from "./walls.js?v=25";
+import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=25";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=25";
+import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=25";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -679,6 +679,38 @@ function endPaddleDrag(e) {
   if (!paddleDrag || e.pointerId !== paddleDrag.pointerId) return;
   paddleDrag = null;
 }
+
+function blockSystemGesture(e) {
+  e.preventDefault();
+}
+
+function suppressCallout(e) {
+  if (e.target.closest?.("a, button")) return;
+  e.preventDefault();
+}
+
+["contextmenu", "selectstart", "dragstart", "gesturestart", "gesturechange", "gestureend", "dblclick"].forEach((type) => {
+  document.addEventListener(type, blockSystemGesture, { capture: true });
+});
+
+document.addEventListener("selectionchange", () => {
+  const sel = window.getSelection?.();
+  if (sel && sel.rangeCount) sel.removeAllRanges();
+});
+
+document.addEventListener("touchstart", (e) => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { capture: true, passive: false });
+
+for (const el of [wrap, controlZone, overlay, canvas, document.querySelector(".hud"), document.querySelector(".game-top")]) {
+  el?.addEventListener("touchstart", suppressCallout, { passive: false });
+}
+
+window.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+  }
+}, true);
 
 wrap.addEventListener("pointerdown", (e) => {
   if (e.target !== canvas) return;

@@ -2,11 +2,13 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0a0a12">
   <title>Paddle Block Maze | 1024201</title>
   <link rel="stylesheet" href="/js/featurePage.css?v=3">
-  <link rel="stylesheet" href="game.css?v=24">
+  <link rel="stylesheet" href="game.css?v=26">
 </head>
 <body>
   <main class="game-shell">
@@ -33,7 +35,7 @@
     </section>
 
     <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="gameCanvas" width="900" height="1100" aria-label="Paddle Block Maze 游戏区域"></canvas>
+      <canvas id="gameCanvas" width="900" height="1100" draggable="false" aria-label="Paddle Block Maze 游戏区域"></canvas>
       <div class="overlay" id="overlay">
         <div class="overlay-card">
           <p class="eyebrow" id="overlayEyebrow" hidden></p>
@@ -67,6 +69,6 @@
       document.getElementById("gameBack").textContent = copy[lang] || copy.en;
     })();
   </script>
-  <script type="module" src="game.js?v=24"></script>
+  <script type="module" src="game.js?v=26"></script>
 </body>
 </html>
