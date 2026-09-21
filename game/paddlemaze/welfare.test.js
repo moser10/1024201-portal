@@ -7,6 +7,8 @@ import {
   pickWelfarePower,
   tickWelfare,
   welfareInterval,
+  welfareNextKind,
+  welfareRemaining,
 } from "./welfare.js";
 
 function drainPhase(state, interval, firstKind, secondKind) {
@@ -46,6 +48,17 @@ test("hitting a brick from any phase returns to A", () => {
   assert.equal(state.elapsed, 0);
   assert.equal(welfareInterval(state), 120);
   assert.equal(tickWelfare(state, 120).kind, "any");
+});
+
+test("countdown reports remaining time until the next drop", () => {
+  const state = createWelfareState();
+  assert.equal(welfareNextKind(state), "any");
+  assert.equal(Math.round(welfareRemaining(state)), 120);
+  tickWelfare(state, 20);
+  assert.equal(Math.round(welfareRemaining(state)), 100);
+  tickWelfare(state, 100);
+  assert.equal(welfareNextKind(state), "balls");
+  assert.equal(Math.round(welfareRemaining(state)), 120);
 });
 
 test("welfare picker only returns increase resources", () => {

@@ -16,6 +16,14 @@ export function welfareInterval(state) {
   return WELFARE_PHASES[Math.min(state.phaseIndex, WELFARE_PHASES.length - 1)];
 }
 
+export function welfareRemaining(state) {
+  return Math.max(0, welfareInterval(state) - state.elapsed);
+}
+
+export function welfareNextKind(state) {
+  return state.stepInPhase === 0 ? "any" : "balls";
+}
+
 export function noteWelfareBrickHit(state) {
   state.elapsed = 0;
   state.phaseIndex = 0;

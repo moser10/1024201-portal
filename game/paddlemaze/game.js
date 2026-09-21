@@ -1,6 +1,6 @@
-import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=14";
-import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=14";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare } from "./welfare.js?v=14";
+import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=15";
+import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=15";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=15";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -45,6 +45,12 @@ const targetIconEl = document.getElementById("targetIcon");
 const overlayTitleEl = document.getElementById("overlayTitle");
 const overlayTextEl = document.getElementById("overlayText");
 const overlayEyebrowEl = document.getElementById("overlayEyebrow");
+const runTimeEl = document.getElementById("runTime");
+const welfareTimeEl = document.getElementById("welfareTime");
+const welfarePreviewEl = document.getElementById("welfarePreview");
+const controlGap = document.getElementById("controlGap");
+const PADDLE_UP_ICON = '<svg viewBox="0 0 48 30"><rect x="3" y="12" width="42" height="7" rx="3.5"/></svg>';
+const BALLS_UP_ICON = '<svg viewBox="0 0 58 30"><circle cx="7" cy="15" r="5"/><path d="M15 15h10m-4-4 4 4-4 4"/><circle cx="34" cy="8" r="4"/><circle cx="34" cy="22" r="4"/><circle cx="46" cy="15" r="4"/></svg>';
 const staticLayer = document.createElement("canvas");
 staticLayer.width = W;
 staticLayer.height = H;
@@ -63,6 +69,9 @@ let hitsSinceDrop = 0;
 let initialDropInterval = 5;
 let dropsSinceBallMultiplier = 0;
 const welfare = createWelfareState();
+let nextWelfare = null;
+let levelElapsed = 0;
+let sessionElapsed = 0;
 let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
 let paddleDrag = null;
 const keys = { left: false, right: false };
@@ -96,6 +105,8 @@ function makeLevel(index) {
   hitsSinceDrop = 0;
   dropsSinceBallMultiplier = 0;
   noteWelfareBrickHit(welfare);
+  levelElapsed = 0;
+  armNextWelfare();
   initialDropInterval = bricks.length <= 60 ? 3 : bricks.length <= 90 ? 4 : 5;
   walls = makeMazeWalls(cfg, field);
   bakeStaticLayer();
@@ -344,13 +355,40 @@ function spawnPower(brick) {
   activatePowerDrop(type, brick.x + brick.w / 2 - 28, brick.y + brick.h / 2 - 13);
 }
 
-function spawnWelfareDrop(kind) {
-  const type = pickWelfarePower(kind);
+function formatClock(seconds) {
+  const total = Math.max(0, Math.floor(seconds + 1e-6));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function paintWelfarePreview(power) {
+  if (!welfarePreviewEl || !power) return;
+  const isPaddle = power.kind === "paddle";
+  welfarePreviewEl.className = `hud-welfare-preview ${isPaddle ? "paddle-up" : "balls-up"}`;
+  welfarePreviewEl.style.color = isPaddle ? "#30d158" : "#ff453a";
+  welfarePreviewEl.innerHTML = isPaddle ? PADDLE_UP_ICON : BALLS_UP_ICON;
+}
+
+function armNextWelfare() {
+  nextWelfare = pickWelfarePower(welfareNextKind(welfare));
+  paintWelfarePreview(nextWelfare);
+}
+
+function sizeTouchZone() {
+  const vh = window.innerHeight;
+  const rows = vh >= 920 ? 5 : vh >= 780 ? 4 : vh >= 660 ? 3 : 2;
+  document.documentElement.style.setProperty("--touch-rows", String(rows));
+  if (controlGap) controlGap.style.minHeight = `${rows * 22}px`;
+}
+
+function spawnWelfareDrop() {
+  const type = nextWelfare || pickWelfarePower(welfareNextKind(welfare));
   activatePowerDrop(type, paddle.x + paddle.w / 2 - 28, Math.max(36, paddle.y - 220));
+  armNextWelfare();
 }
 
 function registerBrickHit(brick) {
   noteWelfareBrickHit(welfare);
+  armNextWelfare();
   consecutiveHits++;
   hitsSinceDrop++;
   const interval =
@@ -447,6 +485,8 @@ function update(dt) {
   if (keys.left) paddle.x -= speed * dt;
   if (keys.right) paddle.x += speed * dt;
   paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+  levelElapsed += dt;
+  sessionElapsed += dt;
 
   // Only the main ball receives limited CCD substeps; split balls use cheap discrete physics.
   for (const ball of balls) {
@@ -463,7 +503,7 @@ function update(dt) {
 
   if (bricks.length && balls.length) {
     const drop = tickWelfare(welfare, dt);
-    if (drop) spawnWelfareDrop(drop.kind);
+    if (drop) spawnWelfareDrop();
   }
 
   for (let i = powers.length - 1; i >= 0; i--) {
@@ -498,17 +538,18 @@ function update(dt) {
 
   if (!bricks.length) {
     score += 500 + (levelIndex + 1) * 50;
+    const spent = formatClock(levelElapsed);
     releaseAllBalls();
     if (levelIndex + 1 >= TOTAL_LEVELS) {
       running = false;
-      showOverlay("全部通关", `最终得分 ${score}。24 个迷宫已全部清除。`, "START", "COMPLETE");
+      showOverlay("全部通关", `最终得分 ${score}。本关 ${spent}，总计 ${formatClock(sessionElapsed)}。`, "START", "COMPLETE");
       levelIndex = 0;
     } else {
       running = false;
       levelIndex++;
       showOverlay(
         `LEVEL ${String(levelIndex).padStart(2, "0")} CLEAR`,
-        "通道结构即将改变。准备进入下一层。",
+        `用时 ${spent}。通道结构即将改变。准备进入下一层。`,
         "NEXT",
         `SCORE ${score}`
       );
@@ -517,7 +558,7 @@ function update(dt) {
     running = false;
     releaseAllItems();
     haptic(35);
-    showOverlay("GAME OVER", "", "Re-Start", "");
+    showOverlay("GAME OVER", `用时 ${formatClock(levelElapsed)}`, "Re-Start", "");
   }
   updateHud();
 }
@@ -562,13 +603,16 @@ function draw() {
 }
 
 function updateHud() {
-  const key = `${bricks.length}:${balls.length}:${paddle.w}`;
+  const remain = Math.ceil(welfareRemaining(welfare));
+  const key = `${bricks.length}:${balls.length}:${paddle.w}:${Math.floor(levelElapsed)}:${remain}:${nextWelfare?.label || ""}`;
   if (key === lastHudKey) return;
   lastHudKey = key;
   brickCountEl.textContent = bricks.length;
   ballCountEl.textContent = balls.length;
   paddleCountEl.textContent =
     `${Math.max(1, Math.round((paddle.w / INITIAL_PADDLE) * 10) / 10)}×`;
+  if (runTimeEl) runTimeEl.textContent = formatClock(levelElapsed);
+  if (welfareTimeEl) welfareTimeEl.textContent = formatClock(remain);
 }
 
 function loop(time) {
@@ -599,7 +643,11 @@ function showOverlay(title, text, button, eyebrow = "PADDLE BLOCK MAZE") {
 }
 
 function startLevel() {
-  if (levelIndex === 0 && overlayTitleEl.textContent === "全部通关") score = 0;
+  const title = overlayTitleEl.textContent || "";
+  if (title.includes("全部通关") || title.includes("GAME OVER") || title.includes("Paddle Block Maze")) {
+    sessionElapsed = 0;
+    if (title.includes("全部通关")) score = 0;
+  }
   makeLevel(levelIndex);
   overlay.hidden = true;
   paused = false;
@@ -679,10 +727,12 @@ startBtn.addEventListener("click", () => {
   }
 });
 pauseBtn.addEventListener("click", togglePause);
+window.addEventListener("resize", sizeTouchZone);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && running && !paused) togglePause();
 });
 
+sizeTouchZone();
 makeLevel(0);
 draw();
 cancelAnimationFrame(animationId);
