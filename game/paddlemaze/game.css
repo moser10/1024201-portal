@@ -118,6 +118,11 @@ body {
   flex: 0 0 auto;
 }
 
+#paddleCapTime {
+  color: #30d158;
+  font-size: clamp(9px, 2.3vw, 12px);
+}
+
 .hud-brick {
   width: 18px;
   height: 10px;

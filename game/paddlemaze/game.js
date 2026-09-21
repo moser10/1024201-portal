@@ -1,7 +1,8 @@
-import { buildLevelSpec } from "./levels.js?v=19";
-import { buildWallRects } from "./walls.js?v=19";
-import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=19";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=19";
+import { buildLevelSpec } from "./levels.js?v=20";
+import { buildWallRects } from "./walls.js?v=20";
+import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=20";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=20";
+import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=20";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -70,6 +71,8 @@ let hitsSinceDrop = 0;
 let initialDropInterval = 5;
 let dropsSinceBallMultiplier = 0;
 const welfare = createWelfareState();
+const paddleCap = createPaddleCapState();
+const paddleCapTimeEl = document.getElementById("paddleCapTime");
 let nextWelfare = null;
 let levelElapsed = 0;
 let sessionElapsed = 0;
@@ -116,6 +119,7 @@ function makeLevel(index) {
   releaseAllItems();
   releaseAllParticles();
   paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 58, w: INITIAL_PADDLE, h: 12 };
+  syncPaddleCap(paddleCap, paddle.w, W);
   activateBall(cfg.speed, null, true);
   targetIconEl.style.background = `hsl(${levelHue} 90% 52%)`;
   lastHudKey = "";
@@ -376,6 +380,7 @@ function applyPower(power) {
   if (spec.kind === "paddle") {
     paddle.w = targetPaddleWidth(paddle.w, spec, INITIAL_PADDLE, MIN_PADDLE, W);
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+    syncPaddleCap(paddleCap, paddle.w, W);
   } else if (spec.kind === "balls") {
     const ballCap = Math.max(1, Math.min(MAX_BALLS, bricks.length));
     const target = targetBallCount(balls.length, spec, ballCap);
@@ -404,6 +409,7 @@ function applyPower(power) {
   } else if (spec.kind === "reset") {
     paddle.w = INITIAL_PADDLE;
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+    syncPaddleCap(paddleCap, paddle.w, W);
     while (balls.length > 1) releaseBallAt(balls.length - 1);
   }
   haptic(16);
@@ -456,6 +462,10 @@ function update(dt) {
   if (keys.left) paddle.x -= speed * dt;
   if (keys.right) paddle.x += speed * dt;
   paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+  if (tickPaddleCap(paddleCap, dt)) {
+    paddle.w = INITIAL_PADDLE;
+    paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+  }
   levelElapsed += dt;
   sessionElapsed += dt;
 
@@ -578,14 +588,19 @@ function draw() {
 }
 
 function updateHud() {
+  const capClock = paddleCapClock(paddleCap);
   const remain = Math.ceil(welfareRemaining(welfare));
-  const key = `${bricks.length}:${balls.length}:${paddle.w}:${Math.floor(levelElapsed)}:${remain}:${nextWelfare?.label || ""}`;
+  const key = `${bricks.length}:${balls.length}:${paddle.w}:${Math.floor(levelElapsed)}:${remain}:${capClock}:${nextWelfare?.label || ""}`;
   if (key === lastHudKey) return;
   lastHudKey = key;
   brickCountEl.textContent = bricks.length;
   ballCountEl.textContent = balls.length;
   paddleCountEl.textContent =
     `${Math.max(1, Math.round((paddle.w / INITIAL_PADDLE) * 10) / 10)}×`;
+  if (paddleCapTimeEl) {
+    paddleCapTimeEl.hidden = !capClock;
+    if (capClock) paddleCapTimeEl.textContent = capClock;
+  }
   if (runTimeEl) runTimeEl.textContent = formatClock(levelElapsed);
   if (welfareTimeEl) welfareTimeEl.textContent = formatClock(remain);
 }
