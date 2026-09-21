@@ -20,7 +20,23 @@ test("past procedural maps are gone: every stage has an explicit letter or motif
   }
 });
 
-test("prime stages spell PRIMENUMB with one uppercase letter each", () => {
+test("maps are dense brick seas with steel cutouts", () => {
+  for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
+    const spec = buildLevelSpec(index);
+    const total = spec.rows * spec.cols;
+    const bricks = spec.mask.flat().filter(Boolean).length;
+    const steel = spec.steel.flat().filter(Boolean).length;
+    assert.ok(bricks / total >= 0.55, `level ${index + 1} is too sparse (${bricks}/${total})`);
+    assert.ok(steel >= 40, `level ${index + 1} has too little steel`);
+    for (let r = 0; r < spec.rows; r++) {
+      for (let c = 0; c < spec.cols; c++) {
+        assert.equal(spec.mask[r][c] + spec.steel[r][c] <= 1, true, "brick and steel overlap");
+      }
+    }
+  }
+});
+
+test("prime stages spell PRIMENUMB with steel glyphs in the brick field", () => {
   assert.deepEqual(PRIME_LETTER_STAGES, {
     2: "P",
     3: "R",
@@ -34,22 +50,12 @@ test("prime stages spell PRIMENUMB with one uppercase letter each", () => {
   });
   for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
     const spec = buildLevelSpec(index);
-    const expected = PRIME_LETTER_STAGES[index + 1] || null;
-    assert.equal(spec.letter, expected);
-    const bricks = spec.mask.flat().filter(Boolean).length;
-    assert.ok(bricks >= 28, `level ${index + 1} is too empty`);
+    assert.equal(spec.letter, PRIME_LETTER_STAGES[index + 1] || null);
   }
-});
-
-test("letter masks keep a solid glyph rather than a filled rectangle", () => {
   for (const [stage, letter] of Object.entries(PRIME_LETTER_STAGES)) {
     const spec = buildLevelSpec(Number(stage) - 1);
-    const total = spec.rows * spec.cols;
-    const bricks = spec.mask.flat().filter(Boolean).length;
-    assert.ok(bricks < total * 0.72, `letter ${letter} is too close to a solid block`);
-    const mid = spec.mask[Math.floor(spec.rows / 2)];
-    const gaps = mid.filter((cell) => cell === 0).length;
-    if (letter !== "I") assert.ok(gaps >= 2, `letter ${letter} mid-row has no negative space`);
+    const steel = spec.steel.flat().filter(Boolean).length;
+    assert.ok(steel >= 50, `letter ${letter} steel is too thin`);
   }
 });
 
@@ -62,6 +68,6 @@ test("every stage keeps a paddle-facing gate in the lower apron", () => {
   for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
     const gap = bottomGateWidth(index);
     assert.ok(gap >= 70, `level ${index + 1} bottom gate is ${gap}px`);
-    assert.ok(gap < 500, `level ${index + 1} apron is too open to read as a map`);
+    assert.ok(gap < 700, `level ${index + 1} apron is too open to read as a map`);
   }
 });

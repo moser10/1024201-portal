@@ -120,254 +120,188 @@ const LETTER_ART_M2 = [
   ".##.........##.",
 ];
 
-const DENSE_ART = Object.freeze({
-  fortress: [
-    "###############",
-    "###############",
-    "###.#.###.#.###",
-    "##....###....##",
-    "###.#.###.#.###",
-    "##....###....##",
-    "###.#.###.#.###",
-    "###############",
-    "###############",
-  ],
-  diamond: [
-    ".....#####.....",
-    "....#######....",
-    "...#########...",
-    "..#####.#####..",
-    ".#####...#####.",
-    "..#####.#####..",
-    "...#########...",
-    "....#######....",
-    ".....#####.....",
-  ],
-  pyramid: [
-    "......##......",
-    ".....####.....",
-    "....######....",
-    "...########...",
-    "..##########..",
-    ".############.",
-    "##############",
-    "##############",
-    "##############",
-  ],
-  nested: [
-    "###############",
-    "###############",
-    "##...........##",
-    "##.#########.##",
-    "##.#########.##",
-    "##.#########.##",
-    "##...........##",
-    "###############",
-    "###############",
-  ],
-  wave: [
-    "###############",
-    "......###......",
-    "#....#####....#",
-    "#...###.##...##",
-    "##.###...##.###",
-    "#####....#####.",
-    ".###......###..",
-    "..#........#...",
-    "###############",
-  ],
-  plus: [
-    "###..#####..###",
-    "###..#####..###",
-    ".....#####.....",
-    "###############",
-    "###############",
-    "###############",
-    ".....#####.....",
-    "###..#####..###",
-    "###..#####..###",
-  ],
-  honeycomb: [
-    "##.##.##.##.##.",
-    ".##.##.##.##.##",
-    "##.##.##.##.##.",
-    ".##.##.##.##.##",
-    "##.##.##.##.##.",
-    ".##.##.##.##.##",
-    "##.##.##.##.##.",
-    ".##.##.##.##.##",
-    "##.##.##.##.##.",
-  ],
-  stairs: [
-    "####.......####",
-    "#####.....#####",
-    "######...######",
-    "#######.#######",
-    "###############",
-    "###############",
-    "###############",
-    "###############",
-    "###############",
-  ],
-  hourglass: [
-    "###############",
-    "###############",
-    "....#######....",
-    ".....#####.....",
-    "......###......",
-    ".....#####.....",
-    "....#######....",
-    "###############",
-    "###############",
-  ],
-  tiles: [
-    "###.###.###.###",
-    "###.###.###.###",
-    "###.###.###.###",
-    "...............",
-    "###.###.###.###",
-    "###.###.###.###",
-    "###.###.###.###",
-    "...............",
-    "###.###.###.###",
-  ],
-  pillars: [
-    "##############",
-    "##.##.##.##.##",
-    "##.##.##.##.##",
-    "##.##.##.##.##",
-    "##############",
-    "##.##.##.##.##",
-    "##.##.##.##.##",
-    "##.##.##.##.##",
-    "##############",
-  ],
-  arch: [
-    "......###......",
-    ".....#####.....",
-    "...#########...",
-    "..###########..",
-    "###############",
-    "###############",
-    "###############",
-    "###############",
-    "###############",
-  ],
-  meander: [
-    "###############",
-    "#####.#######.#",
-    "##.#######.####",
-    "#######.#######",
-    "####.#######.##",
-    "#.#######.#####",
-    "######.########",
-    "###.#######.###",
-    "########.######",
-    "###############",
-  ],
-  bowtie: [
-    "###############",
-    "...###...###...",
-    "....###.###....",
-    ".....#####.....",
-    "......###......",
-    ".....#####.....",
-    "....###.###....",
-    "...###...###...",
-    "###############",
-  ],
-  islands: [
-    "####.####.####.",
-    "##.#.##.#.##.#.",
-    "####.####.####.",
-    "...............",
-    "####.####.####.",
-    "##.#.##.#.##.#.",
-    "####.####.####.",
-    "...............",
-    "####.####.####.",
-  ],
-});
+const GRID_ROWS = 22;
+const GRID_COLS = 32;
 
-function parseArt(lines) {
-  if (!lines?.length) throw new Error("empty brick art");
-  const cols = lines[0].length;
-  return lines.map((line) => {
-    if (line.length !== cols) throw new Error("ragged brick art");
-    return [...line].map((ch) => (ch === "#" ? 1 : 0));
-  });
+function zeros(rows = GRID_ROWS, cols = GRID_COLS) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
 }
 
-function letterArt(letter, variant) {
-  if (letter === "M" && variant === 2) return LETTER_ART_M2;
-  const art = LETTER_ART[letter];
-  if (!art) throw new Error(`Unknown letter ${letter}`);
-  return art;
+function scaleArt(lines, sx, sy) {
+  const out = [];
+  for (const line of lines) {
+    const wide = [...line].map((ch) => ch.repeat(sx)).join("");
+    for (let i = 0; i < sy; i++) out.push(wide);
+  }
+  return out;
+}
+
+function stamp(steel, art, r0, c0) {
+  for (let r = 0; r < art.length; r++) {
+    for (let c = 0; c < art[r].length; c++) {
+      if (art[r][c] !== "#") continue;
+      const rr = r0 + r;
+      const cc = c0 + c;
+      if (steel[rr]?.[cc] !== undefined) steel[rr][cc] = 1;
+    }
+  }
+}
+
+function paintRect(steel, r0, c0, h, w) {
+  for (let r = r0; r < r0 + h; r++) {
+    for (let c = c0; c < c0 + w; c++) {
+      if (steel[r]?.[c] !== undefined) steel[r][c] = 1;
+    }
+  }
+}
+
+function paintFrame(steel, gapCols) {
+  const R = steel.length;
+  const C = steel[0].length;
+  for (let r = 0; r < R; r++) {
+    steel[r][0] = 1;
+    steel[r][C - 1] = 1;
+  }
+  for (let c = 0; c < C; c++) {
+    steel[0][c] = 1;
+    steel[R - 1][c] = 1;
+  }
+  const g0 = Math.floor((C - gapCols) / 2);
+  for (let c = g0; c < g0 + gapCols; c++) steel[R - 1][c] = 0;
+}
+
+function paintLetter(steel, letter, variant = 1) {
+  const art = letter === "M" && variant === 2 ? LETTER_ART_M2 : LETTER_ART[letter];
+  const scaled = scaleArt(art, 1, 1);
+  const r0 = Math.max(1, Math.floor((steel.length - scaled.length) / 2));
+  const c0 = Math.max(1, Math.floor((steel[0].length - scaled[0].length) / 2));
+  stamp(steel, scaled, r0, c0);
+}
+
+function paintMotif(steel, motif, index) {
+  const R = steel.length;
+  const C = steel[0].length;
+  const midC = Math.floor(C / 2);
+  const midR = Math.floor(R / 2);
+  switch (motif) {
+    case "chute":
+      paintRect(steel, 2, midC - 3, R - 5, 2);
+      paintRect(steel, 2, midC + 1, R - 5, 2);
+      paintRect(steel, 2, midC - 3, 2, 6);
+      break;
+    case "hcross":
+      paintRect(steel, midR - 1, 6, 2, C - 12);
+      paintRect(steel, 4, midC - 1, R - 7, 2);
+      paintRect(steel, midR - 4, 8, 2, 6);
+      paintRect(steel, midR - 4, C - 14, 2, 6);
+      break;
+    case "arrow":
+      paintRect(steel, 5, midC - 1, R - 8, 2);
+      paintRect(steel, 4, midC - 6, 2, 12);
+      paintRect(steel, 3, midC - 4, 2, 8);
+      break;
+    case "towers":
+      paintRect(steel, 3, midC - 7, R - 6, 3);
+      paintRect(steel, 3, midC + 4, R - 6, 3);
+      paintRect(steel, 3, midC - 7, 2, 5);
+      paintRect(steel, 3, midC + 2, 2, 5);
+      break;
+    case "nested":
+      paintRect(steel, 2, 2, 1, C - 4);
+      paintRect(steel, 2, 2, R - 4, 1);
+      paintRect(steel, 2, C - 3, R - 4, 1);
+      paintRect(steel, R - 3, 2, 1, 10);
+      paintRect(steel, R - 3, C - 12, 1, 10);
+      break;
+    case "plus":
+      paintRect(steel, midR - 1, 5, 2, C - 10);
+      paintRect(steel, 5, midC - 1, R - 8, 2);
+      break;
+    case "split":
+      paintRect(steel, 1, midC - 1, R - 2, 2);
+      break;
+    case "twincol":
+      paintRect(steel, 1, Math.floor(C / 3), R - 2, 2);
+      paintRect(steel, 1, Math.floor((2 * C) / 3), R - 2, 2);
+      break;
+    case "funnel":
+      for (let i = 0; i < 7; i++) {
+        paintRect(steel, 3 + i, 4 + i, 1, C - 8 - i * 2);
+      }
+      paintRect(steel, 10, midC - 1, R - 12, 2);
+      break;
+    case "doubleframe":
+      paintRect(steel, 2, 2, 1, C - 4);
+      paintRect(steel, R - 3, 2, 1, C - 4);
+      paintRect(steel, 2, 2, R - 4, 1);
+      paintRect(steel, 2, C - 3, R - 4, 1);
+      steel[R - 3][midC] = 0;
+      steel[R - 3][midC - 1] = 0;
+      steel[R - 3][midC + 1] = 0;
+      break;
+    case "slats":
+      for (let i = 0; i < 4; i++) paintRect(steel, 3, 4 + i * 7, R - 6, 2);
+      break;
+    case "archchute":
+      paintRect(steel, 4, 6, 2, C - 12);
+      paintRect(steel, 4, midC - 1, R - 7, 2);
+      break;
+    case "tjunc":
+      paintRect(steel, 2, midC - 1, R - 4, 2);
+      paintRect(steel, midR, 4, 2, midC - 4);
+      break;
+    case "slash":
+      for (let i = 0; i < 14; i++) paintRect(steel, 3 + i, 4 + i, 2, 3);
+      for (let i = 0; i < 12; i++) paintRect(steel, 4 + i, 8 + i, 2, 3);
+      break;
+    case "halves":
+      paintRect(steel, 1, midC - 1, R - 2, 2);
+      paintRect(steel, 1, 1, 1, C - 2);
+      break;
+    default:
+      paintRect(steel, 4, 4, 2, C - 8);
+  }
 }
 
 /**
- * Brick silhouettes plus per-level steel wall recipes (see walls.js).
- * Maze geometry is no longer a stack of identical concentric rings.
+ * Dense brick seas with interior steel cutouts (ptmp language, remixed).
  */
 export const LEVEL_BLUEPRINTS = [
-  { rows: 9, cols: 15, gates: [-141], guides: [1], bars: [[403, -201]], motif: "fortress" },
-  { rows: 9, cols: 15, gates: [-188, 171], guides: [-1, 1], bars: [[441, 88]], letter: "P" },
-  { rows: 9, cols: 15, gates: [-219, 8, 198], guides: [1, -1, 1], bars: [[387, -66], [459, 169]], letter: "R" },
-  { rows: 9, cols: 15, gates: [131], guides: [-1], bars: [[428, 211]], motif: "diamond" },
-  { rows: 9, cols: 15, gates: [-159, 184], guides: [1, -1], bars: [[396, 18], [471, -177]], letter: "I" },
-  { rows: 9, cols: 14, gates: [-211, 22, 217], guides: [-1, 1, -1], bars: [[419, -129]], motif: "pyramid" },
-  { rows: 9, cols: 15, gates: [-71], guides: [1], bars: [[379, 149], [448, -101]], letter: "M", letterVariant: 1 },
-  { rows: 9, cols: 15, gates: [-227, 109], guides: [-1, -1], bars: [[437, 41]], motif: "nested" },
-  { rows: 9, cols: 15, gates: [-173, 36, 221], guides: [1, 1, -1], bars: [[393, -191], [477, 91]], motif: "wave" },
-  { rows: 9, cols: 15, gates: [214], guides: [-1], bars: [[411, -39]], motif: "plus" },
-  { rows: 9, cols: 15, gates: [-109, 207], guides: [1, 1], bars: [[381, 188], [455, -169]], letter: "E" },
-  { rows: 9, cols: 15, gates: [-233, -31, 176], guides: [-1, 1, 1], bars: [[433, -88]], motif: "honeycomb" },
-  { rows: 9, cols: 15, gates: [47], guides: [-1], bars: [[399, 121], [468, -219]], letter: "N" },
-  { rows: 9, cols: 15, gates: [-209, 79], guides: [1, -1], bars: [[444, -8]], motif: "stairs" },
-  { rows: 9, cols: 15, gates: [-181, 27, 239], guides: [-1, -1, 1], bars: [[385, -151], [461, 171]], motif: "hourglass" },
-  { rows: 9, cols: 15, gates: [-221], guides: [1], bars: [[425, 77]], motif: "tiles" },
-  { rows: 9, cols: 15, gates: [-58, 219], guides: [-1, 1], bars: [[391, -227], [463, 29]], letter: "U" },
-  { rows: 9, cols: 14, gates: [-228, -9, 151], guides: [1, -1, -1], bars: [[436, 208]], motif: "pillars" },
-  { rows: 10, cols: 15, gates: [169], guides: [1], bars: [[382, -83], [451, 137]], letter: "M", letterVariant: 2 },
-  { rows: 9, cols: 15, gates: [-179, 149], guides: [-1, 1], bars: [[418, -203]], motif: "arch" },
-  { rows: 10, cols: 15, gates: [-213, 11, 228], guides: [1, 1, 1], bars: [[397, 58], [473, -148]], motif: "meander" },
-  { rows: 9, cols: 15, gates: [-19], guides: [-1], bars: [[443, -193]], motif: "bowtie" },
-  { rows: 9, cols: 15, gates: [-221, 193], guides: [1, -1], bars: [[389, 153], [457, -47]], letter: "B" },
-  { rows: 9, cols: 15, gates: [-198, 61, 223], guides: [-1, 1, -1], bars: [[427, -121], [481, 214]], motif: "islands" },
+  { motif: "chute" },
+  { letter: "P" },
+  { letter: "R" },
+  { motif: "hcross" },
+  { letter: "I" },
+  { motif: "arrow" },
+  { letter: "M", letterVariant: 1 },
+  { motif: "towers" },
+  { motif: "nested" },
+  { motif: "plus" },
+  { letter: "E" },
+  { motif: "split" },
+  { letter: "N" },
+  { motif: "twincol" },
+  { motif: "funnel" },
+  { motif: "doubleframe" },
+  { letter: "U" },
+  { motif: "slats" },
+  { letter: "M", letterVariant: 2 },
+  { motif: "archchute" },
+  { motif: "tjunc" },
+  { motif: "slash" },
+  { letter: "B" },
+  { motif: "halves" },
 ];
 
-const RING_PACING = Object.freeze([
-  2, 2, 3, 3, 4, 2, 3, 4,
-  3, 2, 3, 4, 4, 2, 3, 4,
-  3, 4, 2, 3, 4, 3, 4, 4,
-]);
-
-export function mazeRingPlan(index) {
-  const ringCount = RING_PACING[index];
-  if (!ringCount) throw new RangeError(`Unknown level ${index + 1}`);
-  return {
-    ringCount,
-    openingsPerRing: ringCount === 2 ? 2 : 1,
-  };
-}
-
-export function mazeEntryPath(index) {
+export function buildSteelGrid(index) {
   const bp = LEVEL_BLUEPRINTS[index];
   if (!bp) throw new RangeError(`Unknown level ${index + 1}`);
-  const { ringCount } = mazeRingPlan(index);
-  const direction = bp.guides[0] >= 0 ? 1 : -1;
-  const base = Math.max(-55, Math.min(55, bp.gates[0] * 0.22));
-  const ringCenters = Array.from({ length: ringCount }, (_, ring) => base + direction * ring * 52);
-  const outer = ringCenters[ringCenters.length - 1];
-  const deflectorCenters = bp.bars.map((_, bar) => outer + direction * (bar + 1) * 48);
-  return { direction, ringCenters, deflectorCenters };
-}
-
-function brickArtFor(bp, number) {
-  if (bp.letter) return letterArt(bp.letter, bp.letterVariant);
-  const art = DENSE_ART[bp.motif];
-  if (!art) throw new Error(`Missing motif ${bp.motif} for level ${number}`);
-  return art;
+  const steel = zeros();
+  const gap = 6 + (index % 4);
+  paintFrame(steel, gap);
+  if (bp.letter) paintLetter(steel, bp.letter, bp.letterVariant || 1);
+  else paintMotif(steel, bp.motif, index);
+  return steel;
 }
 
 export function buildLevelSpec(index) {
@@ -381,34 +315,22 @@ export function buildLevelSpec(index) {
   if (!expectedLetter && bp.letter) {
     throw new Error(`Level ${number} should not be a letter stage`);
   }
-  const art = brickArtFor(bp, number);
-  const mask = parseArt(art);
-  if (mask.length !== bp.rows || mask[0].length !== bp.cols) {
-    throw new Error(`Level ${number} art size ${mask.length}x${mask[0].length} != ${bp.rows}x${bp.cols}`);
-  }
+  const steel = buildSteelGrid(index);
+  const mask = steel.map((row) => row.map((cell) => (cell ? 0 : 1)));
   return {
-    rows: bp.rows,
-    cols: bp.cols,
-    gates: bp.gates,
-    guides: bp.guides,
-    bars: bp.bars,
+    rows: GRID_ROWS,
+    cols: GRID_COLS,
     letter: bp.letter || null,
     motif: bp.motif || null,
     number,
     speed: Math.min(430, 300 + index * 5),
     seed: 1042 + number * 201,
     mask,
+    steel,
   };
 }
 
 export function levelSignature(index) {
   const s = buildLevelSpec(index);
-  return JSON.stringify({
-    rows: s.rows,
-    cols: s.cols,
-    gates: s.gates,
-    guides: s.guides,
-    bars: s.bars,
-    mask: s.mask,
-  });
+  return JSON.stringify({ rows: s.rows, cols: s.cols, mask: s.mask, steel: s.steel });
 }

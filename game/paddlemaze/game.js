@@ -1,7 +1,7 @@
-import { buildLevelSpec } from "./levels.js?v=18";
-import { buildWallRects } from "./walls.js?v=18";
-import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=18";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=18";
+import { buildLevelSpec } from "./levels.js?v=19";
+import { buildWallRects } from "./walls.js?v=19";
+import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=19";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=19";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -81,23 +81,22 @@ function makeLevel(index) {
   const cfg = buildLevelSpec(index);
   const levelHue = (292 + cfg.number * 29) % 360;
   const field = { x: 142, y: 190, w: 616, h: 430 };
-  const fineRows = cfg.rows * 2;
-  const fineCols = cfg.cols * 2;
-  const gap = 3;
+  const fineRows = cfg.rows;
+  const fineCols = cfg.cols;
+  const gap = 2;
   const brickW = (field.w - gap * (fineCols - 1)) / fineCols;
   const brickH = (field.h - gap * (fineRows - 1)) / fineRows;
 
   bricks = [];
   for (let r = 0; r < fineRows; r++) {
     for (let c = 0; c < fineCols; c++) {
-      const occupied = cfg.mask[Math.floor(r / 2)]?.[Math.floor(c / 2)];
-      if (!occupied) continue;
+      if (!cfg.mask[r]?.[c]) continue;
       bricks.push({
         x: field.x + c * (brickW + gap),
         y: field.y + r * (brickH + gap),
         w: brickW,
         h: brickH,
-        hp: index >= 12 && (r * 5 + c * 3 + index) % 17 === 0 ? 2 : 1,
+        hp: 1,
         hue: levelHue,
       });
     }
