@@ -1,8 +1,8 @@
-import { buildLevelSpec } from "./levels.js?v=22";
-import { buildWallRects } from "./walls.js?v=22";
-import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=22";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=22";
-import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=22";
+import { buildLevelSpec } from "./levels.js?v=23";
+import { buildWallRects, playField } from "./walls.js?v=23";
+import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=23";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=23";
+import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=23";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -83,7 +83,7 @@ const keys = { left: false, right: false };
 function makeLevel(index) {
   const cfg = buildLevelSpec(index);
   const levelHue = (292 + cfg.number * 29) % 360;
-  const field = { x: 142, y: 190, w: 616, h: 430 };
+  const field = playField({ w: W, h: H, paddleY: H - 58 }, cfg);
   const fineRows = cfg.rows;
   const fineCols = cfg.cols;
   const gap = 2;

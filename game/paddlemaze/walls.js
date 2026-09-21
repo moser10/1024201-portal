@@ -1,7 +1,19 @@
 import { buildLevelSpec } from "./levels.js";
 
-export const DEFAULT_FIELD = Object.freeze({ x: 142, y: 190, w: 616, h: 430 });
 export const DEFAULT_BOARD = Object.freeze({ w: 900, h: 1100, paddleY: 1042 });
+
+/** Two-cell gutters (within 1–3) so the brick sea fills the board. */
+export function playField(board = DEFAULT_BOARD, spec = { rows: 26, cols: 32 }) {
+  const gutter = 2;
+  const cellW = board.w / (spec.cols + gutter * 2);
+  const x = Math.round(gutter * cellW);
+  const w = board.w - x * 2;
+  const y = Math.max(28, Math.round(gutter * cellW * 0.75));
+  const h = board.paddleY - 128 - y;
+  return { x, y, w, h };
+}
+
+export const DEFAULT_FIELD = Object.freeze(playField());
 
 function add(out, x, y, w, h) {
   if (w >= 2 && h >= 2) out.push({ x, y, w, h });

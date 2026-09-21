@@ -120,7 +120,7 @@ const LETTER_ART_M2 = [
   ".##.........##.",
 ];
 
-const GRID_ROWS = 22;
+const GRID_ROWS = 26;
 const GRID_COLS = 32;
 
 function zeros(rows = GRID_ROWS, cols = GRID_COLS) {

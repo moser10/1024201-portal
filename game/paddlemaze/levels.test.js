@@ -6,7 +6,7 @@ import {
   buildLevelSpec,
   levelSignature,
 } from "./levels.js";
-import { bottomGateWidth, wallSignature } from "./walls.js";
+import { bottomGateWidth, wallSignature, playField, DEFAULT_BOARD, cellMetrics } from "./walls.js";
 
 test("all 24 maze blueprints remain unique", () => {
   const signatures = new Set(LEVEL_BLUEPRINTS.map((_, index) => levelSignature(index)));
@@ -119,4 +119,17 @@ test("no stage exposes a two-row cave in the outer bottom edge", () => {
       );
     }
   }
+});
+
+test("the brick field fills the board with 1-3 cell gutters and extra bottom rows", () => {
+  const spec = buildLevelSpec(0);
+  assert.ok(spec.rows >= 26, "need extra rows toward the paddle");
+  const field = playField(DEFAULT_BOARD, spec);
+  const { brickW, brickH } = cellMetrics(field, spec);
+  assert.ok(field.x >= brickW * 0.8 && field.x <= brickW * 3.2, `left gutter ${field.x}px`);
+  const right = DEFAULT_BOARD.w - field.x - field.w;
+  assert.ok(right >= brickW * 0.8 && right <= brickW * 3.2, `right gutter ${right}px`);
+  assert.ok(field.y <= brickH * 3.2, `top gutter ${field.y}px`);
+  const fly = DEFAULT_BOARD.paddleY - (field.y + field.h);
+  assert.ok(fly <= 160, `bottom fly space is still ${fly}px`);
 });

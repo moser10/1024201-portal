@@ -144,6 +144,22 @@ function compactCity(city) {
     .trim();
 }
 
+export function speedTone({ mbps, rttMs } = {}) {
+  const rtt = Number(rttMs);
+  if (Number.isFinite(rtt) && rtt > 0) {
+    if (rtt < 80) return "fast";
+    if (rtt <= 180) return "ok";
+    return "slow";
+  }
+  const down = Number(mbps);
+  if (Number.isFinite(down) && down > 0) {
+    if (down >= 20) return "fast";
+    if (down >= 5) return "ok";
+    return "slow";
+  }
+  return "";
+}
+
 export function formatNetSpeed({ mbps, rttMs } = {}) {
   const down = Number(mbps);
   if (Number.isFinite(down) && down > 0) {

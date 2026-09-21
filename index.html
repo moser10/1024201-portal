@@ -249,14 +249,18 @@
             min-width: 0;
         }
         .device-stat .widget-label { margin-bottom: 4px; }
-        .visitor-count {
-            color: var(--ios-text);
+        .net-speed, .visit-count {
             font-size: 15px;
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             line-height: 1;
             letter-spacing: -0.02em;
         }
+        .net-speed { color: #8e8e93; }
+        .net-speed.fast { color: #34c759; }
+        .net-speed.ok { color: #e6a800; }
+        .net-speed.slow { color: #ff3b30; }
+        .visit-count { color: #007aff; }
 
         .app-grid {
             display: grid;
@@ -433,11 +437,11 @@
                 <div class="device-stats" id="portalVisits">
                     <div class="device-stat">
                         <div class="widget-label" id="speedLabel">Speed</div>
-                        <div class="visitor-count" id="netSpeed">—</div>
+                        <div class="net-speed" id="netSpeed">—</div>
                     </div>
                     <div class="device-stat">
                         <div class="widget-label" id="visitLabel">Visits</div>
-                        <div class="visitor-count" id="visitCount">—</div>
+                        <div class="visit-count" id="visitCount">—</div>
                     </div>
                 </div>
             </div>
@@ -498,7 +502,7 @@
     <footer>&copy; 2026 1024201.com</footer>
 
     <script type="module">
-        import { purityClass, shortPlace, formatNetSpeed } from '/js/geoDisplay.js?v=2';
+        import { purityClass, shortPlace, formatNetSpeed, speedTone } from '/js/geoDisplay.js?v=3';
         const ZONE_MIGRATE = { bj: 'cn', sk: 'us', db: 'jp', jdm: 'se' };
 
         const i18n = {
@@ -633,11 +637,13 @@
             document.getElementById('zoneDate').innerText = now.toLocaleDateString(DATE_LOCALE[lang] || 'en-US', { ...dateOpts, timeZone: activeRow.dataset.tz });
         }
 
-        function paintNetSpeed(text) {
+        function paintNetSpeed(text, tone) {
             const el = document.getElementById('netSpeed');
             if (!el || !text) return;
             el.textContent = text;
-            try { sessionStorage.setItem('portal_net_speed', text); } catch (_) {}
+            el.classList.remove('fast', 'ok', 'slow');
+            if (tone) el.classList.add(tone);
+            try { sessionStorage.setItem('portal_net_speed', JSON.stringify({ text, tone })); } catch (_) {}
         }
 
         async function measureSpeed() {
@@ -650,11 +656,10 @@
                 await fetch(`/api/portal?action=ping&n=${Math.random()}`, { cache: 'no-store' });
                 rttMs = performance.now() - t0;
             } catch (_) {}
-            paintNetSpeed(formatNetSpeed(
-                rttMs > 0
-                    ? { rttMs }
-                    : { mbps: Number.isFinite(mbps) && mbps > 0 ? mbps : undefined },
-            ));
+            const sample = rttMs > 0
+                ? { rttMs }
+                : { mbps: Number.isFinite(mbps) && mbps > 0 ? mbps : undefined };
+            paintNetSpeed(formatNetSpeed(sample), speedTone(sample));
         }
 
         function paintVisitCount(n) {
@@ -669,7 +674,15 @@
             const cachedN = localStorage.getItem('portal_visits_n');
             if (cachedN) paintVisitCount(cachedN);
             const cachedSpeed = sessionStorage.getItem('portal_net_speed');
-            if (cachedSpeed) paintNetSpeed(cachedSpeed);
+            if (cachedSpeed) {
+                try {
+                    const parsed = JSON.parse(cachedSpeed);
+                    if (parsed && parsed.text) paintNetSpeed(parsed.text, parsed.tone);
+                    else paintNetSpeed(cachedSpeed);
+                } catch (_) {
+                    paintNetSpeed(cachedSpeed);
+                }
+            }
         } catch (_) {}
 
         async function syncVisits() {
