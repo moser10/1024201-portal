@@ -306,8 +306,8 @@ function letterArt(letter, variant) {
 }
 
 /**
- * Maze geometry is independent of brick silhouettes. Sawtooth ring pacing
- * still follows a hard four-ring stage with a two-ring relief after it.
+ * Brick silhouettes plus per-level steel wall recipes (see walls.js).
+ * Maze geometry is no longer a stack of identical concentric rings.
  */
 export const LEVEL_BLUEPRINTS = [
   { rows: 9, cols: 15, gates: [-141], guides: [1], bars: [[403, -201]], motif: "fortress" },

@@ -1,6 +1,7 @@
-import { buildLevelSpec, mazeEntryPath, mazeRingPlan } from "./levels.js?v=16";
-import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=16";
-import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=16";
+import { buildLevelSpec } from "./levels.js?v=17";
+import { buildWallRects } from "./walls.js?v=17";
+import { materializePower, pickPower, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=17";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=17";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -110,7 +111,7 @@ function makeLevel(index) {
   levelElapsed = 0;
   armNextWelfare();
   initialDropInterval = bricks.length <= 60 ? 3 : bricks.length <= 90 ? 4 : 5;
-  walls = makeMazeWalls(cfg, field);
+  walls = buildWallRects(index, field, { w: W, h: H, paddleY: H - 58 });
   bakeStaticLayer();
   releaseAllBalls();
   releaseAllItems();
@@ -140,62 +141,29 @@ function bakeStaticLayer() {
     s.lineTo(W, y + 0.5);
   }
   s.stroke();
-  s.fillStyle = "#3a3a48";
-  for (const wall of walls) s.fillRect(wall.x, wall.y, wall.w, wall.h);
+  for (const wall of walls) paintSteel(s, wall);
 }
 
-function makeMazeWalls(cfg, field) {
-  const result = [];
-  const thick = 11;
-  const plan = mazeRingPlan(cfg.number - 1);
-  const entryPath = mazeEntryPath(cfg.number - 1);
-  const ringOffsets = [27, 57, 87, 117].slice(0, plan.ringCount);
-
-  const addHorizontalWithGates = (y, left, right, centers, gateWidth) => {
-    let cursor = left;
-    const sorted = centers
-      .map((center) => Math.max(left + 18, Math.min(right - 18, center)))
-      .sort((a, b) => a - b);
-    for (const center of sorted) {
-      const gateLeft = Math.max(cursor, center - gateWidth / 2);
-      if (gateLeft > cursor) result.push({ x: cursor, y, w: gateLeft - cursor, h: thick });
-      cursor = Math.max(cursor, center + gateWidth / 2);
-    }
-    if (cursor < right) result.push({ x: cursor, y, w: right - cursor, h: thick });
-  };
-
-  ringOffsets.forEach((offset, ring) => {
-    const left = field.x - offset;
-    const right = field.x + field.w + offset;
-    const top = field.y - offset;
-    const bottom = field.y + field.h + offset;
-    const bottomEntry = W / 2 + entryPath.ringCenters[ring];
-    const isInner = ring === 0;
-    // Inner gate stays wide so a ball that already entered can reach bricks.
-    const gateWidth = (isInner ? 78 : 50) + ring * 4;
-    const bottomCenters = [bottomEntry];
-    const topCenters = plan.openingsPerRing >= 2 && isInner
-      ? [bottomEntry - entryPath.direction * 36]
-      : [];
-
-    addHorizontalWithGates(top, left, right, topCenters, gateWidth);
-    addHorizontalWithGates(bottom, left, right, bottomCenters, gateWidth);
-    result.push({ x: left, y: top, w: thick, h: bottom - top + thick });
-    result.push({ x: right - thick, y: top, w: thick, h: bottom - top + thick });
-  });
-
-  // Lower deflectors continue the orbit after the outer ring.
-  const outerBottom = field.y + field.h + ringOffsets[ringOffsets.length - 1];
-  for (const [barIndex, [sourceY]] of cfg.bars.entries()) {
-    const y = outerBottom + 38 + barIndex * 62 + (sourceY % 11);
-    const center = Math.max(90, Math.min(W - 90, W / 2 + entryPath.deflectorCenters[barIndex]));
-    const gateWidth = 72;
-    const gateLeft = center - gateWidth / 2;
-    const gateRight = center + gateWidth / 2;
-    result.push({ x: 42, y, w: gateLeft - 42, h: thick });
-    result.push({ x: gateRight, y, w: W - 42 - gateRight, h: thick });
+function paintSteel(s, wall) {
+  const joint = 2;
+  const seg = 20;
+  const horizontal = wall.w >= wall.h;
+  const span = horizontal ? wall.w : wall.h;
+  for (let offset = 0; offset < span; offset += seg) {
+    const slice = Math.min(seg - joint, span - offset);
+    const block = horizontal
+      ? { x: wall.x + offset, y: wall.y, w: slice, h: wall.h }
+      : { x: wall.x, y: wall.y + offset, w: wall.w, h: slice };
+    s.fillStyle = "#4c5566";
+    s.fillRect(block.x, block.y, block.w, block.h);
+    if (reducedVisuals || block.w < 5 || block.h < 5) continue;
+    s.fillStyle = "#8b93a6";
+    s.fillRect(block.x, block.y, block.w, 3);
+    s.fillRect(block.x, block.y, 3, block.h);
+    s.fillStyle = "#2a303c";
+    s.fillRect(block.x, block.y + block.h - 3, block.w, 3);
+    s.fillRect(block.x + block.w - 3, block.y, 3, block.h);
   }
-  return result;
 }
 
 function activateBall(speed = buildLevelSpec(levelIndex).speed, source, primary = false) {

@@ -5,9 +5,8 @@ import {
   PRIME_LETTER_STAGES,
   buildLevelSpec,
   levelSignature,
-  mazeEntryPath,
-  mazeRingPlan,
 } from "./levels.js";
+import { bottomGateWidth, wallSignature } from "./walls.js";
 
 test("all 24 maze blueprints remain unique", () => {
   const signatures = new Set(LEVEL_BLUEPRINTS.map((_, index) => levelSignature(index)));
@@ -54,46 +53,15 @@ test("letter masks keep a solid glyph rather than a filled rectangle", () => {
   }
 });
 
-test("opening count decreases as ring count increases", () => {
-  const plans = LEVEL_BLUEPRINTS.map((_, index) => mazeRingPlan(index));
-  const openings = new Map(plans.map((plan) => [plan.ringCount, plan.openingsPerRing]));
-  assert.equal(openings.get(2), 2);
-  assert.equal(openings.get(3), 1);
-  assert.equal(openings.get(4), 1);
-  assert.ok(openings.get(2) > openings.get(3));
-  assert.ok(openings.get(3) >= openings.get(4));
+test("every stage has a unique steel wall layout", () => {
+  const signatures = new Set(LEVEL_BLUEPRINTS.map((_, index) => wallSignature(index)));
+  assert.equal(signatures.size, 24);
 });
 
-test("pacing includes relief after hard four-ring stages", () => {
-  const ringCounts = LEVEL_BLUEPRINTS.map((_, index) => mazeRingPlan(index).ringCount);
-  assert.ok(ringCounts.includes(2) && ringCounts.includes(3) && ringCounts.includes(4));
-  assert.ok(ringCounts.some((rings, index) => rings === 4 && ringCounts[index + 1] === 2));
-});
-
-test("level one entrances form a short diagonal instead of a disconnected jump", () => {
-  const path = mazeEntryPath(0);
-  const route = [...path.ringCenters, ...path.deflectorCenters].map((value) => value * path.direction);
-  for (let i = 1; i < route.length; i++) {
-    assert.ok(route[i] > route[i - 1], "entry route should keep moving in one direction");
-    assert.ok(route[i] - route[i - 1] <= 52.01, "adjacent entrances should remain reachable");
-  }
-});
-
-test("all levels keep ring and lower-wall entrances on one readable diagonal", () => {
+test("every stage keeps a paddle-facing gate in the lower apron", () => {
   for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
-    const path = mazeEntryPath(index);
-    const route = [...path.ringCenters, ...path.deflectorCenters].map((value) => value * path.direction);
-    for (let i = 1; i < route.length; i++) {
-      assert.ok(route[i] > route[i - 1], `level ${index + 1} route should be monotonic`);
-      assert.ok(route[i] - route[i - 1] <= 52.01, `level ${index + 1} opening gap is too large`);
-    }
-  }
-});
-
-test("every ring has a matching bottom entrance on the diagonal", () => {
-  for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
-    const { ringCount } = mazeRingPlan(index);
-    const path = mazeEntryPath(index);
-    assert.equal(path.ringCenters.length, ringCount, `level ${index + 1} missing ring gates`);
+    const gap = bottomGateWidth(index);
+    assert.ok(gap >= 70, `level ${index + 1} bottom gate is ${gap}px`);
+    assert.ok(gap < 500, `level ${index + 1} apron is too open to read as a map`);
   }
 });
