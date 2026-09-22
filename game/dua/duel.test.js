@@ -8,6 +8,9 @@ import {
   WEAPON_ICON_PX,
   AVATAR_PX,
   WEAPONS,
+  BOOST_MUL,
+  START_SPEED,
+  applyBoost,
   armWeapon,
   bounceArena,
   bounceFighters,
@@ -134,4 +137,32 @@ test("aim hint exists in the three portal languages", () => {
   assert.match(spec, /头像/);
   assert.match(spec, /遥杆|摇杆/);
   assert.match(spec, /正圆|纯圆/);
+});
+
+test("boost pickup makes a fighter extra fast", () => {
+  const match = createMatch();
+  match.player.vx = START_SPEED;
+  match.player.vy = 0;
+  applyBoost(match.player);
+  assert.ok(Math.abs(match.player.vx - START_SPEED * BOOST_MUL) < 0.01);
+  assert.ok(match.player.boostT > 0);
+});
+
+test("a second hit on the same rim bin drifts about five degrees", () => {
+  const match = createMatch();
+  const f = match.player;
+  const launch = () => {
+    f.x = match.arena.x + match.arena.r;
+    f.y = match.arena.y;
+    f.vx = 200;
+    f.vy = 0;
+  };
+  launch();
+  bounceArena(f, match.arena, match.rimHits);
+  const a1 = Math.atan2(f.vy, f.vx);
+  launch();
+  bounceArena(f, match.arena, match.rimHits);
+  const a2 = Math.atan2(f.vy, f.vx);
+  const gap = Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1)));
+  assert.ok(gap > 0.06 && gap < 0.12, `gap=${gap}`);
 });

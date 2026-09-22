@@ -12,6 +12,7 @@ export const DUA_COPY = Object.freeze({
     resume: "继续",
     restart: "再来",
     unarmed: "未持枪",
+    boost: "加速",
   }),
   en: Object.freeze({
     back: "Game center",
@@ -26,6 +27,7 @@ export const DUA_COPY = Object.freeze({
     resume: "RESUME",
     restart: "Re-Start",
     unarmed: "UNARMED",
+    boost: "BOOST",
   }),
   ja: Object.freeze({
     back: "ゲームへ",
@@ -40,6 +42,7 @@ export const DUA_COPY = Object.freeze({
     resume: "再開",
     restart: "もう一度",
     unarmed: "武器なし",
+    boost: "加速",
   }),
 });
 

@@ -3,7 +3,11 @@ export const ARENA_R = 420;
 export const FIGHTER_R = 28;
 export const AVATAR_PX = FIGHTER_R * 2;
 export const WEAPON_ICON_PX = Math.round(AVATAR_PX * 0.8);
-export const START_SPEED = 210;
+export const START_SPEED = 252;
+export const BOOST_MUL = 1.85;
+export const BOOST_TIME = 5.2;
+export const RIM_DRIFT = 5 * Math.PI / 180;
+export const EMOJI_STACK = '"Noto Color Emoji","Noto Emoji","Segoe UI Emoji","Apple Color Emoji","Android Emoji","Twemoji Mozilla",sans-serif';
 
 export const AVATARS = Object.freeze([
   "😀", "😎", "🤖", "🦊", "🐼", "🐸", "🎃", "👻", "😈", "👽", "🐱", "🌸",
@@ -11,15 +15,15 @@ export const AVATARS = Object.freeze([
 
 export const WEAPONS = Object.freeze({
   pistol: Object.freeze({
-    speed: 480, damage: 1, cooldown: 0.32, life: 1.2, r: 5,
+    speed: 540, damage: 1, cooldown: 0.32, life: 1.2, r: 5,
     shots: 5, burst: 1, spread: 0, knock: 240, emoji: "🔫",
   }),
   ak: Object.freeze({
-    speed: 520, damage: 1, cooldown: 0.9, life: 1.05, r: 4,
+    speed: 580, damage: 1, cooldown: 0.9, life: 1.05, r: 4,
     shots: 2, burst: 3, burstGap: 0.07, spread: 0.07, knock: 190, emoji: "🔫",
   }),
   rpg: Object.freeze({
-    speed: 240, damage: 2, cooldown: 0.4, life: 1.7, r: 8,
+    speed: 270, damage: 2, cooldown: 0.4, life: 1.7, r: 8,
     shots: 1, burst: 1, spread: 0, knock: 360, emoji: "🚀",
   }),
   knife: Object.freeze({
@@ -27,7 +31,7 @@ export const WEAPONS = Object.freeze({
     shots: 1, burst: 1, melee: true, range: 58, knock: 300, emoji: "🔪",
   }),
   shotgun: Object.freeze({
-    speed: 390, damage: 1, cooldown: 0.75, life: 0.5, r: 4,
+    speed: 430, damage: 1, cooldown: 0.75, life: 0.5, r: 4,
     shots: 2, burst: 3, spread: 0.28, simultaneous: true, knock: 210, emoji: "💥",
   }),
 });
@@ -51,6 +55,7 @@ export function makeFighter(id, x, y, emoji, angle) {
     burstLeft: 0,
     burstGap: 0,
     aimLock: null,
+    boostT: 0,
   };
 }
 
@@ -69,18 +74,31 @@ export function createMatch(board = { w: 900, h: 900 }, faces = {}) {
     foe: makeFighter("foe", arena.x, arena.y - 140, foeEmoji, Math.PI / 2 + 0.35),
     pickups: [],
     shots: [],
+    rimHits: Object.create(null),
+    flashes: [],
     spawnAt: 1.1,
     elapsed: 0,
     over: null,
   };
 }
 
-export function bounceArena(f, arena) {
+export function rimBin(nx, ny) {
+  const ang = Math.atan2(ny, nx);
+  return Math.round((ang + Math.PI) / (Math.PI / 18));
+}
+
+export function rotateVec(vx, vy, rad) {
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  return { vx: vx * c - vy * s, vy: vx * s + vy * c };
+}
+
+export function bounceArena(f, arena, rimHits = null) {
   const dx = f.x - arena.x;
   const dy = f.y - arena.y;
   const dist = Math.hypot(dx, dy) || 0.0001;
   const max = arena.r - f.r;
-  if (dist <= max) return f;
+  if (dist <= max) return null;
   const nx = dx / dist;
   const ny = dy / dist;
   f.x = arena.x + nx * max;
@@ -90,7 +108,41 @@ export function bounceArena(f, arena) {
     f.vx -= 2 * dot * nx;
     f.vy -= 2 * dot * ny;
   }
-  return f;
+  if (rimHits) {
+    const key = `${f.id}:${rimBin(nx, ny)}`;
+    const seen = rimHits[key] || 0;
+    const drift = (seen % 4) * RIM_DRIFT;
+    if (drift) {
+      const spun = rotateVec(f.vx, f.vy, drift);
+      if (spun.vx * nx + spun.vy * ny < 0) {
+        f.vx = spun.vx;
+        f.vy = spun.vy;
+      }
+    }
+    rimHits[key] = seen + 1;
+  }
+  return { x: f.x, y: f.y, nx, ny, id: f.id };
+}
+
+export function applyBoost(fighter) {
+  if (fighter.boostT > 0) {
+    fighter.boostT = BOOST_TIME;
+    return fighter;
+  }
+  fighter.vx *= BOOST_MUL;
+  fighter.vy *= BOOST_MUL;
+  fighter.boostT = BOOST_TIME;
+  return fighter;
+}
+
+export function tickBoost(fighter, dt) {
+  if (fighter.boostT <= 0) return;
+  fighter.boostT -= dt;
+  if (fighter.boostT <= 0) {
+    fighter.vx /= BOOST_MUL;
+    fighter.vy /= BOOST_MUL;
+    fighter.boostT = 0;
+  }
 }
 
 export function bounceFighters(a, b) {
@@ -131,7 +183,8 @@ export function spawnPickup(state, rng = Math.random) {
   if (state.pickups.length >= 6) return null;
   const roll = rng();
   let kind = "heart";
-  if (roll >= 0.2) kind = GUN_KINDS[Math.floor(((roll - 0.2) / 0.8) * GUN_KINDS.length)] || "pistol";
+  if (roll >= 0.16 && roll < 0.3) kind = "boost";
+  else if (roll >= 0.3) kind = GUN_KINDS[Math.floor(((roll - 0.3) / 0.7) * GUN_KINDS.length)] || "pistol";
   const pos = placeOnRing(state.arena, rng);
   const item = { kind, x: pos.x, y: pos.y, r: WEAPON_ICON_PX / 2 };
   state.pickups.push(item);
@@ -170,6 +223,7 @@ export function collectPickups(fighter, pickups) {
       continue;
     }
     if (item.kind === "heart") heal(fighter, 1);
+    else if (item.kind === "boost") applyBoost(fighter);
     else armWeapon(fighter, item.kind);
     got = item;
   }
@@ -297,10 +351,10 @@ export function cpuAim(state) {
   };
 }
 
-export function integrateFighter(f, dt, arena) {
+export function integrateFighter(f, dt, arena, rimHits) {
   f.x += f.vx * dt;
   f.y += f.vy * dt;
-  bounceArena(f, arena);
+  return bounceArena(f, arena, rimHits);
 }
 
 export function stepMatch(state, dt, input = {}, rng = Math.random) {
@@ -308,12 +362,20 @@ export function stepMatch(state, dt, input = {}, rng = Math.random) {
   state.elapsed += dt;
   for (const f of [state.player, state.foe]) {
     f.cooldown = Math.max(0, f.cooldown - dt);
-    integrateFighter(f, dt, state.arena);
+    tickBoost(f, dt);
+    const flash = integrateFighter(f, dt, state.arena, state.rimHits);
+    if (flash) state.flashes.push({ ...flash, life: 0.28, age: 0 });
     tickBurst(state, f, dt);
   }
   bounceFighters(state.player, state.foe);
-  bounceArena(state.player, state.arena);
-  bounceArena(state.foe, state.arena);
+  const extraA = bounceArena(state.player, state.arena, state.rimHits);
+  const extraB = bounceArena(state.foe, state.arena, state.rimHits);
+  if (extraA) state.flashes.push({ ...extraA, life: 0.28, age: 0 });
+  if (extraB) state.flashes.push({ ...extraB, life: 0.28, age: 0 });
+  state.flashes = state.flashes.filter((flash) => {
+    flash.age += dt;
+    return flash.age < flash.life;
+  });
 
   collectPickups(state.player, state.pickups);
   collectPickups(state.foe, state.pickups);

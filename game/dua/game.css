@@ -14,7 +14,8 @@ body {
   background: var(--ink);
   color: #fff;
   font-family:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    "Noto Color Emoji", "Noto Emoji", "Segoe UI Emoji", "Apple Color Emoji",
+    "Android Emoji", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
     "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC",
     Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-user-select: none;
@@ -91,6 +92,12 @@ body { min-height: 100dvh; overflow-x: hidden; }
   color: #ffd60a;
   font-size: 11px;
   font-weight: 700;
+}
+
+.hearts,
+.avatar-btn,
+.weapon-chip {
+  font-family: "Noto Color Emoji", "Noto Emoji", "Segoe UI Emoji", "Apple Color Emoji", "Android Emoji", sans-serif;
 }
 
 .hearts {

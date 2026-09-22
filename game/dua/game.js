@@ -1,5 +1,5 @@
-import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=3";
-import { duaCopy } from "./copy.js?v=3";
+import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=4";
+import { duaCopy } from "./copy.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
 
 const canvas = document.getElementById("gameCanvas");
@@ -23,8 +23,8 @@ const gameSub = document.getElementById("gameSub");
 
 const W = canvas.width;
 const H = canvas.height;
-const EMOJI_FONT = `${AVATAR_PX}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
-const GUN_FONT = `${WEAPON_ICON_PX}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+const EMOJI_FONT = `${AVATAR_PX}px ${EMOJI_STACK}`;
+const GUN_FONT = `${WEAPON_ICON_PX}px ${EMOJI_STACK}`;
 const STICK_R = 54;
 
 let lang = getPortalLang();
@@ -46,9 +46,10 @@ function heartsRow(count, glyph) {
 }
 
 function weaponLabel(f) {
-  if (!f.weapon) return copy.unarmed;
+  const boost = f.boostT > 0 ? ` ⚡${Math.ceil(f.boostT)}` : "";
+  if (!f.weapon) return copy.unarmed + boost;
   const spec = WEAPONS[f.weapon];
-  return `${spec.emoji} ${f.weapon.toUpperCase()} ${f.ammo}`;
+  return `${spec.emoji} ${f.weapon.toUpperCase()} ${f.ammo}${boost}`;
 }
 
 function applyLang() {
@@ -150,6 +151,49 @@ function drawAim() {
   ctx.setLineDash([]);
 }
 
+function pickupGlyph(kind) {
+  if (kind === "heart") return "❤";
+  if (kind === "boost") return "⚡";
+  return WEAPONS[kind]?.emoji || "•";
+}
+
+function drawFlashes() {
+  for (const flash of match.flashes) {
+    const t = 1 - flash.age / flash.life;
+    const reach = 18 + (1 - t) * 26;
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(255,255,255,${0.85 * t})`;
+    ctx.lineWidth = 5 * t;
+    ctx.arc(flash.x, flash.y, reach, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(255,214,10,${0.55 * t})`;
+    ctx.lineWidth = 7 * t;
+    const ang = Math.atan2(flash.ny, flash.nx);
+    ctx.arc(match.arena.x, match.arena.y, match.arena.r, ang - 0.18, ang + 0.18);
+    ctx.stroke();
+    for (let i = 0; i < 6; i++) {
+      const tang = ang + Math.PI / 2;
+      const u = (i / 5 - 0.5) * 34;
+      ctx.fillStyle = `rgba(255,255,255,${0.7 * t})`;
+      ctx.beginPath();
+      ctx.arc(flash.x + Math.cos(tang) * u - flash.nx * 8 * t, flash.y + Math.sin(tang) * u - flash.ny * 8 * t, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawFighter(f) {
+  if (f.boostT > 0) {
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(255,214,10,.7)";
+    ctx.lineWidth = 3;
+    ctx.arc(f.x, f.y, f.r + 6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  drawEmoji(f.x, f.y, f.emoji, EMOJI_FONT);
+}
+
 function draw() {
   ctx.fillStyle = "#050510";
   ctx.fillRect(0, 0, W, H);
@@ -158,10 +202,10 @@ function draw() {
   ctx.lineWidth = 3;
   ctx.arc(match.arena.x, match.arena.y, match.arena.r, 0, Math.PI * 2);
   ctx.stroke();
+  drawFlashes();
 
   for (const item of match.pickups) {
-    const glyph = item.kind === "heart" ? "❤️" : (WEAPONS[item.kind]?.emoji || "•");
-    drawEmoji(item.x, item.y, glyph, GUN_FONT);
+    drawEmoji(item.x, item.y, pickupGlyph(item.kind), GUN_FONT);
   }
   for (const shot of match.shots) {
     ctx.fillStyle = shot.kind === "rpg" ? "#34c759" : "#f2f2f7";
@@ -170,8 +214,8 @@ function draw() {
     ctx.fill();
   }
   drawAim();
-  drawEmoji(match.foe.x, match.foe.y, match.foe.emoji, EMOJI_FONT);
-  drawEmoji(match.player.x, match.player.y, match.player.emoji, EMOJI_FONT);
+  drawFighter(match.foe);
+  drawFighter(match.player);
 }
 
 function update(dt) {
