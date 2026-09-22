@@ -22,6 +22,14 @@
   gap: 8px;
 }
 
+.rooms-inside {
+  gap: 14px;
+}
+
+.rooms-practice {
+  margin: 0;
+}
+
 .rooms-form label,
 .rooms-pin label {
   font-size: 12px;

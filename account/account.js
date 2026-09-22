@@ -1,5 +1,5 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
-import { applyNavBack } from "/js/navBack.js?v=2";
+import { applyNavBack } from "/js/navBack.js?v=3";
 import { getUser, setUser, requireAuth } from "/game/js/store.js";
 import { accountCopy } from "./copy.js?v=3";
 

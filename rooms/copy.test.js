@@ -10,4 +10,5 @@ test("rooms tile labels stay distinct in the three portal languages", () => {
   assert.match(roomsCopy("en").sub, /Dua/);
   assert.equal(roomsCopy("zh").close, "关闭房间");
   assert.match(roomsCopy("zh").closeAsk, /聊天记录/);
+  assert.equal(roomsCopy("zh").practice, "练习");
 });

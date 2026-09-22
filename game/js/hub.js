@@ -1,7 +1,7 @@
 import { getUser } from "./store.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getPortalLang } from "/js/langTabs.js";
-import { hallBackLabel, setNavBack } from "/js/navBack.js?v=1";
+import { hallBackLabel, setNavBack } from "/js/navBack.js?v=3";
 
 const GAMES = [
   {

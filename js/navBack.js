@@ -53,6 +53,16 @@ export function readNavBack() {
   }
 }
 
+/** Only practice-from-room should reopen a room. Lobby / hall must not. */
+export function roomReturnId(spec = readNavBack()) {
+  if (spec?.type === "room" && spec.roomId) return String(spec.roomId);
+  return "";
+}
+
+export function clearNavBack(type = "hall") {
+  setNavBack({ type });
+}
+
 function pack(lang, type) {
   if (type === "rooms") return { href: ROOMS_BACK.href, label: roomsBackLabel(lang) };
   if (type === "game") return { href: GAME_BACK.href, label: GAME_BACK[lang] || GAME_BACK.en };

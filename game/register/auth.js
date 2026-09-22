@@ -2,6 +2,7 @@ import { setUser } from "../js/store.js";
 import { bindNameCheck } from "../onesentence/js/nameCheck.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getPortalLang } from "/js/langTabs.js";
+import { hallBackLabel } from "/js/navBack.js?v=3";
 
 const API = "";
 const CODE_WINDOW_MS = 60_000;
@@ -118,9 +119,8 @@ function renderShell() {
     returnPath: returnTo.replace(/^\//, "") || "",
   });
   const back = document.getElementById("authBackLink");
-  const backCopy = { en: "Back to lobby", zh: "返回大厅", ja: "ロビーへ" };
   back.href = "/";
-  back.textContent = backCopy[getPortalLang()] || backCopy.en;
+  back.textContent = hallBackLabel(getPortalLang());
 }
 
 function switchTab(name) {

@@ -1,8 +1,8 @@
 import { getPortalLang } from "/js/langTabs.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getUser, requireAuth } from "/game/js/store.js";
-import { applyNavBack, setNavBack, readNavBack } from "/js/navBack.js?v=2";
-import { roomsCopy } from "./copy.js?v=3";
+import { applyNavBack, setNavBack, roomReturnId } from "/js/navBack.js?v=3";
+import { roomsCopy } from "./copy.js?v=4";
 
 const root = document.getElementById("roomsRoot");
 const backLink = document.getElementById("backLink");
@@ -16,24 +16,6 @@ let view = "lobby";
 let current = null;
 let pulse = 0;
 let askingClose = false;
-const ROOM_KEY = "portal_open_room";
-
-function rememberRoom(id) {
-  try {
-    if (id) sessionStorage.setItem(ROOM_KEY, String(id));
-    else sessionStorage.removeItem(ROOM_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
-function recalledRoom() {
-  try {
-    return sessionStorage.getItem(ROOM_KEY) || "";
-  } catch {
-    return "";
-  }
-}
 
 function esc(s) {
   return String(s ?? "")
@@ -69,6 +51,12 @@ function errText(code) {
 function paintBack() {
   applyNavBack(backLink, lang, view === "inside" ? "rooms" : "hall");
 }
+
+backLink?.addEventListener("click", (e) => {
+  if (view !== "inside") return;
+  e.preventDefault();
+  showRoomsLobby();
+});
 
 function applyChrome() {
   lang = getPortalLang();
@@ -183,7 +171,6 @@ async function tryJoin(id, needPin) {
 
 function openInside(data) {
   current = data;
-  rememberRoom(data.room.id);
   setNavBack({ type: "rooms" });
   history.replaceState(null, "", "/rooms/");
   renderInside(data);
@@ -196,9 +183,10 @@ function renderInside(data) {
   const seats = data.seats || [];
   const msgs = data.messages || [];
   root.innerHTML = `
+    <div class="rooms-inside">
     <p class="rooms-note"><strong>${esc(room.title)}</strong> · ${seatLine({ seats: seats.length, max_seats: room.max_seats })}</p>
     <div class="seat-list">${seats.map((s) => `<span class="seat-chip">@${esc(s.username)}</span>`).join("")}</div>
-    ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p><div class="rooms-actions"><a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a></div>` : ""}
+    ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p><div class="rooms-practice"><a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a></div>` : ""}
     <div class="msg-list">${msgs.map((m) => `<p class="msg-row"><b>@${esc(m.username)}</b> ${esc(m.text)}</p>`).join("")}</div>
     <form class="rooms-say" id="sayForm">
       <input id="sayText" maxlength="280" placeholder="${esc(copy.chatPh)}" autocomplete="off" enterkeyhint="send">
@@ -207,6 +195,7 @@ function renderInside(data) {
     <div class="rooms-actions">
       <button type="button" class="btn-secondary" id="leaveBtn">${esc(copy.leave)}</button>
       ${room.host ? `<button type="button" class="btn-danger" id="closeBtn">${esc(copy.close)}</button>` : ""}
+    </div>
     </div>
     <div class="rooms-modal" id="closeAsk" ${askingClose ? "" : "hidden"}>
       <div class="rooms-modal-card">
@@ -225,12 +214,12 @@ function renderInside(data) {
       current = await api("say", { room_id: room.id, text });
       renderInside(current);
     } catch (err) {
-      if (err.code === "closed") backToLobby();
+      if (err.code === "closed") showRoomsLobby();
     }
   });
   document.getElementById("leaveBtn").addEventListener("click", async () => {
     await api("leave", { room_id: room.id }).catch(() => {});
-    backToLobby();
+    showRoomsLobby();
   });
   document.getElementById("closeBtn")?.addEventListener("click", () => {
     askingClose = true;
@@ -245,7 +234,7 @@ function renderInside(data) {
   document.getElementById("closeYes")?.addEventListener("click", async () => {
     askingClose = false;
     await api("close", { room_id: room.id }).catch(() => {});
-    backToLobby();
+    showRoomsLobby();
   });
   document.getElementById("practiceDua")?.addEventListener("click", () => {
     setNavBack({ type: "room", roomId: room.id, roomTitle: room.title });
@@ -253,11 +242,10 @@ function renderInside(data) {
   paintBack();
 }
 
-function backToLobby() {
+function showRoomsLobby() {
   stopPulse();
   askingClose = false;
   current = null;
-  rememberRoom("");
   setNavBack({ type: "hall" });
   history.replaceState(null, "", "/rooms/");
   loadLobby();
@@ -277,7 +265,7 @@ function startPulse() {
         if (box) box.value = draft;
       }
     } catch (err) {
-      if (err.code === "closed" || err.code === "member") backToLobby();
+      if (err.code === "closed" || err.code === "member") showRoomsLobby();
     }
   }, 8000);
 }
@@ -292,7 +280,7 @@ if (!requireAuth("rooms/")) {
 } else {
   applyChrome();
   const fromUrl = new URLSearchParams(location.search).get("r");
-  const want = recalledRoom() || readNavBack()?.roomId || fromUrl;
+  const want = roomReturnId() || fromUrl;
   if (fromUrl) history.replaceState(null, "", "/rooms/");
   if (want) {
     api("get", { room_id: want })
