@@ -4,6 +4,7 @@ import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targe
 import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=25";
 import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=25";
 import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=27";
+import { heldBallPose, launchVelocity } from "./serve.js?v=1";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -123,7 +124,7 @@ function makeLevel(index) {
   releaseAllParticles();
   paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 58, w: INITIAL_PADDLE, h: 12 };
   syncPaddleCap(paddleCap, paddle.w, W);
-  activateBall(cfg.speed, null, true);
+  activateBall(cfg.speed, null, true, true);
   targetIconEl.style.background = `hsl(${levelHue} 90% 52%)`;
   lastHudKey = "";
   updateHud();
@@ -172,7 +173,7 @@ function paintSteel(s, wall) {
   }
 }
 
-function activateBall(speed = buildLevelSpec(levelIndex).speed, source, primary = false) {
+function activateBall(speed = buildLevelSpec(levelIndex).speed, source, primary = false, held = false) {
   const ball = ballPool.find((entry) => !entry.active);
   if (!ball) return null;
   const angle = source
@@ -180,13 +181,49 @@ function activateBall(speed = buildLevelSpec(levelIndex).speed, source, primary 
     : -Math.PI / 2 + (Math.random() - 0.5) * 0.65;
   ball.active = true;
   ball.primary = primary;
-  ball.x = source?.x ?? W / 2;
-  ball.y = source?.y ?? H - 70;
-  ball.vx = Math.cos(angle) * speed;
-  ball.vy = Math.sin(angle) * speed;
+  ball.held = !!held;
   ball.r = BALL_R;
+  if (ball.held) {
+    const pose = heldBallPose(paddle, ball.r);
+    ball.x = pose.x;
+    ball.y = pose.y;
+    ball.vx = 0;
+    ball.vy = 0;
+  } else {
+    ball.x = source?.x ?? W / 2;
+    ball.y = source?.y ?? H - 70;
+    ball.vx = Math.cos(angle) * speed;
+    ball.vy = Math.sin(angle) * speed;
+  }
   balls.push(ball);
   return ball;
+}
+
+function isServing() {
+  return balls.some((ball) => ball.held);
+}
+
+function seatHeldBalls() {
+  for (const ball of balls) {
+    if (!ball.held) continue;
+    const pose = heldBallPose(paddle, ball.r);
+    ball.x = pose.x;
+    ball.y = pose.y;
+    ball.vx = 0;
+    ball.vy = 0;
+  }
+}
+
+function launchHeldBalls() {
+  if (!isServing()) return;
+  const speed = buildLevelSpec(levelIndex).speed;
+  for (const ball of balls) {
+    if (!ball.held) continue;
+    const v = launchVelocity(paddle, ball.x, speed);
+    ball.held = false;
+    ball.vx = v.vx;
+    ball.vy = v.vy;
+  }
 }
 
 function releaseBallAt(index) {
@@ -194,6 +231,7 @@ function releaseBallAt(index) {
   if (!ball) return;
   ball.active = false;
   ball.primary = false;
+  ball.held = false;
   balls.splice(index, 1);
 }
 
@@ -201,6 +239,7 @@ function releaseAllBalls() {
   for (const ball of balls) {
     ball.active = false;
     ball.primary = false;
+    ball.held = false;
   }
   balls.length = 0;
 }
@@ -469,6 +508,11 @@ function update(dt) {
     paddle.w = INITIAL_PADDLE;
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
   }
+  if (isServing()) {
+    seatHeldBalls();
+    updateHud();
+    return;
+  }
   levelElapsed += dt;
   sessionElapsed += dt;
   const stallActions = tickStallRelief(stallRelief, {
@@ -673,6 +717,7 @@ function togglePause() {
 }
 
 function beginPaddleDrag(e, source) {
+  if (!running || paused || !overlay.hidden) return;
   const rect = source.getBoundingClientRect();
   paddleDrag = {
     pointerId: e.pointerId,
@@ -692,6 +737,7 @@ function continuePaddleDrag(e) {
 function endPaddleDrag(e) {
   if (!paddleDrag || e.pointerId !== paddleDrag.pointerId) return;
   paddleDrag = null;
+  if (e.type === "pointerup" && running && !paused) launchHeldBalls();
 }
 
 function blockSystemGesture(e) {
@@ -744,7 +790,8 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") keys.right = true;
   if (e.key === " " || e.key.toLowerCase() === "p") {
     e.preventDefault();
-    togglePause();
+    if (isServing()) launchHeldBalls();
+    else togglePause();
   }
 });
 window.addEventListener("keyup", (e) => {
