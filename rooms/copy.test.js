@@ -19,4 +19,10 @@ test("rooms tile labels stay distinct in the three portal languages", () => {
   assert.equal(roomsCopy("ja").create, "休憩する");
   assert.equal(roomsCopy("zh").ready, "准备");
   assert.equal(roomsCopy("zh").startMatch, "开始");
+  assert.equal(roomsCopy("zh").enterDua, "进入联机对战");
+  assert.equal(roomsCopy("en").enterDua, "Online Battle");
+  assert.equal(roomsCopy("ja").enterDua, "オンライン対戦");
+  assert.equal(roomsCopy("en").unready, "Unready");
+  assert.equal(roomsCopy("ja").unready, "準備解除");
+  assert.equal(roomsCopy("zh").call, "呼叫");
 });

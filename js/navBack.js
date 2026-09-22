@@ -30,11 +30,10 @@ export function roomsBackLabel(lang) {
   return ROOMS_BACK[lang] || ROOMS_BACK.en;
 }
 
-export function roomBackLabel(lang, title) {
-  const name = String(title || "").trim() || (lang === "zh" ? "房间" : "room");
-  if (lang === "zh") return `返回${name}房间`;
-  if (lang === "ja") return `${name}へ`;
-  return `Back to ${name}`;
+export function roomBackLabel(lang) {
+  if (lang === "zh") return "返回房间";
+  if (lang === "ja") return "部屋へ";
+  return "Back to room";
 }
 
 export function setNavBack(spec) {
@@ -76,7 +75,7 @@ export function resolveNavBack(lang, opt = "hall") {
     if (spec?.type === "room" && (spec.roomId || spec.roomTitle)) {
       return {
         href: ROOMS_BACK.href,
-        label: roomBackLabel(lang, spec.roomTitle),
+        label: roomBackLabel(lang),
       };
     }
     if (spec?.type === "rooms") return pack(lang, "rooms");

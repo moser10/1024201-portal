@@ -1,6 +1,6 @@
 import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
 import { ensureOpenRoomSchema } from "./openroomSchema.js";
-import { parseCreate, canJoin, canReady, canStart, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat } from "./openroomLogic.js";
+import { parseCreate, canJoin, canReady, canStart, canCall, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat } from "./openroomLogic.js";
 
 async function requireUser(db, userId) {
   const id = Number(userId);
@@ -168,6 +168,16 @@ export async function onRequest(context) {
         .bind(on, room.id, user.id)
         .run();
       return json(await roomPayload(db, room, user.id));
+    }
+
+    if (action === "call") {
+      const gate = canCall(room);
+      if (!gate.ok) return json({ error: gate.error }, 400);
+      const seated = (await loadSeats(db, room.id)).some((s) => Number(s.user_id) === Number(user.id));
+      if (!seated) return json({ error: "member" }, 403);
+      await db.prepare("UPDATE open_rooms SET called_at = datetime('now') WHERE id = ?").bind(room.id).run();
+      room.called_at = room.called_at || "now";
+      return json(await roomPayload(db, await loadRoom(db, room.id), user.id));
     }
 
     if (action === "start") {

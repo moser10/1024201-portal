@@ -90,7 +90,8 @@ CREATE TABLE IF NOT EXISTS open_rooms (
   pin TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   closed_at TEXT,
-  started_at TEXT
+  started_at TEXT,
+  called_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS open_room_seats (

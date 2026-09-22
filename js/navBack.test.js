@@ -14,12 +14,13 @@ test("hall back is one shared lobby phrase", () => {
   assert.equal(hallBackLabel("ja"), "ロビーへ");
 });
 
-test("entry context can send Dua back to a named room", () => {
+test("entry context can send Dua back to a room without the room name", () => {
   setNavBack({ type: "room", roomId: "AB12", roomTitle: "夜场" });
   const nav = resolveNavBack("zh", { follow: true, fallback: "game" });
   assert.equal(nav.href, "/rooms/");
-  assert.equal(nav.label, "返回夜场房间");
-  assert.equal(roomBackLabel("en", "Night"), "Back to Night");
+  assert.equal(nav.label, "返回房间");
+  assert.equal(roomBackLabel("en"), "Back to room");
+  assert.equal(roomBackLabel("ja"), "部屋へ");
   assert.equal(resolveNavBack("en", "rooms").href, "/rooms/");
 });
 

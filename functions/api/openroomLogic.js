@@ -62,7 +62,15 @@ export function canJoin({ room, seats, pin, userId }) {
   return { ok: true };
 }
 
-export function publicRoom(row, seatCount) {
+export const CALL_WINDOW_MS = 90_000;
+
+export function callIsLive(calledAt, now = Date.now(), windowMs = CALL_WINDOW_MS) {
+  const t = Date.parse(calledAt);
+  if (!Number.isFinite(t)) return false;
+  return now - t <= windowMs;
+}
+
+export function publicRoom(row, seatCount, now = Date.now()) {
   return {
     id: row.id,
     kind: row.kind,
@@ -74,10 +82,18 @@ export function publicRoom(row, seatCount) {
     has_pin: Boolean(row.pin),
     created_at: row.created_at,
     started: Boolean(row.started_at),
+    called_at: row.called_at || null,
+    called: callIsLive(row.called_at, now),
   };
 }
 
 export function canReady(room) {
+  if (!room || room.closed_at) return { ok: false, error: "closed" };
+  if (room.kind !== "dua") return { ok: false, error: "kind" };
+  return { ok: true };
+}
+
+export function canCall(room) {
   if (!room || room.closed_at) return { ok: false, error: "closed" };
   if (room.kind !== "dua") return { ok: false, error: "kind" };
   return { ok: true };

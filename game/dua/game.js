@@ -1,7 +1,8 @@
-import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch, triggerWeapon } from "./duel.js?v=12";
-import { duaCopy } from "./copy.js?v=5";
+import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch, triggerWeapon } from "./duel.js?v=13";
+import { duaCopy } from "./copy.js?v=6";
 import { getPortalLang } from "/js/langTabs.js";
-import { applyNavBack } from "/js/navBack.js?v=3";
+import { applyNavBack, readNavBack } from "/js/navBack.js?v=4";
+import { getUser } from "/game/js/store.js";
 import { AIM_REACH, STICK_TRAVEL, STICK_DEADZONE, clampStick, aimFromDir, lerpToward } from "./stick.js?v=2";
 
 const canvas = document.getElementById("gameCanvas");
@@ -23,6 +24,7 @@ const stick = document.getElementById("stick");
 const stickKnob = document.getElementById("stickKnob");
 const controlZone = document.getElementById("controlZone");
 const gameBack = document.getElementById("gameBack");
+const roomCall = document.getElementById("roomCall");
 
 const W = canvas.width;
 const H = canvas.height;
@@ -81,14 +83,51 @@ function weaponLabel(f) {
   return `${f.weapon.toUpperCase()} ${f.ammo}${boost}`;
 }
 
+function roomNav() {
+  const spec = readNavBack();
+  if (spec?.type === "room" && spec.roomId) return spec;
+  return null;
+}
+
+function paintCallBanner() {
+  if (!roomCall) return;
+  roomCall.textContent = copy.roomCall;
+}
+
+function showCallBanner(on) {
+  if (!roomCall) return;
+  roomCall.hidden = !on;
+  if (on) paintCallBanner();
+}
+
+async function pulsePracticeRoom() {
+  const spec = roomNav();
+  if (!spec || spec.mode !== "practice") return;
+  const user = getUser();
+  if (!user?.id) return;
+  try {
+    const res = await fetch("/api/openroom?action=heartbeat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ room_id: spec.roomId, user_id: user.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.room?.called) showCallBanner(true);
+  } catch {
+    /* stay in practice */
+  }
+}
+
 function applyLang() {
   lang = getPortalLang();
   copy = duaCopy(lang);
   if (gameBack) applyNavBack(gameBack, lang, { follow: true, fallback: "game" });
   document.title = `${copy.subtitle} | 1024201`;
   if (aimHint) aimHint.textContent = copy.hint;
+  paintCallBanner();
   stick.classList.toggle("armed", canFire(match.player));
   if (!running || paused || overlayMode !== "hidden") refreshOverlayCopy();
+  hudKey = "";
   syncHud();
 }
 
@@ -122,18 +161,23 @@ function showPlayOverlay(mode) {
   refreshOverlayCopy();
 }
 
+let hudKey = "";
 function syncHud() {
+  const label = weaponLabel(match.player);
+  const art = match.player.weapon ? pickupImage(match.player.weapon) : null;
+  const src = art ? (art.currentSrc || art.src) : "";
+  const key = `${match.player.hearts}|${match.foe.hearts}|${label}|${src}|${canFire(match.player)}`;
+  if (key === hudKey) return;
+  hudKey = key;
   redHeartsEl.textContent = heartsRow(match.player.hearts, "❤️");
   yellowHeartsEl.textContent = heartsRow(match.foe.hearts, "💛");
-  weaponEl.textContent = weaponLabel(match.player);
-  const art = match.player.weapon ? pickupImage(match.player.weapon) : null;
+  weaponEl.textContent = label;
   if (weaponArt) {
-    if (art) {
-      weaponArt.hidden = false;
-      weaponArt.src = art.src;
+    if (src) {
+      if (weaponArt.getAttribute("src") !== src) weaponArt.src = src;
+      weaponArt.classList.add("is-on");
     } else {
-      weaponArt.hidden = true;
-      weaponArt.removeAttribute("src");
+      weaponArt.classList.remove("is-on");
     }
   }
   stick.classList.toggle("armed", canFire(match.player));
@@ -185,6 +229,7 @@ function resetMatch() {
   knobTy = 0;
   faceFoe();
   setKnob(0, 0);
+  hudKey = "";
   syncHud();
 }
 
@@ -463,6 +508,14 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("storage", (e) => {
   if (e.key === "portal_lang") applyLang();
 });
+
+roomCall?.addEventListener("click", () => {
+  location.href = "/rooms/";
+});
+if (roomNav()?.mode === "practice") {
+  pulsePracticeRoom();
+  setInterval(pulsePracticeRoom, 4000);
+}
 
 startBtn.disabled = true;
 paintAvatars();

@@ -39,6 +39,7 @@ a, button { touch-action: manipulation; }
 body { min-height: 100dvh; overflow-x: hidden; }
 
 .game-shell {
+  position: relative;
   width: min(100%, 1000px);
   min-height: 100dvh;
   height: 100dvh;
@@ -56,7 +57,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
 
 .game-top {
   display: grid;
-  grid-template-columns: 80px 1fr 80px;
+  grid-template-columns: minmax(7.2em, auto) 1fr 80px;
   align-items: center;
   min-height: 44px;
 }
@@ -115,13 +116,38 @@ body { min-height: 100dvh; overflow-x: hidden; }
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: 44px;
 }
 
 .weapon-chip img {
   width: 44px;
   height: 44px;
   object-fit: contain;
+  visibility: hidden;
+  pointer-events: none;
 }
+
+.weapon-chip img.is-on {
+  visibility: visible;
+}
+
+.room-call {
+  position: absolute;
+  z-index: 12;
+  top: max(56px, calc(env(safe-area-inset-top) + 44px));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #E07A3D;
+  color: #F4EFE4;
+  font: 700 12px/1.3 Arial, sans-serif;
+  cursor: pointer;
+}
+
+.room-call[hidden] { display: none; }
 
 .canvas-wrap {
   position: relative;

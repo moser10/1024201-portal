@@ -11,7 +11,8 @@ export async function ensureOpenRoomSchema(db) {
         pin TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         closed_at TEXT,
-        started_at TEXT
+        started_at TEXT,
+        called_at TEXT
       )`
     )
     .run();
@@ -40,6 +41,7 @@ export async function ensureOpenRoomSchema(db) {
     )
     .run();
   await addCol(db, "open_rooms", "started_at", "ALTER TABLE open_rooms ADD COLUMN started_at TEXT");
+  await addCol(db, "open_rooms", "called_at", "ALTER TABLE open_rooms ADD COLUMN called_at TEXT");
   await addCol(db, "open_room_seats", "ready", "ALTER TABLE open_room_seats ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
 }
 

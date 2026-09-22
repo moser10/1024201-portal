@@ -1,8 +1,8 @@
 import { getPortalLang } from "/js/langTabs.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getUser, requireAuth } from "/game/js/store.js";
-import { applyNavBack, setNavBack, roomReturnId } from "/js/navBack.js?v=3";
-import { roomsCopy } from "./copy.js?v=5";
+import { applyNavBack, setNavBack, roomReturnId } from "/js/navBack.js?v=4";
+import { roomsCopy } from "./copy.js?v=6";
 import { showPortalModal, hidePortalModal } from "/js/portalModal.js?v=1";
 
 const root = document.getElementById("roomsRoot");
@@ -190,10 +190,13 @@ function renderInside(data) {
     <p class="rooms-note"><strong>${esc(room.title)}</strong> · ${seatLine({ seats: seats.length, max_seats: room.max_seats })}</p>
     <div class="seat-list">${seats.map((s) => `<span class="seat-chip">@${esc(s.username)}${s.ready ? " ✓" : ""}</span>`).join("")}</div>
     ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p>
+    ${room.called ? `<p class="rooms-note rooms-call-note">${esc(copy.callNote)}</p>` : ""}
     <div class="rooms-practice rooms-actions">
       <button type="button" class="btn-secondary" id="readyBtn">${esc(seats.some((s) => Number(s.user_id) === Number(getUser()?.id) && s.ready) ? copy.unready : copy.ready)}</button>
-      ${room.host && !room.started ? `<button type="button" class="btn-primary" id="startBtn">${esc(copy.startMatch)}</button>` : ""}
-      ${room.started ? `<a class="btn-primary" id="enterDua" href="/game/dua/">${esc(copy.enterDua)}</a>` : `<a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a>`}
+      ${room.host ? `<button type="button" class="btn-primary" id="startBtn">${esc(copy.startMatch)}</button>` : ""}
+      <a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a>
+      <a class="btn-primary" id="enterDua" href="/game/dua/">${esc(copy.enterDua)}</a>
+      <button type="button" class="btn-secondary" id="callBtn">${esc(room.called ? copy.called : copy.call)}</button>
     </div>` : ""}
     <div class="msg-list">${msgs.map((m) => `<p class="msg-row"><b>@${esc(m.username)}</b> ${esc(m.text)}</p>`).join("")}</div>
     <form class="rooms-say" id="sayForm">
@@ -236,19 +239,27 @@ function renderInside(data) {
   document.getElementById("startBtn")?.addEventListener("click", async () => {
     try {
       current = await api("start", { room_id: room.id });
-      goDua(room);
+      goDua(room, "online");
       location.href = "/game/dua/";
     } catch (err) {
       if (err.code === "closed") showRoomsLobby();
     }
   });
-  document.getElementById("practiceDua")?.addEventListener("click", () => goDua(room));
-  document.getElementById("enterDua")?.addEventListener("click", () => goDua(room));
+  document.getElementById("practiceDua")?.addEventListener("click", () => goDua(room, "practice"));
+  document.getElementById("enterDua")?.addEventListener("click", () => goDua(room, "online"));
+  document.getElementById("callBtn")?.addEventListener("click", async () => {
+    try {
+      current = await api("call", { room_id: room.id });
+      renderInside(current);
+    } catch (err) {
+      if (err.code === "closed") showRoomsLobby();
+    }
+  });
   paintBack();
 }
 
-function goDua(room) {
-  setNavBack({ type: "room", roomId: room.id, roomTitle: room.title });
+function goDua(room, mode = "practice") {
+  setNavBack({ type: "room", roomId: room.id, roomTitle: room.title, mode });
 }
 
 function paintCloseAsk() {

@@ -7,7 +7,10 @@ export const PICKUP_PX = 135;
 export const START_SPEED = Math.round(262 * 1.45);
 export const BOOST_MUL = 1.85;
 export const BOOST_TIME = 5.2;
-export const RIM_DRIFT = 5 * Math.PI / 180;
+export const RIM_DRIFT = 18 * Math.PI / 180;
+export const PICKUP_COLLECT_R = 30;
+export const PICKUP_GRACE = 0.9;
+export const SPAWN_CLEAR = FIGHTER_R + PICKUP_PX / 2 + 150;
 export const MIN_INWARD = 250;
 export const MIN_INWARD_RATIO = 0.97;
 export const RIM_TUCK = 52;
@@ -145,7 +148,7 @@ export function peelOffWall(f, nx, ny) {
   restoreCruise(f);
 }
 
-export function bounceArena(f, arena, rimHits = null, other = null) {
+export function bounceArena(f, arena, rimHits = null, other = null, opt = {}) {
   const dx = f.x - arena.x;
   const dy = f.y - arena.y;
   const dist = Math.hypot(dx, dy) || 0.0001;
@@ -165,16 +168,14 @@ export function bounceArena(f, arena, rimHits = null, other = null) {
   f.vx = vx;
   f.vy = vy;
   peelOffWall(f, nx, ny);
-  if (rimHits) {
+  if (rimHits && !opt.silent) {
     const key = `${f.id}:${rimBin(nx, ny)}`;
     const seen = rimHits[key] || 0;
-    const drift = (seen % 4) * RIM_DRIFT;
-    if (drift) {
-      const spun = rotateVec(f.vx, f.vy, drift);
-      if (spun.vx * nx + spun.vy * ny <= 0) {
-        f.vx = spun.vx;
-        f.vy = spun.vy;
-      }
+    const drift = (seen + 1) * RIM_DRIFT;
+    const spun = rotateVec(f.vx, f.vy, drift);
+    if (spun.vx * nx + spun.vy * ny <= 0) {
+      f.vx = spun.vx;
+      f.vy = spun.vy;
     }
     rimHits[key] = seen + 1;
   }
@@ -182,6 +183,7 @@ export function bounceArena(f, arena, rimHits = null, other = null) {
   f.recoilVx = 0;
   f.recoilVy = 0;
   f.recoilT = 0;
+  if (opt.silent) return null;
   return { x: f.x, y: f.y, nx, ny, id: f.id };
 }
 
@@ -265,7 +267,7 @@ export function bounceFighters(a, b, rng = Math.random, arena = null) {
   a.vy = tay * 0.78 + na * ny;
   b.vx = tbx * 0.78 + nb * nx;
   b.vy = tby * 0.78 + nb * ny;
-  const spin = (0.14 + rng() * 0.2) * (rng() < 0.5 ? -1 : 1);
+  const spin = (0.4 + rng() * 0.28) * (rng() < 0.5 ? -1 : 1);
   const a2 = rotateVec(a.vx, a.vy, spin);
   const b2 = rotateVec(b.vx, b.vy, -spin);
   a.vx = a2.vx;
@@ -326,14 +328,40 @@ export function placeOnRing(arena, rng, inset = 110) {
   return { x: arena.x + Math.cos(ang) * rad, y: arena.y + Math.sin(ang) * rad };
 }
 
+export function pickupClearance(state, x, y) {
+  let gap = Infinity;
+  for (const f of [state.player, state.foe]) {
+    if (!f) continue;
+    gap = Math.min(gap, Math.hypot(f.x - x, f.y - y));
+  }
+  return gap;
+}
+
+export function placeAwayFromFighters(state, rng, tries = 28) {
+  let best = null;
+  let bestGap = -1;
+  for (let i = 0; i < tries; i++) {
+    const pos = placeOnRing(state.arena, rng, 130);
+    const gap = pickupClearance(state, pos.x, pos.y);
+    if (gap > bestGap) {
+      best = pos;
+      bestGap = gap;
+    }
+    if (gap >= SPAWN_CLEAR) return pos;
+  }
+  if (!best || bestGap < FIGHTER_R + PICKUP_PX / 2 + 48) return null;
+  return best;
+}
+
 export function spawnPickup(state, rng = Math.random) {
   if (state.pickups.length >= 6) return null;
   const roll = rng();
   let kind = "heart";
   if (roll >= 0.16 && roll < 0.3) kind = "boost";
   else if (roll >= 0.3) kind = GUN_KINDS[Math.floor(((roll - 0.3) / 0.7) * GUN_KINDS.length)] || "pistol";
-  const pos = placeOnRing(state.arena, rng);
-  const item = { kind, x: pos.x, y: pos.y, r: PICKUP_PX / 2 };
+  const pos = placeAwayFromFighters(state, rng);
+  if (!pos) return null;
+  const item = { kind, x: pos.x, y: pos.y, r: PICKUP_COLLECT_R, age: 0 };
   state.pickups.push(item);
   return item;
 }
@@ -360,11 +388,17 @@ export function armWeapon(fighter, kind) {
   return fighter;
 }
 
+export function tickPickups(pickups, dt) {
+  for (const item of pickups) item.age = (item.age || 0) + dt;
+}
+
 export function collectPickups(fighter, pickups) {
+  if ((fighter.separateT || 0) > 0) return null;
   const left = [];
   let got = null;
   for (const item of pickups) {
-    const hit = Math.hypot(fighter.x - item.x, fighter.y - item.y) <= fighter.r + item.r;
+    const ready = (item.age || 0) >= PICKUP_GRACE;
+    const hit = ready && Math.hypot(fighter.x - item.x, fighter.y - item.y) <= fighter.r + item.r;
     if (!hit) {
       left.push(item);
       continue;
@@ -490,15 +524,14 @@ export function stepMatch(state, dt, input = {}, rng = Math.random) {
     tickBurst(state, f, dt);
   }
   bounceFighters(state.player, state.foe, rng, state.arena);
-  const extraA = bounceArena(state.player, state.arena, state.rimHits, state.foe);
-  const extraB = bounceArena(state.foe, state.arena, state.rimHits, state.player);
-  if (extraA) state.flashes.push({ ...extraA, life: 0.28, age: 0 });
-  if (extraB) state.flashes.push({ ...extraB, life: 0.28, age: 0 });
+  bounceArena(state.player, state.arena, state.rimHits, state.foe, { silent: true });
+  bounceArena(state.foe, state.arena, state.rimHits, state.player, { silent: true });
   state.flashes = state.flashes.filter((flash) => {
     flash.age += dt;
     return flash.age < flash.life;
   });
 
+  tickPickups(state.pickups, dt);
   collectPickups(state.player, state.pickups);
   collectPickups(state.foe, state.pickups);
 

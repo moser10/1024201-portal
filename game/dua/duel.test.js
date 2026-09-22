@@ -8,11 +8,16 @@ import {
   WEAPON_ICON_PX,
   PICKUP_PX,
   AVATAR_PX,
+  FIGHTER_R,
+  RIM_DRIFT,
   WEAPONS,
   PICKUP_ICONS,
   BOOST_MUL,
   START_SPEED,
   MIN_INWARD_RATIO,
+  PICKUP_GRACE,
+  PICKUP_COLLECT_R,
+  SPAWN_CLEAR,
   applyBoost,
   integrateFighter,
   armWeapon,
@@ -22,6 +27,7 @@ import {
   createMatch,
   knockback,
   pickAvatar,
+  spawnPickup,
   stepMatch,
   stepShots,
   tickRecoil,
@@ -190,7 +196,7 @@ test("grazing the rim must bounce inward instead of sliding around", () => {
   bounceArena(f, match.arena, match.rimHits);
   const nx = 1;
   const inward = -(f.vx * nx + f.vy * 0);
-  assert.ok(inward >= START_SPEED * MIN_INWARD_RATIO - 0.5, `inward=${inward}`);
+  assert.ok(inward >= START_SPEED * Math.cos(RIM_DRIFT) - 1, `inward=${inward}`);
   assert.ok(Math.abs(f.vy) < Math.abs(f.vx));
   assert.ok(f.x < match.arena.x + match.arena.r - f.r);
 });
@@ -233,13 +239,13 @@ test("recoil fades and cruise speed returns", () => {
 
 test("queued fire shoots once a weapon is collected", () => {
   const match = createMatch();
-  match.pickups.push({ kind: "pistol", x: match.player.x, y: match.player.y, r: 20 });
+  match.pickups.push({ kind: "pistol", x: match.player.x, y: match.player.y, r: 20, age: PICKUP_GRACE });
   stepMatch(match, 0.016, { fire: false, queuedFire: true, aimX: match.foe.x, aimY: match.foe.y }, () => 0.9);
   assert.equal(match.player.weapon, "pistol");
   assert.ok(match.shots.length >= 1);
 });
 
-test("a second hit on the same rim bin drifts about five degrees", () => {
+test("each rim rebound adds a larger drift than the last", () => {
   const match = createMatch();
   const f = match.player;
   const launch = () => {
@@ -255,7 +261,28 @@ test("a second hit on the same rim bin drifts about five degrees", () => {
   bounceArena(f, match.arena, match.rimHits);
   const a2 = Math.atan2(f.vy, f.vx);
   const gap = Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1)));
-  assert.ok(gap > 0.06 && gap < 0.12, `gap=${gap}`);
+  assert.ok(gap > 0.25 && gap < 0.45, `gap=${gap}`);
+});
+
+test("pickups spawn away from fighters and wait before they can be eaten", () => {
+  const match = createMatch();
+  const item = spawnPickup(match, () => 0.8);
+  assert.ok(item);
+  assert.equal(item.r, PICKUP_COLLECT_R);
+  assert.ok(item.age === 0);
+  const gap = Math.min(
+    Math.hypot(item.x - match.player.x, item.y - match.player.y),
+    Math.hypot(item.x - match.foe.x, item.y - match.foe.y),
+  );
+  assert.ok(gap >= FIGHTER_R + PICKUP_PX / 2 + 40, `gap=${gap} clear=${SPAWN_CLEAR}`);
+  match.player.x = item.x;
+  match.player.y = item.y;
+  stepMatch(match, 0.016, {}, () => 0.9);
+  assert.equal(match.player.weapon, null);
+  item.age = PICKUP_GRACE;
+  match.player.separateT = 0.2;
+  stepMatch(match, 0.016, {}, () => 0.9);
+  assert.equal(match.player.weapon, null);
 });
 
 test("stick travel is finite so the knob never becomes NaN", () => {
