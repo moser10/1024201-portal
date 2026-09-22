@@ -51,47 +51,20 @@
         }
 
         .widget-card {
-            background: var(--ios-card);
+            background: #2B3054;
+            color: #E8D4B8;
             padding: 12px 14px;
             border-radius: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-        }
-
-        .widget-head {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
-        .disc-mini {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: block;
-            flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
-        }
-
-        .widget-head .zone-date {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: 0;
-            flex: 1;
-            min-width: 0;
-        }
-
-        .widget-head .widget-label {
-            margin-bottom: 0;
+            box-shadow: none;
         }
 
         .time-zones { width: 100%; }
 
         .device-widget {
             min-height: 96px;
-            border: 1px solid rgba(0, 122, 255, 0.12);
-            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-            box-shadow: 0 4px 14px rgba(0, 122, 255, 0.08);
+            border: 0;
+            background: #2B3054;
+            box-shadow: none;
         }
 
         .widget-label {
@@ -99,28 +72,28 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            color: var(--ios-text-secondary);
+            color: #C9B392;
             margin-bottom: 6px;
         }
 
         .device-location {
             font-size: 13px;
             font-weight: 600;
-            color: var(--ios-text);
+            color: #E8D4B8;
             line-height: 1.35;
             word-break: break-word;
         }
 
-        .device-location.is-loading { color: var(--ios-text-secondary); font-weight: 500; }
+        .device-location.is-loading { color: #C9B392; font-weight: 500; }
 
-        .ip-line { font-size: 13px; font-weight: 600; line-height: 1.35; word-break: break-word; }
-        .ip-sub { font-size: 11px; color: var(--ios-text-secondary); margin-top: 4px; }
+        .ip-line { font-size: 13px; font-weight: 600; line-height: 1.35; word-break: break-word; color: #E8D4B8; }
+        .ip-sub { font-size: 11px; color: #C9B392; margin-top: 4px; }
         .ip-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
         .ip-tag {
-            font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
-            background: #f2f2f7; color: #3a3a3c;
+            font-size: 10px; font-weight: 600; padding: 3px 8px;             border-radius: 6px;
+            background: #E8D4B8; color: #2B3054;
         }
-        .ip-tag.proxy { background: #fff4e5; color: #c93400; }
+        .ip-tag.proxy { background: #E07A3D; color: #F4EFE4; }
         .ip-tag-inline {
             display: inline;
             margin-left: 4ch;
@@ -148,8 +121,8 @@
             font-weight: 600;
             margin-bottom: 10px;
             padding-bottom: 8px;
-            border-bottom: 1px solid #e5e5ea;
-            color: var(--ios-blue);
+            border-bottom: 1px solid rgba(232, 212, 184, 0.22);
+            color: #F0C44C;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -166,27 +139,27 @@
             cursor: pointer;
             min-height: 28px;
         }
-        .zone-row:hover { background: #f2f2f7; }
-        .zone-row.active { background: #eef6ff; }
+        .zone-row:hover { background: rgba(232, 212, 184, 0.12); }
+        .zone-row.active { background: #E07A3D; }
         .zone-label {
             font-size: 12px;
-            color: var(--ios-text-secondary);
+            color: #C9B392;
             font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .zone-row.active .zone-label { color: var(--ios-text); font-weight: 600; }
+        .zone-row.active .zone-label { color: #F4EFE4; font-weight: 600; }
         .zone-time {
             font-size: 13px;
-            color: var(--ios-text);
+            color: #E8D4B8;
             font-weight: 600;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
             text-align: right;
             letter-spacing: -0.3px;
         }
-        .zone-row.active .zone-time { color: var(--zone-accent, var(--ios-blue)); }
+        .zone-row.active .zone-time { color: #F4EFE4; }
 
         .controls {
             display: flex;
@@ -221,7 +194,6 @@
         .portal-brand-block {
             position: relative;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             width: 100%;
@@ -231,17 +203,6 @@
             pointer-events: none;
             user-select: none;
             -webkit-user-select: none;
-            gap: 10px;
-        }
-
-        .portal-logo {
-            position: relative;
-            z-index: 1;
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            display: block;
-            box-shadow: 0 8px 24px rgba(20, 22, 40, 0.18);
         }
 
         .portal-brand-block a {
@@ -259,8 +220,8 @@
             font-weight: 800;
             letter-spacing: -0.055em;
             line-height: 1;
-            color: #007aff;
-            opacity: 0.085;
+            color: #E07A3D;
+            opacity: 0.16;
             white-space: nowrap;
             pointer-events: none;
             user-select: none;
@@ -273,8 +234,8 @@
             font-size: clamp(30px, 8vw, 40px);
             font-weight: 700;
             letter-spacing: -0.045em;
-            color: #007aff;
-            -webkit-text-fill-color: #007aff;
+            color: #2B3054;
+            -webkit-text-fill-color: #2B3054;
             line-height: 1;
         }
 
@@ -284,7 +245,7 @@
             gap: 8px;
             margin-top: 10px;
             padding-top: 8px;
-            border-top: 1px solid rgba(0, 122, 255, 0.12);
+            border-top: 1px solid rgba(232, 212, 184, 0.22);
         }
         .device-stat {
             min-width: 0;
@@ -297,11 +258,11 @@
             line-height: 1;
             letter-spacing: -0.02em;
         }
-        .net-speed { color: #8e8e93; }
-        .net-speed.fast { color: #34c759; }
-        .net-speed.ok { color: #e6a800; }
-        .net-speed.slow { color: #ff3b30; }
-        .visit-count { color: #007aff; }
+        .net-speed { color: #C9B392; }
+        .net-speed.fast { color: #F0C44C; }
+        .net-speed.ok { color: #E8D4B8; }
+        .net-speed.slow { color: #E07A3D; }
+        .visit-count { color: #F0C44C; }
 
         .app-grid {
             display: grid;
@@ -379,20 +340,15 @@
                 margin-bottom: 32px;
             }
 
-            .portal-logo {
-                width: 56px;
-                height: 56px;
-            }
-
             .portal-watermark {
                 font-size: clamp(76px, 22vw, 128px);
-                opacity: 0.085;
+                opacity: 0.16;
             }
 
             .portal-brand {
                 font-size: clamp(26px, 7.5vw, 32px);
-                color: #007aff;
-                -webkit-text-fill-color: #007aff;
+                color: #2B3054;
+                -webkit-text-fill-color: #2B3054;
             }
 
             .app-grid {
@@ -417,31 +373,28 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="/js/langTabs.css?v=2">
-    <link rel="stylesheet" href="/game/css/userBar.css?v=9">
+    <link rel="stylesheet" href="/js/langTabs.css?v=3">
+    <link rel="stylesheet" href="/game/css/userBar.css?v=10">
 </head>
 <body>
     <header>
         <div class="sidebar-widgets">
             <div class="widget-card time-zones">
-                <div class="widget-head">
-                    <img class="disc-mini" src="/icons/apps/clock.svg" alt="">
-                    <div class="zone-date" id="zoneDate">--</div>
-                </div>
+                <div class="zone-date" id="zoneDate">--</div>
                 <ul class="zone-list">
-                    <li class="zone-row" data-zone="us" data-tz="America/Los_Angeles" data-color="#5856d6">
+                    <li class="zone-row" data-zone="us" data-tz="America/Los_Angeles" data-color="#E8D4B8">
                         <span class="zone-label" id="lbl-us">LA, US</span>
                         <span class="zone-time" id="tz-us">--:--</span>
                     </li>
-                    <li class="zone-row" data-zone="jp" data-tz="Asia/Tokyo" data-color="#ff9500">
+                    <li class="zone-row" data-zone="jp" data-tz="Asia/Tokyo" data-color="#E07A3D">
                         <span class="zone-label" id="lbl-jp">Tokyo, JP</span>
                         <span class="zone-time" id="tz-jp">--:--</span>
                     </li>
-                    <li class="zone-row" data-zone="cn" data-tz="Asia/Shanghai" data-color="#007aff">
+                    <li class="zone-row" data-zone="cn" data-tz="Asia/Shanghai" data-color="#F0C44C">
                         <span class="zone-label" id="lbl-cn">BJ, CN</span>
                         <span class="zone-time" id="tz-cn">--:--</span>
                     </li>
-                    <li class="zone-row" data-zone="se" data-tz="Europe/Stockholm" data-color="#34c759">
+                    <li class="zone-row" data-zone="se" data-tz="Europe/Stockholm" data-color="#F0C44C">
                         <span class="zone-label" id="lbl-se">GOT, SE</span>
                         <span class="zone-time" id="tz-se">--:--</span>
                     </li>
@@ -449,10 +402,7 @@
             </div>
 
             <div class="widget-card device-widget">
-                <div class="widget-head">
-                    <img class="disc-mini" src="/icons/apps/ip.svg" alt="">
-                    <div class="widget-label" id="locTitle">IP</div>
-                </div>
+                <div class="widget-label" id="locTitle">IP</div>
                 <div id="ipWidget">
                     <div class="ip-line is-loading" id="deviceLocation">Locating…</div>
                     <div class="ip-tags" id="ipTags" hidden></div>
@@ -480,7 +430,6 @@
         <div class="portal-hero">
             <div class="portal-brand-block">
                 <div class="portal-watermark" aria-hidden="true"><span x-apple-data-detectors="false">1024201</span></div>
-                <img class="portal-logo" src="/icons/apps/logo.svg" alt="">
                 <h1 class="portal-brand"><span x-apple-data-detectors="false">1024201</span></h1>
             </div>
             <div class="app-grid">
@@ -784,7 +733,7 @@
             const groups = [
                 {
                     link: 'appBlogLink',
-                    urls: ['/blog/', '/blog/blog.css?v=6', '/blog/blog-app.js?v=3', '/js/featurePage.css?v=4']
+                    urls: ['/blog/', '/blog/blog.css?v=7', '/blog/blog-app.js?v=3', '/js/featurePage.css?v=5']
                 },
                 {
                     link: 'appGameLink',

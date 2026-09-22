@@ -5,6 +5,13 @@
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
     "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC",
     Roboto, "Helvetica Neue", Arial, sans-serif;
+  --disc-navy: #2B3054;
+  --disc-cream: #E8D4B8;
+  --disc-orange: #E07A3D;
+  --disc-gold: #F0C44C;
+  --disc-ink: #F4EFE4;
+  --disc-muted: #C9B392;
+  --disc-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
 }
 
 html.feature-page,
@@ -115,26 +122,72 @@ html.feature-page body {
   -webkit-overflow-scrolling: touch;
 }
 
-.feature-back {
+.feature-back,
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-danger,
+.btn-link {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  padding: 8px 12px;
+  border: none;
   min-height: 32px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.feature-back,
+.btn-secondary,
+.btn-ghost {
+  background: var(--disc-navy);
+  color: var(--disc-cream);
+}
+
+.btn-primary,
+.btn-link {
+  background: var(--disc-orange);
+  color: var(--disc-ink);
+}
+
+.btn-danger {
+  background: var(--disc-navy);
+  color: var(--disc-orange);
+}
+
+.feature-back {
   width: max-content;
   max-width: max-content;
   flex: 0 0 auto;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: #007aff;
-  line-height: 1;
-  white-space: nowrap;
-  -webkit-tap-highlight-color: transparent;
+}
+
+.feature-back:active,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active,
+.btn-danger:active,
+.btn-link:active {
+  transform: scale(0.94);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-ghost:disabled,
+.btn-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .feature-top .lang-tabs-host {

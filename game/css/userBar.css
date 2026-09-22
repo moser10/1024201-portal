@@ -28,12 +28,12 @@
   background: #2B3054;
   border: none;
   padding: 0 14px;
-  border-radius: 18px;
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
   color: #E8D4B8;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
+  box-shadow: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;

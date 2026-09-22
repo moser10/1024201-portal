@@ -41,8 +41,8 @@ textarea { min-height: 72px; resize: vertical; }
   font-weight: 600;
   transition: opacity 0.2s;
 }
-.btn-primary { background: #007aff; color: #fff; padding: 12px 16px; width: 100%; margin-top: 8px; }
-.btn-secondary { background: #e5e5ea; color: #007aff; padding: 12px 14px; white-space: nowrap; }
+.btn-primary { background: #E07A3D; color: #F4EFE4; padding: 12px 16px; width: 100%; margin-top: 8px; }
+.btn-secondary { background: #2B3054; color: #E8D4B8; padding: 12px 14px; white-space: nowrap; }
 .btn-small { padding: 8px 12px; font-size: 13px; }
 .btn-primary:hover, .btn-secondary:hover, .btn-small:hover { opacity: 0.85; }
 .btn-primary:disabled, .btn-secondary.disabled, .btn-secondary:disabled, .btn-small:disabled { opacity: 0.4; cursor: default; }
