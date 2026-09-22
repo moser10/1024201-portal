@@ -229,6 +229,32 @@ html.feature-page body {
   margin-left: auto;
 }
 
+/* Sit on document.body so feature-top (z-index 20) cannot leak desktop color. */
+.portal-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top, 0px)) 20px max(20px, env(safe-area-inset-bottom, 0px));
+  background: rgba(20, 22, 40, 0.46);
+}
+.portal-modal[hidden] { display: none; }
+.portal-modal-card {
+  width: min(100%, 320px);
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px;
+}
+.portal-modal-card p {
+  margin: 0 0 12px;
+  color: #2B3054;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .tool-user {
   font-size: 14px;
   color: #8e8e93;

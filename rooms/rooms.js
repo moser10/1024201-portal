@@ -3,6 +3,7 @@ import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getUser, requireAuth } from "/game/js/store.js";
 import { applyNavBack, setNavBack, roomReturnId } from "/js/navBack.js?v=3";
 import { roomsCopy } from "./copy.js?v=5";
+import { showPortalModal, hidePortalModal } from "/js/portalModal.js?v=1";
 
 const root = document.getElementById("roomsRoot");
 const backLink = document.getElementById("backLink");
@@ -65,6 +66,7 @@ function applyChrome() {
   pageTitle.textContent = copy.title;
   pageSub.textContent = copy.sub;
   document.title = `${copy.title} | 1024201`;
+  paintCloseAsk();
   mountAccountChrome(document.getElementById("accountSlot"), {
     variant: "game",
     returnPath: "rooms/",
@@ -197,15 +199,6 @@ function renderInside(data) {
       ${room.host ? `<button type="button" class="btn-danger" id="closeBtn">${esc(copy.close)}</button>` : ""}
     </div>
     </div>
-    <div class="rooms-modal" id="closeAsk" ${askingClose ? "" : "hidden"}>
-      <div class="rooms-modal-card">
-        <p>${esc(copy.closeAsk)}</p>
-        <div class="rooms-actions">
-          <button type="button" class="btn-secondary" id="closeNo">${esc(copy.cancel)}</button>
-          <button type="button" class="btn-danger" id="closeYes">${esc(copy.ok)}</button>
-        </div>
-      </div>
-    </div>
   `;
   document.getElementById("sayForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -223,18 +216,7 @@ function renderInside(data) {
   });
   document.getElementById("closeBtn")?.addEventListener("click", () => {
     askingClose = true;
-    const box = document.getElementById("closeAsk");
-    if (box) box.hidden = false;
-  });
-  document.getElementById("closeNo")?.addEventListener("click", () => {
-    askingClose = false;
-    const box = document.getElementById("closeAsk");
-    if (box) box.hidden = true;
-  });
-  document.getElementById("closeYes")?.addEventListener("click", async () => {
-    askingClose = false;
-    await api("close", { room_id: room.id }).catch(() => {});
-    showRoomsLobby();
+    showPortalModal(document.getElementById("closeAsk"));
   });
   document.getElementById("practiceDua")?.addEventListener("click", () => {
     setNavBack({ type: "room", roomId: room.id, roomTitle: room.title });
@@ -242,9 +224,33 @@ function renderInside(data) {
   paintBack();
 }
 
+function paintCloseAsk() {
+  const text = document.getElementById("closeAskText");
+  const no = document.getElementById("closeNo");
+  const yes = document.getElementById("closeYes");
+  if (text) text.textContent = copy.closeAsk;
+  if (no) no.textContent = copy.cancel;
+  if (yes) yes.textContent = copy.ok;
+}
+
+function bindCloseAsk() {
+  document.getElementById("closeNo")?.addEventListener("click", () => {
+    askingClose = false;
+    hidePortalModal(document.getElementById("closeAsk"));
+  });
+  document.getElementById("closeYes")?.addEventListener("click", async () => {
+    askingClose = false;
+    hidePortalModal(document.getElementById("closeAsk"));
+    const id = current?.room?.id;
+    if (id) await api("close", { room_id: id }).catch(() => {});
+    showRoomsLobby();
+  });
+}
+
 function showRoomsLobby() {
   stopPulse();
   askingClose = false;
+  hidePortalModal(document.getElementById("closeAsk"));
   current = null;
   setNavBack({ type: "hall" });
   history.replaceState(null, "", "/rooms/");
@@ -279,6 +285,7 @@ if (!requireAuth("rooms/")) {
   /* redirected */
 } else {
   applyChrome();
+  bindCloseAsk();
   const fromUrl = new URLSearchParams(location.search).get("r");
   const want = roomReturnId() || fromUrl;
   if (fromUrl) history.replaceState(null, "", "/rooms/");

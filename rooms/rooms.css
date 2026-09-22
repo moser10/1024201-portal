@@ -142,28 +142,3 @@
   color: #8e8e93;
   margin: 0;
 }
-
-.rooms-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(20, 22, 40, 0.46);
-}
-.rooms-modal[hidden] { display: none; }
-.rooms-modal-card {
-  width: min(100%, 320px);
-  background: #fff;
-  border-radius: 16px;
-  padding: 18px;
-}
-.rooms-modal-card p {
-  margin: 0 0 12px;
-  color: #2B3054;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
-}

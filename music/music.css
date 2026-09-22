@@ -242,7 +242,7 @@ body.feature-page {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  z-index: 100;
+  z-index: 400;
 }
 
 .modal-backdrop[hidden] { display: none !important; }

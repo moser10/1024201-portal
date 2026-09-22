@@ -160,6 +160,7 @@ function showVerifyModal(email) {
   document.getElementById("verifyModalSub").textContent = `邮箱验证码已发送至 ${email}`;
   document.getElementById("verifyCodeInput").value = "";
   hideVerifyError();
+  if (modal.parentNode !== document.body) document.body.appendChild(modal);
   modal.hidden = false;
   document.getElementById("verifyCodeInput").focus();
 }

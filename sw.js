@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v126";
+const CACHE = "1042-pwa-v127";
 const SHELL = [
   "/",
   "/index.html",
@@ -15,6 +15,8 @@ const SHELL = [
   "/js/featurePage.css",
   "/js/featurePage.css?v=7",
   "/js/featurePage.css?v=8",
+  "/js/featurePage.css?v=9",
+  "/js/portalModal.js?v=1",
   "/js/navBack.js?v=1",
   "/js/navBack.js?v=2",
   "/js/navBack.js?v=3",
@@ -35,8 +37,10 @@ const SHELL = [
   "/game/register/",
   "/game/register/index.html",
   "/game/register/auth.css?v=7",
+  "/game/register/auth.css?v=8",
   "/game/register/auth.js?v=15",
   "/game/register/auth.js?v=16",
+  "/game/register/auth.js?v=17",
   "/game/paddlemaze/",
   "/game/paddlemaze/index.html",
   "/game/paddlemaze/game.css?v=27",
@@ -70,10 +74,12 @@ const SHELL = [
   "/rooms/index.html",
   "/rooms/rooms.css?v=3",
   "/rooms/rooms.css?v=4",
+  "/rooms/rooms.css?v=5",
   "/rooms/rooms.js?v=4",
   "/rooms/rooms.js?v=5",
   "/rooms/rooms.js?v=6",
   "/rooms/rooms.js?v=7",
+  "/rooms/rooms.js?v=8",
   "/rooms/copy.js?v=3",
   "/rooms/copy.js?v=4",
   "/rooms/copy.js?v=5",

@@ -8,9 +8,9 @@
   <style>html,body{background:#f2f2f7}</style>
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
-  <link rel="stylesheet" href="/js/featurePage.css?v=8">
+  <link rel="stylesheet" href="/js/featurePage.css?v=9">
   <link rel="stylesheet" href="/js/accountChrome.css?v=2">
-  <link rel="stylesheet" href="rooms.css?v=4">
+  <link rel="stylesheet" href="rooms.css?v=5">
 </head>
 <body class="feature-page">
   <div class="feature-shell">
@@ -31,6 +31,15 @@
       </div>
     </div>
   </div>
-  <script type="module" src="rooms.js?v=7"></script>
+  <div class="portal-modal" id="closeAsk" hidden>
+    <div class="portal-modal-card">
+      <p id="closeAskText"></p>
+      <div class="rooms-actions">
+        <button type="button" class="btn-secondary" id="closeNo"></button>
+        <button type="button" class="btn-danger" id="closeYes"></button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="rooms.js?v=8"></script>
 </body>
 </html>
