@@ -11,6 +11,8 @@ import {
   BOOST_MUL,
   START_SPEED,
   MIN_INWARD_RATIO,
+  SEPARATE_MUL,
+  SEPARATE_GAP,
   applyBoost,
   integrateFighter,
   armWeapon,
@@ -38,8 +40,12 @@ test("avatar picker only returns catalog faces and never the used one", () => {
 
 test("weapon icons are 80 percent of the avatar size", () => {
   assert.equal(WEAPON_ICON_PX, Math.round(AVATAR_PX * 0.8));
-  assert.match(WEAPONS.pistol.icon, /\/icons\/weapon\/pistol\.png$/);
-  assert.match(WEAPONS.pistol.svg, /\/icons\/weapon\/pistol\.svg$/);
+  assert.match(WEAPONS.pistol.svg, /\/icons\/weapon\/glock\.svg$/);
+  assert.match(WEAPONS.pistol.icon, /\/icons\/weapon\/glock\.png$/);
+  assert.match(WEAPONS.shotgun.svg, /\/icons\/weapon\/sg\.svg$/);
+  assert.match(WEAPONS.ak.svg, /\/icons\/weapon\/ak\.svg$/);
+  assert.match(WEAPONS.rpg.svg, /\/icons\/weapon\/rpg\.svg$/);
+  assert.match(WEAPONS.knife.svg, /\/icons\/weapon\/knife\.svg$/);
   assert.equal("heart" in WEAPONS, false);
   assert.equal("boost" in WEAPONS, false);
 });
@@ -100,6 +106,13 @@ test("fighters bounce apart and shots knock the target back", () => {
   match.foe.vx = -20;
   bounceFighters(match.player, match.foe);
   assert.ok(match.player.x < match.foe.x);
+  assert.ok(match.player.vx < 0);
+  assert.ok(match.foe.vx > 0);
+  assert.ok(Math.hypot(match.foe.x - match.player.x, match.foe.y - match.player.y) >= match.player.r + match.foe.r + SEPARATE_GAP - 1);
+  assert.ok(Math.abs(Math.hypot(match.player.vx, match.player.vy) - START_SPEED * SEPARATE_MUL) < 0.02);
+  const vx1 = match.player.vx;
+  bounceFighters(match.player, match.foe);
+  assert.equal(match.player.vx, vx1);
 
   match.shots.push({
     owner: "player", kind: "pistol", x: match.foe.x, y: match.foe.y,

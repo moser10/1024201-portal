@@ -4,13 +4,19 @@ import { extname, join } from "node:path";
 
 const ROOT = join(process.cwd(), "icons", "weapon");
 const SIZE = 256;
-const KINDS = ["pistol", "ak", "rpg", "knife", "shotgun"];
+const KIND_FILE = {
+  pistol: "glock",
+  ak: "ak",
+  rpg: "rpg",
+  knife: "knife",
+  shotgun: "sg",
+};
 const ALIAS = {
-  pistol: ["pistol", "gun", "handgun", "手枪"],
+  pistol: ["glock", "pistol", "gun", "handgun", "手枪"],
   ak: ["ak", "ak47", "rifle", "突击", "步枪"],
   rpg: ["rpg", "rocket", "火箭"],
   knife: ["knife", "blade", "刀"],
-  shotgun: ["shotgun", "霰弹", "散弹"],
+  shotgun: ["sg", "shotgun", "霰弹", "散弹"],
 };
 
 function stemOf(name) {
@@ -19,8 +25,8 @@ function stemOf(name) {
 
 function kindFor(file) {
   const stem = stemOf(file);
-  for (const kind of KINDS) {
-    if (stem === kind || ALIAS[kind].some((alias) => stem.includes(alias))) return kind;
+  for (const [kind, aliases] of Object.entries(ALIAS)) {
+    if (stem === KIND_FILE[kind] || aliases.some((alias) => stem === alias || stem.includes(alias))) return kind;
   }
   return null;
 }
@@ -59,11 +65,11 @@ for (const file of svgs) {
   }
   const svgText = await readFile(join(ROOT, file), "utf8");
   const png = await rasterize(svgText);
-  const dest = join(ROOT, `${kind}.png`);
+  const dest = join(ROOT, `${KIND_FILE[kind]}.png`);
   await writeFile(dest, png);
   used.add(kind);
-  console.log(`converted ${file} -> ${kind}.png (${png.length} bytes)`);
+  console.log(`converted ${file} -> ${KIND_FILE[kind]}.png (${png.length} bytes)`);
 }
 
-const missing = KINDS.filter((kind) => !used.has(kind));
+const missing = Object.keys(KIND_FILE).filter((kind) => !used.has(kind));
 if (missing.length) console.warn(`no svg for: ${missing.join(", ")}`);
