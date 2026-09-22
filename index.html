@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="1042">
     <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="/icons/apps/logo.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -54,6 +55,34 @@
             padding: 12px 14px;
             border-radius: 14px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+
+        .widget-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .disc-mini {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: block;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
+        }
+
+        .widget-head .zone-date {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: 0;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .widget-head .widget-label {
+            margin-bottom: 0;
         }
 
         .time-zones { width: 100%; }
@@ -166,7 +195,7 @@
             flex-shrink: 0;
             gap: 6px;
             min-width: 150px;
-            min-height: 68px;
+            min-height: 78px;
         }
 
         main {
@@ -192,15 +221,27 @@
         .portal-brand-block {
             position: relative;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             width: 100%;
             min-height: 64px;
             margin-bottom: 40px;
-            overflow: hidden;
+            overflow: visible;
             pointer-events: none;
             user-select: none;
             -webkit-user-select: none;
+            gap: 10px;
+        }
+
+        .portal-logo {
+            position: relative;
+            z-index: 1;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: block;
+            box-shadow: 0 8px 24px rgba(20, 22, 40, 0.18);
         }
 
         .portal-brand-block a {
@@ -289,8 +330,8 @@
 
         footer { font-size: 12px; color: var(--ios-text-secondary); padding: 10px 0; position: relative; z-index: 1; }
 
-        #userBarSlot { min-height: 31px; display: flex; align-items: center; justify-content: center; }
-        #langSlot { min-height: 31px; }
+        #userBarSlot { min-height: 36px; display: flex; align-items: center; justify-content: center; }
+        #langSlot { min-height: 36px; }
         #userBarSlot .user-bar { align-items: center; }
 
         @media (max-width: 768px) {
@@ -338,6 +379,11 @@
                 margin-bottom: 32px;
             }
 
+            .portal-logo {
+                width: 56px;
+                height: 56px;
+            }
+
             .portal-watermark {
                 font-size: clamp(76px, 22vw, 128px);
                 opacity: 0.085;
@@ -371,14 +417,17 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="/js/langTabs.css">
-    <link rel="stylesheet" href="/game/css/userBar.css?v=6">
+    <link rel="stylesheet" href="/js/langTabs.css?v=2">
+    <link rel="stylesheet" href="/game/css/userBar.css?v=9">
 </head>
 <body>
     <header>
         <div class="sidebar-widgets">
             <div class="widget-card time-zones">
-                <div class="zone-date" id="zoneDate">--</div>
+                <div class="widget-head">
+                    <img class="disc-mini" src="/icons/apps/clock.svg" alt="">
+                    <div class="zone-date" id="zoneDate">--</div>
+                </div>
                 <ul class="zone-list">
                     <li class="zone-row" data-zone="us" data-tz="America/Los_Angeles" data-color="#5856d6">
                         <span class="zone-label" id="lbl-us">LA, US</span>
@@ -400,7 +449,10 @@
             </div>
 
             <div class="widget-card device-widget">
-                <div class="widget-label" id="locTitle">IP</div>
+                <div class="widget-head">
+                    <img class="disc-mini" src="/icons/apps/ip.svg" alt="">
+                    <div class="widget-label" id="locTitle">IP</div>
+                </div>
                 <div id="ipWidget">
                     <div class="ip-line is-loading" id="deviceLocation">Locating…</div>
                     <div class="ip-tags" id="ipTags" hidden></div>
@@ -428,6 +480,7 @@
         <div class="portal-hero">
             <div class="portal-brand-block">
                 <div class="portal-watermark" aria-hidden="true"><span x-apple-data-detectors="false">1024201</span></div>
+                <img class="portal-logo" src="/icons/apps/logo.svg" alt="">
                 <h1 class="portal-brand"><span x-apple-data-detectors="false">1024201</span></h1>
             </div>
             <div class="app-grid">
@@ -461,10 +514,11 @@
                     </div>
                     <div class="app-label" id="app-blog">Blog</div>
                 </a>
-                <!-- reserved 6th quadrant -->
-                <div class="app-item is-slot" aria-hidden="true">
-                    <div class="app-icon"></div>
-                    <div class="app-label">&nbsp;</div>
+                <div class="app-item" aria-hidden="false">
+                    <div class="app-icon icon-logo">
+                        <img src="/icons/apps/logo.svg" alt="">
+                    </div>
+                    <div class="app-label" id="app-logo">1024201</div>
                 </div>
             </div>
         </div>
@@ -558,7 +612,7 @@
             applyI18n(lang);
             localStorage.setItem('portal_lang', lang);
             setLangActive(lang);
-            import('/game/js/userBar.js?v=8').then(({ mountUserBar }) => {
+            import('/game/js/userBar.js?v=9').then(({ mountUserBar }) => {
                 mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '/', showHint: true });
             });
             updateClocks();
@@ -720,7 +774,7 @@
         idle(() => loadDeviceLocation(), { timeout: 2500 });
 
         window.addEventListener('pageshow', () => {
-            import('/game/js/userBar.js?v=8').then(({ mountUserBar }) => {
+            import('/game/js/userBar.js?v=9').then(({ mountUserBar }) => {
                 mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '/', showHint: true });
             });
         });
@@ -730,15 +784,15 @@
             const groups = [
                 {
                     link: 'appBlogLink',
-                    urls: ['/blog/', '/blog/blog.css?v=5', '/blog/blog-app.js?v=3', '/js/featurePage.css?v=3']
+                    urls: ['/blog/', '/blog/blog.css?v=6', '/blog/blog-app.js?v=3', '/js/featurePage.css?v=4']
                 },
                 {
                     link: 'appGameLink',
-                    urls: ['/game/', '/game/css/hub.css?v=4', '/game/js/hub.js?v=3', '/js/accountChrome.js', '/js/langTabs.js']
+                    urls: ['/game/', '/game/css/hub.css?v=10', '/game/js/hub.js?v=5', '/js/accountChrome.js?v=2', '/js/langTabs.js', '/js/langTabs.css?v=2']
                 },
                 {
                     link: 'appToolsLink',
-                    urls: ['/tools/', '/game/css/hub.css?v=4', '/tools/css/icons.css', '/tools/js/hub.js?v=6', '/js/accountChrome.js', '/js/langTabs.js']
+                    urls: ['/tools/', '/game/css/hub.css?v=10', '/tools/css/icons.css', '/tools/js/hub.js?v=6', '/js/accountChrome.js?v=2', '/js/langTabs.js']
                 }
             ];
             function prefetch(url) {

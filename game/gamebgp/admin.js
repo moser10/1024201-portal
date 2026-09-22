@@ -155,7 +155,7 @@ function renderLogin(errorMsg = "") {
     <div class="login-wrap">
       <div class="card login-card">
         <div class="title-row">
-          <img class="site-logo" src="/icons/icon-192.png" width="44" height="44" alt="">
+          <img class="site-logo" src="/icons/apps/logo.svg" width="44" height="44" alt="">
           <h1>管理后台</h1>
         </div>
         <p class="sub">门户与游戏数据管理。会话 12 小时有效。</p>
@@ -718,7 +718,7 @@ function paintShell() {
     <div class="wrap">
       <div class="topbar">
         <div class="title-row">
-          <img class="site-logo" src="/icons/icon-192.png" width="48" height="48" alt="">
+          <img class="site-logo" src="/icons/apps/logo.svg" width="48" height="48" alt="">
           <div class="title-text">
             <h1>管理后台</h1>
             <p class="user-line">${esc(state.me.username)}</p>

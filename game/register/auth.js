@@ -64,6 +64,7 @@ function renderShell() {
       <div id="accountChrome"></div>
     </div>
   <div class="card">
+    <img class="auth-logo" src="/icons/apps/logo.svg" alt="">
     <h1>注册账户</h1>
     <p class="sub">一票通</p>
     <div class="tabs">

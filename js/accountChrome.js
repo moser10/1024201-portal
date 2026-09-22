@@ -29,8 +29,7 @@ function buildLoginUrl(returnPath) {
   return `/game/register/?return=${encodeURIComponent(ret)}`;
 }
 
-const PERSON_SVG =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+const LOGIN_IMG = '<img src="/icons/apps/login.svg" alt="">';
 
 /**
  * Unified language tabs + user control.
@@ -57,7 +56,7 @@ export function mountAccountChrome(container, options = {}) {
     guestBtn.href = buildLoginUrl(returnPath);
     guestBtn.title = "登录 / Sign in";
     guestBtn.setAttribute("aria-label", "Sign in");
-    guestBtn.innerHTML = PERSON_SVG;
+    guestBtn.innerHTML = LOGIN_IMG;
     group.append(langSlot, guestBtn);
     container.appendChild(group);
 

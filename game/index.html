@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="1042">
     <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="/icons/apps/logo.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -15,11 +16,11 @@
     <style>html,body{background:#f2f2f7}body{margin:0}</style>
     <link rel="modulepreload" href="/js/langTabs.js">
     <link rel="modulepreload" href="/js/accountChrome.js">
-    <link rel="stylesheet" href="css/hub.css?v=9">
-    <link rel="stylesheet" href="/js/featurePage.css?v=3">
-    <link rel="stylesheet" href="/js/langTabs.css">
-    <link rel="stylesheet" href="/js/accountChrome.css">
-    <link rel="stylesheet" href="css/userBar.css?v=7">
+    <link rel="stylesheet" href="css/hub.css?v=10">
+    <link rel="stylesheet" href="/js/featurePage.css?v=4">
+    <link rel="stylesheet" href="/js/langTabs.css?v=2">
+    <link rel="stylesheet" href="/js/accountChrome.css?v=2">
+    <link rel="stylesheet" href="css/userBar.css?v=9">
 </head>
 <body>
     <div id="app">
@@ -28,7 +29,10 @@
           <a href="/" class="feature-back" id="hubBack">Back to portal</a>
           <div id="hubAccountChrome" class="hub-account-slot"></div>
         </div>
-        <h1 id="hubTitle">游戏中心</h1>
+        <div class="page-mark-row">
+          <img class="page-mark" src="/icons/apps/game.svg" alt="">
+          <h1 id="hubTitle">游戏中心</h1>
+        </div>
         <div class="grid" id="gameGrid">
           <a class="game-card" href="onesentence/" data-href="onesentence/" data-id="osn">
             <div class="game-icon"><img src="/icons/apps/osn.svg" alt=""></div>

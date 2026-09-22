@@ -410,12 +410,29 @@ html.blog-page body {
   white-space: nowrap;
 }
 
+.blog-article-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+
+.blog-article-title .page-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: block;
+  flex-shrink: 0;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
+}
+
 .blog-article h1 {
   font-size: clamp(26px, 5vw, 34px);
   font-weight: 720;
   letter-spacing: -0.03em;
   line-height: 1.2;
-  margin: 0 0 12px;
+  margin: 0;
 }
 
 .blog-article-meta {
