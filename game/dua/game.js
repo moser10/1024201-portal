@@ -1,6 +1,7 @@
 import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=11";
 import { duaCopy } from "./copy.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
+import { AIM_REACH, STICK_TRAVEL, STICK_DEADZONE, clampStick, aimFromDir, lerpToward, haptic } from "./stick.js?v=1";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -19,6 +20,7 @@ const weaponArt = document.getElementById("weaponArt");
 const aimHint = document.getElementById("aimHint");
 const stick = document.getElementById("stick");
 const stickKnob = document.getElementById("stickKnob");
+const controlZone = document.getElementById("controlZone");
 const gameBack = document.getElementById("gameBack");
 
 const W = canvas.width;
@@ -55,11 +57,18 @@ let paused = false;
 let lastTime = 0;
 let animationId = 0;
 let aiming = false;
+let lastNx = 1;
+let lastNy = 0;
 let aimX = match.foe.x;
 let aimY = match.foe.y;
 let fireOnce = false;
 let fireQueue = 0;
 let overlayMode = "pick";
+let knobX = 0;
+let knobY = 0;
+let knobTx = 0;
+let knobTy = 0;
+let stickPointer = null;
 
 function heartsRow(count, glyph) {
   return Array.from({ length: 10 }, (_, i) => (i < count ? glyph : "🖤")).join("");
@@ -146,14 +155,33 @@ function paintAvatars() {
   }
 }
 
+function faceFoe() {
+  const dx = match.foe.x - match.player.x;
+  const dy = match.foe.y - match.player.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  lastNx = dx / dist;
+  lastNy = dy / dist;
+  applyAim();
+}
+
+function applyAim() {
+  const pt = aimFromDir(match.player.x, match.player.y, lastNx, lastNy);
+  aimX = pt.x;
+  aimY = pt.y;
+}
+
 function resetMatch() {
   const foe = pickAvatar(chosenFace);
   match = createMatch({ w: W, h: H }, { player: chosenFace, foe });
-  aimX = match.foe.x;
-  aimY = match.foe.y;
   fireOnce = false;
   fireQueue = 0;
   aiming = false;
+  stickPointer = null;
+  knobX = 0;
+  knobY = 0;
+  knobTx = 0;
+  knobTy = 0;
+  faceFoe();
   setKnob(0, 0);
   syncHud();
 }
@@ -167,17 +195,34 @@ function drawEmoji(x, y, glyph, font) {
 
 function drawAim() {
   if (!running || paused) return;
-  const dx = aimX - match.player.x;
-  const dy = aimY - match.player.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  ctx.strokeStyle = "rgba(255,255,255,.35)";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([6, 6]);
-  ctx.beginPath();
-  ctx.moveTo(match.player.x, match.player.y);
-  ctx.lineTo(match.player.x + (dx / dist) * 70, match.player.y + (dy / dist) * 70);
-  ctx.stroke();
+  applyAim();
+  const reach = Math.min(AIM_REACH, match.arena.r * 0.9);
+  const x0 = match.player.x;
+  const y0 = match.player.y;
+  const x1 = x0 + lastNx * reach;
+  const y1 = y0 + lastNy * reach;
   ctx.setLineDash([]);
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(240,196,76,.32)";
+  ctx.lineWidth = 11;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+  ctx.strokeStyle = "#F0C44C";
+  ctx.lineWidth = 3.6;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+  ctx.fillStyle = "#E07A3D";
+  ctx.beginPath();
+  ctx.arc(x1, y1, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#F0C44C";
+  ctx.beginPath();
+  ctx.arc(x1, y1, 2.4, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function pickupGlyph(kind) {
@@ -264,12 +309,18 @@ function draw() {
 }
 
 function update(dt) {
+  applyAim();
+  const hp = match.player.hearts;
+  const cd = match.player.cooldown;
+  const burst = match.player.burstLeft || 0;
   const over = stepMatch(match, dt, {
     fire: fireOnce,
     queuedFire: fireQueue > 0,
     aimX,
     aimY,
   });
+  if (match.player.hearts < hp) haptic("hit");
+  if (match.player.cooldown > cd || (match.player.burstLeft || 0) > burst) haptic("fire");
   if (fireOnce || fireQueue > 0) {
     if (!canFire(match.player) && match.player.weapon) fireQueue = 0;
     else if (match.player.cooldown > 0) fireQueue = 0;
@@ -292,6 +343,7 @@ function loop(time) {
     return;
   }
   const dt = Math.min(0.04, rawDt);
+  tickKnob(dt);
   if (running && !paused) update(dt);
   draw();
   animationId = requestAnimationFrame(loop);
@@ -299,6 +351,16 @@ function loop(time) {
 
 function setKnob(dx, dy) {
   stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+
+function tickKnob(dt) {
+  knobX = lerpToward(knobX, knobTx, dt);
+  knobY = lerpToward(knobY, knobTy, dt);
+  if (knobTx === 0 && knobTy === 0 && Math.hypot(knobX, knobY) < 0.2) {
+    knobX = 0;
+    knobY = 0;
+  }
+  setKnob(knobX, knobY);
 }
 
 function stickDelta(e) {
@@ -311,38 +373,52 @@ function stickDelta(e) {
 
 function aimFromStick(dx, dy) {
   const dist = Math.hypot(dx, dy);
-  if (dist < 6) return;
-  const nx = dx / dist;
-  const ny = dy / dist;
-  const cap = Math.min(dist, STICK_R);
-  setKnob(nx * cap, ny * cap);
-  aimX = match.player.x + nx * 240;
-  aimY = match.player.y + ny * 240;
-  aiming = true;
+  const cap = Math.min(dist, STICK_TRAVEL);
+  const nx = dist > 0.0001 ? dx / dist : lastNx;
+  const ny = dist > 0.0001 ? dy / dist : lastNy;
+  knobTx = Number.isFinite(nx * cap) ? nx * cap : 0;
+  knobTy = Number.isFinite(ny * cap) ? ny * cap : 0;
+  const s = clampStick(dx, dy, STICK_TRAVEL, STICK_DEADZONE);
+  if (s.aiming) {
+    lastNx = s.nx;
+    lastNy = s.ny;
+  }
+  applyAim();
 }
 
-stick.addEventListener("pointerdown", (e) => {
+function onStickDown(e) {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
   e.preventDefault();
   aiming = true;
-  const d = stickDelta(e);
-  aimFromStick(d.x, d.y);
-  stick.setPointerCapture?.(e.pointerId);
-});
-stick.addEventListener("pointermove", (e) => {
-  if (!aiming) return;
-  const d = stickDelta(e);
-  aimFromStick(d.x, d.y);
-});
-function releaseStick() {
+  stickPointer = e.pointerId;
+  (controlZone || stick).setPointerCapture?.(e.pointerId);
+  aimFromStick(stickDelta(e).x, stickDelta(e).y);
+}
+
+function onStickMove(e) {
+  if (!aiming || (stickPointer != null && e.pointerId !== stickPointer)) return;
+  e.preventDefault();
+  aimFromStick(stickDelta(e).x, stickDelta(e).y);
+}
+
+function releaseStick(e) {
+  if (e && stickPointer != null && e.pointerId !== stickPointer) return;
   if (!aiming) return;
   aiming = false;
-  setKnob(0, 0);
+  stickPointer = null;
+  knobTx = 0;
+  knobTy = 0;
+  applyAim();
   if (!running || paused) return;
   if (canFire(match.player)) fireOnce = true;
   else fireQueue = 0.45;
 }
-stick.addEventListener("pointerup", releaseStick);
-stick.addEventListener("pointercancel", releaseStick);
+
+const stickSurface = controlZone || stick;
+stickSurface.addEventListener("pointerdown", onStickDown, { passive: false });
+stickSurface.addEventListener("pointermove", onStickMove, { passive: false });
+stickSurface.addEventListener("pointerup", releaseStick);
+stickSurface.addEventListener("pointercancel", releaseStick);
 
 function blockSystemGesture(e) { e.preventDefault(); }
 ["contextmenu", "selectstart", "dragstart", "gesturestart", "dblclick"].forEach((type) => {

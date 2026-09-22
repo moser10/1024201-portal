@@ -235,33 +235,36 @@ canvas {
 
 .stick {
   position: relative;
-  width: 132px;
-  height: 132px;
+  width: 168px;
+  height: 168px;
   touch-action: none;
 }
 
 .stick-base {
   width: 100%;
   height: 100%;
-  border: 2px solid #3a3a48;
+  border: 2px solid #F0C44C;
   border-radius: 50%;
   background: radial-gradient(circle at 50% 42%, #1b1b24, #0b0b10);
+  box-shadow: inset 0 0 0 10px rgba(240, 196, 76, .08);
 }
 
 .stick-knob {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 52px;
-  height: 52px;
-  margin: -26px 0 0 -26px;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
   border-radius: 50%;
   background: #4a4a58;
   box-shadow: 0 6px 16px rgba(0, 0, 0, .4);
   pointer-events: none;
+  will-change: transform;
+  transition: none;
 }
 
-.stick.armed .stick-knob { background: #0a84ff; }
+.stick.armed .stick-knob { background: #E07A3D; }
 
 @media (max-width: 620px) {
   .game-shell { padding-left: 6px; padding-right: 6px; }

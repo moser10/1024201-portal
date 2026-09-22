@@ -28,6 +28,7 @@ import {
   triggerWeapon,
 } from "./duel.js";
 import { DUA_COPY } from "./copy.js";
+import { STICK_TRAVEL, clampStick, aimFromDir, lerpToward, haptic } from "./stick.js";
 
 test("avatar picker only returns catalog faces and never the used one", () => {
   assert.ok(AVATARS.length >= 8);
@@ -246,4 +247,40 @@ test("a second hit on the same rim bin drifts about five degrees", () => {
   const a2 = Math.atan2(f.vy, f.vx);
   const gap = Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1)));
   assert.ok(gap > 0.06 && gap < 0.12, `gap=${gap}`);
+});
+
+test("stick travel is finite so the knob never becomes NaN", () => {
+  assert.ok(STICK_TRAVEL > 20);
+  const stuck = clampStick(40, 0, Number.NaN, 8);
+  assert.equal(stuck.aiming, false);
+  assert.equal(Number.isNaN(stuck.cap), false);
+  const ok = clampStick(80, 0);
+  assert.equal(ok.aiming, true);
+  assert.equal(ok.nx, 1);
+  assert.equal(ok.cap, STICK_TRAVEL);
+  const dead = clampStick(2, 1);
+  assert.equal(dead.aiming, false);
+});
+
+test("aim and fire use the last stick direction", () => {
+  const match = createMatch();
+  match.player.x = 450;
+  match.player.y = 450;
+  const aim = aimFromDir(match.player.x, match.player.y, 0, -1);
+  armWeapon(match.player, "pistol");
+  assert.ok(triggerWeapon(match, match.player, aim.x, aim.y));
+  const shot = match.shots[0];
+  assert.ok(shot.vy < -10);
+  assert.ok(Math.abs(shot.vx) < 20);
+});
+
+test("knob lerp eases toward the finger and haptic patterns are distinct", () => {
+  const mid = lerpToward(0, 52, 1 / 60);
+  assert.ok(mid > 5 && mid < 30);
+  const calls = [];
+  haptic("fire", (pat) => calls.push(pat));
+  haptic("hit", (pat) => calls.push(pat));
+  assert.equal(calls[0], 18);
+  assert.ok(Array.isArray(calls[1]));
+  assert.ok(calls[1][2] > calls[0]);
 });
