@@ -144,7 +144,9 @@ async function boot() {
   document.getElementById("backLink").textContent = ui.back;
 
   const editBtn = document.getElementById("editBtn");
+  const editBar = document.getElementById("editBar");
   if (editBtn && data.is_owner) {
+    if (editBar) editBar.hidden = false;
     editBtn.hidden = false;
     editBtn.textContent = ui.edit;
     editBtn.onclick = () => {

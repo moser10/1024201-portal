@@ -94,6 +94,9 @@ html.feature-page body {
   padding: 2px 0 6px;
 }
 
+/* feature-top is Back + language/account chrome only.
+   Extra actions in this row sit against the vertical lang stack on desktop. */
+
 .feature-card {
   flex: 1;
   min-height: 0;

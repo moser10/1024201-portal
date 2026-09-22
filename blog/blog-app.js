@@ -549,8 +549,10 @@ function paintReader(data) {
   document.getElementById("readBodyEl").innerHTML = `${updatedBlock}${bodyHtml}`;
 
   const editBtn = document.getElementById("readEditBtn");
+  const toolbar = document.getElementById("readToolbar");
   const owner = data?.is_owner !== false && !!getUser()?.id;
   editBtn.hidden = !owner;
+  if (toolbar) toolbar.hidden = !owner;
   editBtn.textContent = ui.edit;
 
   wireLikeBar(data);

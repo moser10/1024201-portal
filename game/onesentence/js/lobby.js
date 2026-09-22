@@ -26,7 +26,7 @@ export function renderLobby(app, onEnterRoom, game) {
           <p class="game-brand">${game.nameEn}</p>
           <h1>${game.lobbyTitle}</h1>
         </div>
-        <div class="row header-lang-row" style="margin:0;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;">
+        <div class="header-actions">
           <div id="lobbyLangSlot"></div>
           <div id="lobbyUserBar"></div>
           <button type="button" id="leaveLobbyBtn" class="btn-secondary btn-small">${portalBack}</button>

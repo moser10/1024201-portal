@@ -76,6 +76,10 @@ html.blog-page body {
   margin: 8px 0 16px;
 }
 
+.blog-article .blog-toolbar {
+  margin: 0 0 22px;
+}
+
 .btn-primary,
 .btn-secondary,
 .btn-ghost,
@@ -402,16 +406,10 @@ html.blog-page body {
   box-shadow: 0 8px 28px rgba(20, 22, 40, 0.06);
 }
 
-.blog-read-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .blog-article-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   margin-bottom: 22px;
 }

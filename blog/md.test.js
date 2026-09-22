@@ -37,6 +37,13 @@ test("read uses \\?id= and edit uses \\?edit= or \\?new=1", () => {
   assert.match(html, /\/blog\/\?edit=/);
 });
 
+test("reader keeps Edit out of the top chrome cluster", () => {
+  assert.match(html, /id="readToolbar"/);
+  assert.equal(html.includes("blog-read-actions"), false);
+  const readTop = html.slice(html.indexOf('id="readView"'), html.indexOf('id="readArticle"'));
+  assert.equal(readTop.includes("readEditBtn"), false);
+});
+
 test("reader uses StackEdit-like serif markdown type", () => {
   assert.match(css, /\.blog-md\s*\{[^}]*Georgia/s);
   assert.match(css, /\.blog-textarea-md/);

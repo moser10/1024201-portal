@@ -14,9 +14,9 @@
   </style>
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="modulepreload" href="md.js">
-  <link rel="stylesheet" href="/js/langTabs.css?v=4">
+  <link rel="stylesheet" href="/js/langTabs.css?v=5">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="blog.css?v=10">
+  <link rel="stylesheet" href="blog.css?v=11">
 </head>
 <body class="feature-page blog-page" data-tool="blog">
   <div class="feature-shell">
@@ -53,19 +53,19 @@
 
       <!-- READER — StackEdit-style markdown page -->
       <section id="readView" class="blog-view" hidden>
+        <div class="feature-top">
+          <button type="button" class="feature-back" id="readBackBtn">Back</button>
+          <div id="readLangSlot"></div>
+        </div>
         <article class="blog-article" id="readArticle">
-          <div class="blog-article-top">
-            <button type="button" class="feature-back" id="readBackBtn">Back</button>
-            <div class="blog-read-actions">
-              <div id="readLangSlot"></div>
-              <button type="button" class="btn-primary" id="readEditBtn" hidden>Edit</button>
-            </div>
-          </div>
           <div class="page-mark-row blog-article-title">
             <img class="page-mark" src="/icons/apps/blog.svg" alt="">
             <h1 id="readTitleEl"></h1>
           </div>
           <div class="blog-article-meta" id="readMetaEl"></div>
+          <div class="blog-toolbar" id="readToolbar" hidden>
+            <button type="button" class="btn-primary" id="readEditBtn">Edit</button>
+          </div>
           <p class="blog-loading" id="readLoading" hidden></p>
           <div class="blog-md" id="readBodyEl"></div>
           <div class="blog-like-bar" id="readLikeBar" hidden>
@@ -186,6 +186,7 @@
         listView.hidden = true;
         readView.hidden = false;
         editView.hidden = true;
+        document.getElementById("readToolbar").hidden = false;
         document.getElementById("readEditBtn").hidden = false;
         try {
           var raw = sessionStorage.getItem("blog_doc_v2:" + id);
@@ -273,7 +274,7 @@
       document.documentElement.classList.remove("blog-booting");
     })();
   </script>
-  <script type="module" src="blog-app.js?v=4"></script>
+  <script type="module" src="blog-app.js?v=5"></script>
   <script src="/js/edgeBack.js"></script>
 </body>
 </html>
