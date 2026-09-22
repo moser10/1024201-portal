@@ -4,7 +4,7 @@ export const FIGHTER_R = Math.round(28 * 1.3);
 export const AVATAR_PX = FIGHTER_R * 2;
 export const WEAPON_ICON_PX = Math.round(AVATAR_PX * 0.8);
 export const PICKUP_PX = 135;
-export const START_SPEED = 262;
+export const START_SPEED = Math.round(262 * 1.45);
 export const BOOST_MUL = 1.85;
 export const BOOST_TIME = 5.2;
 export const RIM_DRIFT = 5 * Math.PI / 180;
@@ -29,8 +29,8 @@ export const WEAPONS = Object.freeze({
     icon: `${WEAPON_DIR}/pistol.png`, svg: `${WEAPON_DIR}/glock.svg`,
   }),
   ak: Object.freeze({
-    speed: 580, damage: 1, cooldown: 0.9, life: 1.05, r: 4,
-    shots: 2, burst: 3, burstGap: 0.07, spread: 0.07, knock: 190, emoji: "🔫", file: "ak",
+    speed: 620, damage: 1, cooldown: 0.32, life: 1.05, r: 4,
+    shots: 2, burst: 3, spread: 0.05, simultaneous: true, knock: 190, emoji: "🔫", file: "ak",
     icon: `${WEAPON_DIR}/ak.png`, svg: `${WEAPON_DIR}/ak.svg`,
   }),
   rpg: Object.freeze({
@@ -39,8 +39,8 @@ export const WEAPONS = Object.freeze({
     icon: `${WEAPON_DIR}/rpg.png`, svg: `${WEAPON_DIR}/rpg.svg`,
   }),
   knife: Object.freeze({
-    speed: 0, damage: 2, cooldown: 0.2, life: 0.16, r: 18,
-    shots: 1, burst: 1, melee: true, range: 58, knock: 300, emoji: "🔪", file: "knife",
+    speed: 540, damage: 2, cooldown: 0.32, life: 1.2, r: 5,
+    shots: 1, burst: 1, spread: 0, knock: 280, emoji: "🔪", file: "knife",
     icon: `${WEAPON_DIR}/knife.png`, svg: `${WEAPON_DIR}/knife.svg`,
   }),
   shotgun: Object.freeze({
@@ -399,22 +399,6 @@ function spawnBullet(state, fighter, spec, tx, ty, spread = 0) {
   return shot;
 }
 
-function slashKnife(state, fighter, spec, tx, ty) {
-  const other = fighter.id === "player" ? state.foe : state.player;
-  const dx = other.x - fighter.x;
-  const dy = other.y - fighter.y;
-  const dist = Math.hypot(dx, dy);
-  const aim = Math.atan2(ty - fighter.y, tx - fighter.x);
-  const facing = Math.atan2(dy, dx);
-  const gap = Math.atan2(Math.sin(facing - aim), Math.cos(facing - aim));
-  if (dist <= spec.range + other.r && Math.abs(gap) < 0.7) {
-    hurt(other, spec.damage);
-    knockback(other, dx, dy, spec.knock);
-    return true;
-  }
-  return false;
-}
-
 export function triggerWeapon(state, fighter, tx, ty) {
   if (!canFire(fighter)) return null;
   const spec = WEAPONS[fighter.weapon];
@@ -422,28 +406,17 @@ export function triggerWeapon(state, fighter, tx, ty) {
   fighter.ammo -= 1;
   fighter.cooldown = spec.cooldown;
   fighter.aimLock = { x: tx, y: ty };
-  if (spec.melee) {
-    slashKnife(state, fighter, spec, tx, ty);
-    if (fighter.ammo <= 0) fighter.weapon = null;
-    return { kind: "knife" };
-  }
-  if (spec.simultaneous) {
-    const mid = (spec.burst - 1) / 2;
-    for (let i = 0; i < spec.burst; i++) {
-      spawnBullet(state, fighter, spec, tx, ty, (i - mid) * spec.spread);
+  const count = Math.max(1, spec.burst || 1);
+  if (count > 1) {
+    const mid = (count - 1) / 2;
+    for (let i = 0; i < count; i++) {
+      spawnBullet(state, fighter, spec, tx, ty, (i - mid) * (spec.spread || 0));
     }
-    if (fighter.ammo <= 0) fighter.weapon = null;
-    return { kind: fighter.weapon, count: spec.burst };
-  }
-  if (spec.burst > 1) {
+  } else {
     spawnBullet(state, fighter, spec, tx, ty, 0);
-    fighter.burstLeft = spec.burst - 1;
-    fighter.burstGap = spec.burstGap;
-    return { kind: fighter.weapon, count: 1 };
   }
-  spawnBullet(state, fighter, spec, tx, ty, 0);
   if (fighter.ammo <= 0) fighter.weapon = null;
-  return { kind: fighter.weapon, count: 1 };
+  return { kind: fighter.weapon, count };
 }
 
 export function tickBurst(state, fighter, dt) {
@@ -490,11 +463,10 @@ export function cpuAim(state) {
   const foe = state.foe;
   const dist = Math.hypot(state.player.x - foe.x, state.player.y - foe.y);
   const spec = foe.weapon ? WEAPONS[foe.weapon] : null;
-  const range = spec?.melee ? (spec.range + 12) : 320;
   return {
     x: state.player.x,
     y: state.player.y,
-    fire: Boolean(spec) && foe.ammo > 0 && foe.cooldown <= 0 && dist < range,
+    fire: Boolean(spec) && foe.ammo > 0 && foe.cooldown <= 0 && dist < 320,
   };
 }
 

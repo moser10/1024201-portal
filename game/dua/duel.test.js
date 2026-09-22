@@ -28,7 +28,7 @@ import {
   triggerWeapon,
 } from "./duel.js";
 import { DUA_COPY } from "./copy.js";
-import { STICK_TRAVEL, clampStick, aimFromDir, lerpToward, haptic } from "./stick.js";
+import { STICK_TRAVEL, clampStick, aimFromDir, lerpToward } from "./stick.js";
 
 test("avatar picker only returns catalog faces and never the used one", () => {
   assert.ok(AVATARS.length >= 8);
@@ -69,15 +69,24 @@ test("ammo: pistol 5, ak two bursts of 3, rpg 1, knife 1, shotgun two sprays of 
   assert.equal(match.player.weapon, null);
 });
 
-test("AK trigger spends one of two bursts and queues three bullets", () => {
+test("AK trigger spends one of two bursts and fires three bullets at once", () => {
   const match = createMatch();
   armWeapon(match.player, "ak");
   triggerWeapon(match, match.player, match.foe.x, match.foe.y);
-  assert.equal(match.shots.length, 1);
+  assert.equal(match.shots.length, 3);
   assert.equal(match.player.ammo, 1);
-  assert.equal(match.player.burstLeft, 2);
-  stepMatch(match, 0.08, {}, () => 0.5);
-  assert.ok(match.shots.length >= 2);
+  assert.equal(match.player.burstLeft, 0);
+});
+
+test("knife fires one flying shot like the pistol", () => {
+  const match = createMatch();
+  armWeapon(match.player, "knife");
+  assert.equal(WEAPONS.knife.melee, undefined);
+  assert.ok(triggerWeapon(match, match.player, match.foe.x, match.foe.y));
+  assert.equal(match.shots.length, 1);
+  assert.equal(match.shots[0].kind, "knife");
+  assert.ok(match.shots[0].vx !== 0 || match.shots[0].vy !== 0);
+  assert.equal(match.player.weapon, null);
 });
 
 test("shotgun spends one of two shells and sprays three pellets", () => {
@@ -274,13 +283,11 @@ test("aim and fire use the last stick direction", () => {
   assert.ok(Math.abs(shot.vx) < 20);
 });
 
-test("knob lerp eases toward the finger and haptic patterns are distinct", () => {
+test("knob lerp eases toward the finger", () => {
   const mid = lerpToward(0, 52, 1 / 60);
   assert.ok(mid > 5 && mid < 30);
-  const calls = [];
-  haptic("fire", (pat) => calls.push(pat));
-  haptic("hit", (pat) => calls.push(pat));
-  assert.equal(calls[0], 18);
-  assert.ok(Array.isArray(calls[1]));
-  assert.ok(calls[1][2] > calls[0]);
+});
+
+test("cruise speed is 45 percent faster than the previous 262 base", () => {
+  assert.equal(START_SPEED, Math.round(262 * 1.45));
 });

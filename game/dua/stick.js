@@ -26,15 +26,3 @@ export function lerpToward(cur, tgt, dt, snap = KNOB_SNAP) {
   const k = 1 - Math.exp(-snap * Math.max(0, dt));
   return cur + (tgt - cur) * k;
 }
-
-export function haptic(kind, vibe) {
-  const fn = vibe || globalThis.navigator?.vibrate;
-  if (typeof fn !== "function") return false;
-  try {
-    if (kind === "fire") return Boolean(fn.call(globalThis.navigator || {}, 18));
-    if (kind === "hit") return Boolean(fn.call(globalThis.navigator || {}, [14, 32, 36]));
-  } catch {
-    return false;
-  }
-  return false;
-}

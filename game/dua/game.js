@@ -1,7 +1,7 @@
-import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=11";
+import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch, triggerWeapon } from "./duel.js?v=12";
 import { duaCopy } from "./copy.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
-import { AIM_REACH, STICK_TRAVEL, STICK_DEADZONE, clampStick, aimFromDir, lerpToward, haptic } from "./stick.js?v=1";
+import { AIM_REACH, STICK_TRAVEL, STICK_DEADZONE, clampStick, aimFromDir, lerpToward } from "./stick.js?v=2";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -196,33 +196,20 @@ function drawEmoji(x, y, glyph, font) {
 function drawAim() {
   if (!running || paused) return;
   applyAim();
-  const reach = Math.min(AIM_REACH, match.arena.r * 0.9);
+  const reach = Math.min(AIM_REACH, match.arena.r * 0.62);
   const x0 = match.player.x;
   const y0 = match.player.y;
   const x1 = x0 + lastNx * reach;
   const y1 = y0 + lastNy * reach;
-  ctx.setLineDash([]);
   ctx.lineCap = "round";
-  ctx.strokeStyle = "rgba(240,196,76,.32)";
-  ctx.lineWidth = 11;
+  ctx.strokeStyle = "rgba(255,255,255,.42)";
+  ctx.lineWidth = 1.25;
+  ctx.setLineDash([4, 7]);
   ctx.beginPath();
   ctx.moveTo(x0, y0);
   ctx.lineTo(x1, y1);
   ctx.stroke();
-  ctx.strokeStyle = "#F0C44C";
-  ctx.lineWidth = 3.6;
-  ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(x1, y1);
-  ctx.stroke();
-  ctx.fillStyle = "#E07A3D";
-  ctx.beginPath();
-  ctx.arc(x1, y1, 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#F0C44C";
-  ctx.beginPath();
-  ctx.arc(x1, y1, 2.4, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.setLineDash([]);
 }
 
 function pickupGlyph(kind) {
@@ -310,17 +297,12 @@ function draw() {
 
 function update(dt) {
   applyAim();
-  const hp = match.player.hearts;
-  const cd = match.player.cooldown;
-  const burst = match.player.burstLeft || 0;
   const over = stepMatch(match, dt, {
     fire: fireOnce,
     queuedFire: fireQueue > 0,
     aimX,
     aimY,
   });
-  if (match.player.hearts < hp) haptic("hit");
-  if (match.player.cooldown > cd || (match.player.burstLeft || 0) > burst) haptic("fire");
   if (fireOnce || fireQueue > 0) {
     if (!canFire(match.player) && match.player.weapon) fireQueue = 0;
     else if (match.player.cooldown > 0) fireQueue = 0;
@@ -401,6 +383,19 @@ function onStickMove(e) {
   aimFromStick(stickDelta(e).x, stickDelta(e).y);
 }
 
+function tryFireNow() {
+  applyAim();
+  if (!running || paused) return;
+  if (canFire(match.player)) {
+    triggerWeapon(match, match.player, aimX, aimY);
+    fireOnce = false;
+    fireQueue = 0;
+    syncHud();
+    return;
+  }
+  fireQueue = 0.45;
+}
+
 function releaseStick(e) {
   if (e && stickPointer != null && e.pointerId !== stickPointer) return;
   if (!aiming) return;
@@ -408,10 +403,7 @@ function releaseStick(e) {
   stickPointer = null;
   knobTx = 0;
   knobTy = 0;
-  applyAim();
-  if (!running || paused) return;
-  if (canFire(match.player)) fireOnce = true;
-  else fireQueue = 0.45;
+  tryFireNow();
 }
 
 const stickSurface = controlZone || stick;

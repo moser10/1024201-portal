@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v118";
+const CACHE = "1042-pwa-v119";
 const SHELL = [
   "/",
   "/index.html",
@@ -40,10 +40,10 @@ const SHELL = [
   "/game/dua/",
   "/game/dua/index.html",
   "/game/dua/game.css?v=10",
-  "/game/dua/game.js?v=12",
-  "/game/dua/duel.js?v=11",
+  "/game/dua/game.js?v=13",
+  "/game/dua/duel.js?v=12",
   "/game/dua/copy.js?v=4",
-  "/game/dua/stick.js?v=1",
+  "/game/dua/stick.js?v=2",
   "/fx/",
   "/fx/index.html",
   "/fx/fx.css?v=3",
