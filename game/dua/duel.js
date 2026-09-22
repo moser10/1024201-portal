@@ -1,5 +1,5 @@
 export const MAX_HEARTS = 10;
-export const ARENA_R = 360;
+export const ARENA_R = 420;
 export const FIGHTER_R = 28;
 export const AVATAR_PX = FIGHTER_R * 2;
 export const WEAPON_ICON_PX = Math.round(AVATAR_PX * 0.8);
@@ -54,8 +54,13 @@ export function makeFighter(id, x, y, emoji, angle) {
   };
 }
 
-export function createMatch(board = { w: 900, h: 1000 }, faces = {}) {
-  const arena = { x: board.w / 2, y: board.h / 2, r: ARENA_R };
+export function canFire(fighter) {
+  return Boolean(fighter?.weapon && fighter.ammo > 0 && fighter.cooldown <= 0 && fighter.burstLeft <= 0);
+}
+
+export function createMatch(board = { w: 900, h: 900 }, faces = {}) {
+  const side = Math.min(board.w, board.h);
+  const arena = { x: board.w / 2, y: board.h / 2, r: Math.min(ARENA_R, side / 2 - 18) };
   const playerEmoji = faces.player && AVATARS.includes(faces.player) ? faces.player : AVATARS[0];
   const foeEmoji = faces.foe && faces.foe !== playerEmoji ? faces.foe : pickAvatar(playerEmoji);
   return {
@@ -210,7 +215,7 @@ function slashKnife(state, fighter, spec, tx, ty) {
 }
 
 export function triggerWeapon(state, fighter, tx, ty) {
-  if (!fighter.weapon || fighter.cooldown > 0 || fighter.ammo <= 0 || fighter.burstLeft > 0) return null;
+  if (!canFire(fighter)) return null;
   const spec = WEAPONS[fighter.weapon];
   if (!spec) return null;
   fighter.ammo -= 1;

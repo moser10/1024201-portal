@@ -11,12 +11,14 @@ import {
   armWeapon,
   bounceArena,
   bounceFighters,
+  canFire,
   createMatch,
   pickAvatar,
   stepMatch,
   stepShots,
   triggerWeapon,
 } from "./duel.js";
+import { DUA_COPY } from "./copy.js";
 
 test("avatar picker only returns catalog faces and never the used one", () => {
   assert.ok(AVATARS.length >= 8);
@@ -109,10 +111,27 @@ test("aim input does not steer the body, only weapons fire", () => {
   assert.equal(match.player.y, y + match.player.vy * 0.016);
 });
 
-test("spec documents physics-only movement and avatar pick", () => {
+test("unarmed fighters cannot fire", () => {
+  const match = createMatch();
+  assert.equal(canFire(match.player), false);
+  assert.equal(triggerWeapon(match, match.player, match.foe.x, match.foe.y), null);
+  assert.equal(match.shots.length, 0);
+});
+
+test("default board is a square so the ring stays a circle", () => {
+  const match = createMatch();
+  assert.equal(match.arena.x * 2, 900);
+  assert.equal(match.arena.y * 2, 900);
+  assert.ok(match.arena.r <= 450);
+});
+
+test("aim hint exists in the three portal languages", () => {
+  for (const lang of ["zh", "en", "ja"]) {
+    assert.ok(DUA_COPY[lang].hint.length > 8);
+  }
   const dir = dirname(fileURLToPath(import.meta.url));
   const spec = readFileSync(join(dir, "../../docs/dua.md"), "utf8");
   assert.match(spec, /头像/);
-  assert.match(spec, /物理反射/);
-  assert.match(spec, /不能控制路径/);
+  assert.match(spec, /遥杆|摇杆/);
+  assert.match(spec, /正圆|纯圆/);
 });

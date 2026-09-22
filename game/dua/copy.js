@@ -1,0 +1,48 @@
+export const DUA_COPY = Object.freeze({
+  zh: Object.freeze({
+    back: "返回游戏",
+    subtitle: "对圈",
+    hint: "拖动摇杆瞄准，松手开火。没捡到武器开不了火。",
+    pick: "先选头像。开局后只瞄准和开火，路径由圆内碰撞决定。",
+    pause: "已暂停",
+    keep: "对局进度已保留。",
+    win: "对方心数为零。可重选头像再开。",
+    lose: "你的心数为零。可重选头像再开。",
+    start: "开始",
+    resume: "继续",
+    restart: "再来",
+    unarmed: "未持枪",
+  }),
+  en: Object.freeze({
+    back: "Game center",
+    subtitle: "Dua",
+    hint: "Drag the stick to aim, release to fire. No weapon, no shot.",
+    pick: "Pick a face first. After start you only aim and fire; paths bounce in the circle.",
+    pause: "Paused",
+    keep: "The match is still here.",
+    win: "Their hearts hit zero. Pick a face and go again.",
+    lose: "Your hearts hit zero. Pick a face and go again.",
+    start: "START",
+    resume: "RESUME",
+    restart: "Re-Start",
+    unarmed: "UNARMED",
+  }),
+  ja: Object.freeze({
+    back: "ゲームへ",
+    subtitle: "デュエル円",
+    hint: "スティックで照準し、指を離すと発射。武器がなければ撃てません。",
+    pick: "先に顔を選んでください。開始後は照準と発射のみ。軌道は円内の反射です。",
+    pause: "一時停止",
+    keep: "対戦はそのまま残っています。",
+    win: "相手のハートがゼロです。顔を選んでもう一度。",
+    lose: "ハートがゼロです。顔を選んでもう一度。",
+    start: "スタート",
+    resume: "再開",
+    restart: "もう一度",
+    unarmed: "武器なし",
+  }),
+});
+
+export function duaCopy(lang) {
+  return DUA_COPY[lang] || DUA_COPY.en;
+}

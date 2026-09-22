@@ -1,4 +1,6 @@
-import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, createMatch, pickAvatar, stepMatch } from "./duel.js?v=2";
+import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=3";
+import { duaCopy } from "./copy.js?v=3";
+import { getPortalLang } from "/js/langTabs.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -6,7 +8,6 @@ const wrap = document.getElementById("canvasWrap");
 const overlay = document.getElementById("overlay");
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
-const fireBtn = document.getElementById("fireBtn");
 const avatarGrid = document.getElementById("avatarGrid");
 const overlayTitle = document.getElementById("overlayTitle");
 const overlayText = document.getElementById("overlayText");
@@ -14,12 +15,20 @@ const overlayEyebrow = document.getElementById("overlayEyebrow");
 const redHeartsEl = document.getElementById("redHearts");
 const yellowHeartsEl = document.getElementById("yellowHearts");
 const weaponEl = document.getElementById("weaponText");
+const aimHint = document.getElementById("aimHint");
+const stick = document.getElementById("stick");
+const stickKnob = document.getElementById("stickKnob");
+const gameBack = document.getElementById("gameBack");
+const gameSub = document.getElementById("gameSub");
 
 const W = canvas.width;
 const H = canvas.height;
 const EMOJI_FONT = `${AVATAR_PX}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
 const GUN_FONT = `${WEAPON_ICON_PX}px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+const STICK_R = 54;
 
+let lang = getPortalLang();
+let copy = duaCopy(lang);
 let chosenFace = "";
 let match = createMatch({ w: W, h: H }, { player: AVATARS[0], foe: AVATARS[1] });
 let running = false;
@@ -29,31 +38,65 @@ let animationId = 0;
 let aiming = false;
 let aimX = match.foe.x;
 let aimY = match.foe.y;
-let holdFire = false;
+let fireOnce = false;
+let overlayMode = "pick";
 
 function heartsRow(count, glyph) {
   return Array.from({ length: 10 }, (_, i) => (i < count ? glyph : "🖤")).join("");
 }
 
 function weaponLabel(f) {
-  if (!f.weapon) return "UNARMED";
+  if (!f.weapon) return copy.unarmed;
   const spec = WEAPONS[f.weapon];
   return `${spec.emoji} ${f.weapon.toUpperCase()} ${f.ammo}`;
+}
+
+function applyLang() {
+  lang = getPortalLang();
+  copy = duaCopy(lang);
+  if (gameBack) gameBack.textContent = copy.back;
+  if (gameSub) gameSub.textContent = copy.subtitle;
+  if (aimHint) aimHint.textContent = copy.hint;
+  stick.classList.toggle("armed", canFire(match.player));
+  if (!running || paused || overlayMode !== "hidden") refreshOverlayCopy();
+  syncHud();
+}
+
+function refreshOverlayCopy() {
+  if (overlayMode === "pause") {
+    overlayTitle.textContent = copy.pause;
+    overlayText.textContent = copy.keep;
+    startBtn.textContent = copy.resume;
+    avatarGrid.hidden = true;
+  } else if (overlayMode === "win") {
+    overlayTitle.textContent = "YOU WIN";
+    overlayText.textContent = copy.win;
+    startBtn.textContent = copy.restart;
+    avatarGrid.hidden = false;
+  } else if (overlayMode === "lose") {
+    overlayTitle.textContent = "YOU LOSE";
+    overlayText.textContent = copy.lose;
+    startBtn.textContent = copy.restart;
+    avatarGrid.hidden = false;
+  } else {
+    overlayTitle.innerHTML = "对圈 Dua<br>DUEL CIRCLE";
+    overlayText.textContent = copy.pick;
+    startBtn.textContent = copy.start;
+    avatarGrid.hidden = false;
+  }
+}
+
+function showPlayOverlay(mode) {
+  overlayMode = mode;
+  overlay.hidden = false;
+  refreshOverlayCopy();
 }
 
 function syncHud() {
   redHeartsEl.textContent = heartsRow(match.player.hearts, "❤️");
   yellowHeartsEl.textContent = heartsRow(match.foe.hearts, "💛");
   weaponEl.textContent = weaponLabel(match.player);
-}
-
-function showPlayOverlay(title, text, button, eyebrow = "DUA") {
-  overlayTitle.innerHTML = title;
-  overlayText.textContent = text;
-  overlayEyebrow.textContent = eyebrow;
-  startBtn.textContent = button;
-  overlay.hidden = false;
-  avatarGrid.hidden = button === "RESUME";
+  stick.classList.toggle("armed", canFire(match.player));
 }
 
 function paintAvatars() {
@@ -79,17 +122,10 @@ function resetMatch() {
   match = createMatch({ w: W, h: H }, { player: chosenFace, foe });
   aimX = match.foe.x;
   aimY = match.foe.y;
-  holdFire = false;
+  fireOnce = false;
   aiming = false;
+  setKnob(0, 0);
   syncHud();
-}
-
-function toArena(e) {
-  const rect = wrap.getBoundingClientRect();
-  return {
-    x: (e.clientX - rect.left) * (W / rect.width),
-    y: (e.clientY - rect.top) * (H / rect.height),
-  };
 }
 
 function drawEmoji(x, y, glyph, font) {
@@ -125,7 +161,7 @@ function draw() {
 
   for (const item of match.pickups) {
     const glyph = item.kind === "heart" ? "❤️" : (WEAPONS[item.kind]?.emoji || "•");
-    drawEmoji(item.x, item.y, glyph, item.kind === "heart" ? GUN_FONT : GUN_FONT);
+    drawEmoji(item.x, item.y, glyph, GUN_FONT);
   }
   for (const shot of match.shots) {
     ctx.fillStyle = shot.kind === "rpg" ? "#34c759" : "#f2f2f7";
@@ -139,24 +175,16 @@ function draw() {
 }
 
 function update(dt) {
-  if (!aiming) {
-    aimX = match.foe.x;
-    aimY = match.foe.y;
-  }
   const over = stepMatch(match, dt, {
-    fire: holdFire,
+    fire: fireOnce,
     aimX,
     aimY,
   });
+  fireOnce = false;
   syncHud();
   if (over) {
     running = false;
-    const win = over === "player";
-    showPlayOverlay(
-      win ? "YOU WIN" : "YOU LOSE",
-      win ? "对方心数为零。可重选头像再开。" : "你的心数为零。可重选头像再开。",
-      "Re-Start",
-    );
+    showPlayOverlay(over === "player" ? "win" : "lose");
     startBtn.disabled = !chosenFace;
   }
 }
@@ -174,25 +202,50 @@ function loop(time) {
   animationId = requestAnimationFrame(loop);
 }
 
-function setAimFromEvent(e) {
-  const p = toArena(e);
-  aimX = p.x;
-  aimY = p.y;
+function setKnob(dx, dy) {
+  stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
 }
 
-wrap.addEventListener("pointerdown", (e) => {
-  if (e.target.closest?.("button, a")) return;
+function stickDelta(e) {
+  const rect = stick.getBoundingClientRect();
+  return {
+    x: e.clientX - (rect.left + rect.width / 2),
+    y: e.clientY - (rect.top + rect.height / 2),
+  };
+}
+
+function aimFromStick(dx, dy) {
+  const dist = Math.hypot(dx, dy);
+  if (dist < 6) return;
+  const nx = dx / dist;
+  const ny = dy / dist;
+  const cap = Math.min(dist, STICK_R);
+  setKnob(nx * cap, ny * cap);
+  aimX = match.player.x + nx * 240;
+  aimY = match.player.y + ny * 240;
   aiming = true;
-  setAimFromEvent(e);
-  wrap.setPointerCapture?.(e.pointerId);
+}
+
+stick.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  aiming = true;
+  const d = stickDelta(e);
+  aimFromStick(d.x, d.y);
+  stick.setPointerCapture?.(e.pointerId);
 });
-wrap.addEventListener("pointermove", (e) => {
+stick.addEventListener("pointermove", (e) => {
   if (!aiming) return;
-  setAimFromEvent(e);
+  const d = stickDelta(e);
+  aimFromStick(d.x, d.y);
 });
-const endAim = () => { aiming = false; };
-wrap.addEventListener("pointerup", endAim);
-wrap.addEventListener("pointercancel", endAim);
+function releaseStick() {
+  if (!aiming) return;
+  aiming = false;
+  setKnob(0, 0);
+  if (running && !paused && canFire(match.player)) fireOnce = true;
+}
+stick.addEventListener("pointerup", releaseStick);
+stick.addEventListener("pointercancel", releaseStick);
 
 function blockSystemGesture(e) { e.preventDefault(); }
 ["contextmenu", "selectstart", "dragstart", "gesturestart", "dblclick"].forEach((type) => {
@@ -206,13 +259,10 @@ document.addEventListener("touchstart", (e) => {
   if (e.touches.length > 1) e.preventDefault();
 }, { capture: true, passive: false });
 
-fireBtn.addEventListener("pointerdown", (e) => { e.stopPropagation(); holdFire = true; });
-fireBtn.addEventListener("pointerup", () => { holdFire = false; });
-fireBtn.addEventListener("pointerleave", () => { holdFire = false; });
-
 startBtn.addEventListener("click", () => {
   if (paused && running) {
     paused = false;
+    overlayMode = "hidden";
     overlay.hidden = true;
     pauseBtn.textContent = "Ⅱ";
     lastTime = performance.now();
@@ -220,6 +270,7 @@ startBtn.addEventListener("click", () => {
   }
   if (!chosenFace) return;
   resetMatch();
+  overlayMode = "hidden";
   overlay.hidden = true;
   paused = false;
   running = true;
@@ -231,18 +282,24 @@ pauseBtn.addEventListener("click", () => {
   paused = !paused;
   pauseBtn.textContent = paused ? "▶" : "Ⅱ";
   if (paused) {
-    showPlayOverlay("已暂停", "对局进度已保留。", "RESUME");
+    showPlayOverlay("pause");
     startBtn.disabled = false;
-  } else overlay.hidden = true;
+  } else {
+    overlayMode = "hidden";
+    overlay.hidden = true;
+  }
 });
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && running && !paused) pauseBtn.click();
 });
+window.addEventListener("storage", (e) => {
+  if (e.key === "portal_lang") applyLang();
+});
 
 startBtn.disabled = true;
 paintAvatars();
-syncHud();
+applyLang();
 draw();
 cancelAnimationFrame(animationId);
 animationId = requestAnimationFrame(loop);

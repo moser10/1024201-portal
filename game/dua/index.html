@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#050510">
   <title>对圈 Dua | 1024201</title>
   <link rel="stylesheet" href="/js/featurePage.css?v=3">
-  <link rel="stylesheet" href="game.css?v=2">
+  <link rel="stylesheet" href="game.css?v=3">
 </head>
 <body>
   <main class="game-shell">
@@ -16,7 +16,7 @@
       <a class="game-back" id="gameBack" href="/game/">Back</a>
       <div class="game-title">
         <strong>DUA</strong>
-        <span>对圈</span>
+        <span id="gameSub">对圈</span>
       </div>
       <button class="icon-btn" id="pauseBtn" type="button" aria-label="暂停">Ⅱ</button>
     </header>
@@ -28,7 +28,7 @@
     <div class="weapon-chip" id="weaponText">UNARMED</div>
 
     <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="gameCanvas" width="900" height="1000" draggable="false" aria-label="对圈竞技场"></canvas>
+      <canvas id="gameCanvas" width="900" height="900" draggable="false" aria-label="对圈竞技场"></canvas>
       <div class="overlay" id="overlay">
         <div class="overlay-card">
           <p class="eyebrow" id="overlayEyebrow">DUA</p>
@@ -40,17 +40,14 @@
       </div>
     </div>
 
-    <div class="control-zone" id="controlZone" aria-label="开火">
-      <button class="act-btn fire" id="fireBtn" type="button">FIRE</button>
+    <div class="control-zone" id="controlZone" aria-label="瞄准摇杆">
+      <p class="aim-hint" id="aimHint">拖动摇杆瞄准，松手开火。没捡到武器开不了火。</p>
+      <div class="stick" id="stick" role="application" aria-label="aim stick">
+        <div class="stick-base"></div>
+        <div class="stick-knob" id="stickKnob"></div>
+      </div>
     </div>
   </main>
-  <script>
-    (function () {
-      var lang = localStorage.getItem("portal_lang") || "en";
-      var copy = { en: "Game center", zh: "返回游戏", ja: "ゲームへ" };
-      document.getElementById("gameBack").textContent = copy[lang] || copy.en;
-    })();
-  </script>
-  <script type="module" src="game.js?v=2"></script>
+  <script type="module" src="game.js?v=3"></script>
 </body>
 </html>
