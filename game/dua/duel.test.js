@@ -4,97 +4,115 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  MAX_HEARTS,
-  clampToArena,
-  collectPickups,
-  cpuTarget,
+  AVATARS,
+  WEAPON_ICON_PX,
+  AVATAR_PX,
+  WEAPONS,
+  armWeapon,
+  bounceArena,
+  bounceFighters,
   createMatch,
-  fireShot,
-  heal,
-  hurt,
-  spawnPickup,
-  startReach,
+  pickAvatar,
   stepMatch,
-  stepReach,
   stepShots,
-  winnerOf,
+  triggerWeapon,
 } from "./duel.js";
 
-test("fighters bounce back inside the white circle", () => {
-  const match = createMatch();
-  match.player.x = match.arena.x + 800;
-  match.player.y = match.arena.y;
-  clampToArena(match.player, match.arena);
-  const d = Math.hypot(match.player.x - match.arena.x, match.player.y - match.arena.y);
-  assert.ok(d <= match.arena.r - match.player.r + 0.01);
+test("avatar picker only returns catalog faces and never the used one", () => {
+  assert.ok(AVATARS.length >= 8);
+  for (let i = 0; i < 20; i++) {
+    const face = pickAvatar("😀", () => i / 20);
+    assert.notEqual(face, "😀");
+    assert.equal(AVATARS.includes(face), true);
+  }
 });
 
-test("pistol costs 1 heart and rpg costs 2", () => {
+test("weapon icons are 80 percent of the avatar size", () => {
+  assert.equal(WEAPON_ICON_PX, Math.round(AVATAR_PX * 0.8));
+});
+
+test("ammo: pistol 5, ak two bursts of 3, rpg 1, knife 1, shotgun two sprays of 3", () => {
+  assert.deepEqual(
+    [WEAPONS.pistol.shots, WEAPONS.ak.shots, WEAPONS.ak.burst, WEAPONS.rpg.shots, WEAPONS.knife.shots, WEAPONS.shotgun.shots, WEAPONS.shotgun.burst],
+    [5, 2, 3, 1, 1, 2, 3],
+  );
   const match = createMatch();
-  match.player.weapon = "pistol";
+  armWeapon(match.player, "pistol");
+  for (let i = 0; i < 5; i++) {
+    match.player.cooldown = 0;
+    assert.ok(triggerWeapon(match, match.player, match.foe.x, match.foe.y));
+  }
   match.player.cooldown = 0;
-  fireShot(match, match.player, match.foe.x, match.foe.y);
-  match.shots[0].x = match.foe.x;
-  match.shots[0].y = match.foe.y;
+  assert.equal(triggerWeapon(match, match.player, match.foe.x, match.foe.y), null);
+  assert.equal(match.player.weapon, null);
+});
+
+test("AK trigger spends one of two bursts and queues three bullets", () => {
+  const match = createMatch();
+  armWeapon(match.player, "ak");
+  triggerWeapon(match, match.player, match.foe.x, match.foe.y);
+  assert.equal(match.shots.length, 1);
+  assert.equal(match.player.ammo, 1);
+  assert.equal(match.player.burstLeft, 2);
+  stepMatch(match, 0.08, {}, () => 0.5);
+  assert.ok(match.shots.length >= 2);
+});
+
+test("shotgun spends one of two shells and sprays three pellets", () => {
+  const match = createMatch();
+  armWeapon(match.player, "shotgun");
+  triggerWeapon(match, match.player, match.foe.x, match.foe.y);
+  assert.equal(match.shots.length, 3);
+  assert.equal(match.player.ammo, 1);
+});
+
+test("circle bounce reflects the outward velocity", () => {
+  const match = createMatch();
+  const f = match.player;
+  f.x = match.arena.x + match.arena.r;
+  f.y = match.arena.y;
+  f.vx = 120;
+  f.vy = 0;
+  bounceArena(f, match.arena);
+  assert.ok(f.vx < 0);
+});
+
+test("fighters bounce apart and shots knock the target back", () => {
+  const match = createMatch();
+  match.player.x = 400;
+  match.player.y = 500;
+  match.foe.x = 410;
+  match.foe.y = 500;
+  match.player.vx = 80;
+  match.foe.vx = -20;
+  bounceFighters(match.player, match.foe);
+  assert.ok(match.player.vx < 80);
+
+  const before = match.foe.vx;
+  match.shots.push({
+    owner: "player", kind: "pistol", x: match.foe.x, y: match.foe.y,
+    vx: 200, vy: 0, r: 6, damage: 1, knock: 240, life: 1,
+  });
   stepShots(match, 0.01);
-  assert.equal(match.foe.hearts, 9);
-
-  match.player.weapon = "rpg";
-  match.player.cooldown = 0;
-  fireShot(match, match.player, match.foe.x, match.foe.y);
-  match.shots[0].x = match.foe.x;
-  match.shots[0].y = match.foe.y;
-  stepShots(match, 0.01);
-  assert.equal(match.foe.hearts, 7);
-});
-
-test("touching a heart heals and guns replace the loadout", () => {
-  const match = createMatch();
-  match.player.hearts = 6;
-  match.pickups.push({ kind: "heart", x: match.player.x, y: match.player.y, r: 12 });
-  collectPickups(match.player, match.pickups);
-  assert.equal(match.player.hearts, 7);
-  match.pickups.push({ kind: "rpg", x: match.player.x, y: match.player.y, r: 14 });
-  collectPickups(match.player, match.pickups);
-  assert.equal(match.player.weapon, "rpg");
-  heal(match.player, 20);
-  assert.equal(match.player.hearts, MAX_HEARTS);
-});
-
-test("reach slaps the foe for one heart when the tip lands", () => {
-  const match = createMatch();
-  match.foe.x = match.player.x + 40;
-  match.foe.y = match.player.y;
-  startReach(match, match.player);
-  const event = stepReach(match, 1);
-  assert.equal(event.type, "slap");
+  assert.ok(match.foe.vx > before);
   assert.equal(match.foe.hearts, 9);
 });
 
-test("empty hearts decide the winner", () => {
+test("aim input does not steer the body, only weapons fire", () => {
   const match = createMatch();
-  assert.equal(winnerOf(match), null);
-  hurt(match.player, 10);
-  assert.equal(winnerOf(match), "foe");
+  const x = match.player.x;
+  const y = match.player.y;
+  const vx = match.player.vx;
+  stepMatch(match, 0.016, { fire: false, aimX: 10, aimY: 10 }, () => 0.4);
+  assert.ok(Math.abs(match.player.vx - vx) < 1e-6 || match.player.x !== x || match.player.y !== y);
+  assert.equal(match.player.x, x + vx * 0.016);
+  assert.equal(match.player.y, y + match.player.vy * 0.016);
 });
 
-test("CPU hunts a gun when unarmed and keeps inside the circle during a step", () => {
-  const match = createMatch();
-  match.pickups.push({ kind: "pistol", x: match.arena.x + 80, y: match.arena.y - 40, r: 14 });
-  const aim = cpuTarget(match);
-  assert.equal(aim.x, match.arena.x + 80);
-  stepMatch(match, 0.05, { tx: match.arena.x, ty: match.arena.y }, () => 0.1);
-  const d = Math.hypot(match.foe.x - match.arena.x, match.foe.y - match.arena.y);
-  assert.ok(d <= match.arena.r - match.foe.r + 0.01);
-});
-
-test("spawn stays on the ring and the spec stays original Dua", () => {
-  const match = createMatch();
-  const item = spawnPickup(match, () => 0.2);
-  const d = Math.hypot(item.x - match.arena.x, item.y - match.arena.y);
-  assert.ok(d < match.arena.r);
+test("spec documents physics-only movement and avatar pick", () => {
   const dir = dirname(fileURLToPath(import.meta.url));
   const spec = readFileSync(join(dir, "../../docs/dua.md"), "utf8");
-  assert.match(spec, /对圈 Dua/);
-  assert.match(spec, /不是\*\* PIXLOOP|不是 PIXLOOP/);
+  assert.match(spec, /头像/);
+  assert.match(spec, /物理反射/);
+  assert.match(spec, /不能控制路径/);
 });

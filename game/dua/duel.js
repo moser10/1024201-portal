@@ -1,39 +1,76 @@
 export const MAX_HEARTS = 10;
 export const ARENA_R = 360;
-export const FIGHTER_R = 24;
-export const REACH_LEN = 92;
-export const REACH_TIME = 0.42;
+export const FIGHTER_R = 28;
+export const AVATAR_PX = FIGHTER_R * 2;
+export const WEAPON_ICON_PX = Math.round(AVATAR_PX * 0.8);
+export const START_SPEED = 210;
+
+export const AVATARS = Object.freeze([
+  "😀", "😎", "🤖", "🦊", "🐼", "🐸", "🎃", "👻", "😈", "👽", "🐱", "🌸",
+]);
 
 export const WEAPONS = Object.freeze({
-  pistol: Object.freeze({ speed: 430, damage: 1, cooldown: 0.5, life: 1.15, r: 5 }),
-  rpg: Object.freeze({ speed: 250, damage: 2, cooldown: 1.05, life: 1.55, r: 8 }),
+  pistol: Object.freeze({
+    speed: 480, damage: 1, cooldown: 0.32, life: 1.2, r: 5,
+    shots: 5, burst: 1, spread: 0, knock: 240, emoji: "🔫",
+  }),
+  ak: Object.freeze({
+    speed: 520, damage: 1, cooldown: 0.9, life: 1.05, r: 4,
+    shots: 2, burst: 3, burstGap: 0.07, spread: 0.07, knock: 190, emoji: "🔫",
+  }),
+  rpg: Object.freeze({
+    speed: 240, damage: 2, cooldown: 0.4, life: 1.7, r: 8,
+    shots: 1, burst: 1, spread: 0, knock: 360, emoji: "🚀",
+  }),
+  knife: Object.freeze({
+    speed: 0, damage: 2, cooldown: 0.2, life: 0.16, r: 18,
+    shots: 1, burst: 1, melee: true, range: 58, knock: 300, emoji: "🔪",
+  }),
+  shotgun: Object.freeze({
+    speed: 390, damage: 1, cooldown: 0.75, life: 0.5, r: 4,
+    shots: 2, burst: 3, spread: 0.28, simultaneous: true, knock: 210, emoji: "💥",
+  }),
 });
 
-export function createMatch(board = { w: 900, h: 1000 }) {
+const GUN_KINDS = Object.freeze(Object.keys(WEAPONS));
+
+export function pickAvatar(used, rng = Math.random) {
+  const pool = AVATARS.filter((face) => face !== used);
+  return pool[Math.floor(rng() * pool.length)] || AVATARS[0];
+}
+
+export function makeFighter(id, x, y, emoji, angle) {
+  return {
+    id, x, y, r: FIGHTER_R, emoji,
+    vx: Math.cos(angle) * START_SPEED,
+    vy: Math.sin(angle) * START_SPEED,
+    hearts: MAX_HEARTS,
+    weapon: null,
+    ammo: 0,
+    cooldown: 0,
+    burstLeft: 0,
+    burstGap: 0,
+    aimLock: null,
+  };
+}
+
+export function createMatch(board = { w: 900, h: 1000 }, faces = {}) {
   const arena = { x: board.w / 2, y: board.h / 2, r: ARENA_R };
+  const playerEmoji = faces.player && AVATARS.includes(faces.player) ? faces.player : AVATARS[0];
+  const foeEmoji = faces.foe && faces.foe !== playerEmoji ? faces.foe : pickAvatar(playerEmoji);
   return {
     arena,
-    player: makeFighter("player", arena.x, arena.y + 150, "#ff3b30"),
-    foe: makeFighter("foe", arena.x, arena.y - 150, "#ffd60a"),
+    player: makeFighter("player", arena.x, arena.y + 140, playerEmoji, -Math.PI / 2 + 0.35),
+    foe: makeFighter("foe", arena.x, arena.y - 140, foeEmoji, Math.PI / 2 + 0.35),
     pickups: [],
     shots: [],
-    reach: null,
-    spawnAt: 1.2,
+    spawnAt: 1.1,
     elapsed: 0,
     over: null,
   };
 }
 
-export function makeFighter(id, x, y, color) {
-  return {
-    id, x, y, vx: 0, vy: 0, r: FIGHTER_R, color,
-    hearts: MAX_HEARTS,
-    weapon: null,
-    cooldown: 0,
-  };
-}
-
-export function clampToArena(f, arena) {
+export function bounceArena(f, arena) {
   const dx = f.x - arena.x;
   const dy = f.y - arena.y;
   const dist = Math.hypot(dx, dy) || 0.0001;
@@ -43,41 +80,55 @@ export function clampToArena(f, arena) {
   const ny = dy / dist;
   f.x = arena.x + nx * max;
   f.y = arena.y + ny * max;
-  const push = f.vx * nx + f.vy * ny;
-  if (push > 0) {
-    f.vx -= 1.6 * push * nx;
-    f.vy -= 1.6 * push * ny;
+  const dot = f.vx * nx + f.vy * ny;
+  if (dot > 0) {
+    f.vx -= 2 * dot * nx;
+    f.vy -= 2 * dot * ny;
   }
   return f;
 }
 
-export function steerFighter(f, tx, ty, speed, dt) {
-  const dx = tx - f.x;
-  const dy = ty - f.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 2) {
-    f.vx *= 0.8;
-    f.vy *= 0.8;
-    return;
-  }
-  f.vx = (dx / dist) * speed;
-  f.vy = (dy / dist) * speed;
-  f.x += f.vx * dt;
-  f.y += f.vy * dt;
+export function bounceFighters(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy) || 0.0001;
+  const min = a.r + b.r;
+  if (dist >= min) return false;
+  const nx = dx / dist;
+  const ny = dy / dist;
+  const overlap = min - dist;
+  a.x -= nx * overlap * 0.5;
+  a.y -= ny * overlap * 0.5;
+  b.x += nx * overlap * 0.5;
+  b.y += ny * overlap * 0.5;
+  const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+  if (rel > 0) return true;
+  a.vx += rel * nx;
+  a.vy += rel * ny;
+  b.vx -= rel * nx;
+  b.vy -= rel * ny;
+  return true;
+}
+
+export function knockback(f, nx, ny, force) {
+  const mag = Math.hypot(nx, ny) || 1;
+  f.vx += (nx / mag) * force;
+  f.vy += (ny / mag) * force;
 }
 
 export function placeOnRing(arena, rng, inset = 70) {
   const ang = rng() * Math.PI * 2;
-  const rad = inset + rng() * (arena.r - inset - 36);
+  const rad = inset + rng() * (arena.r - inset - 40);
   return { x: arena.x + Math.cos(ang) * rad, y: arena.y + Math.sin(ang) * rad };
 }
 
 export function spawnPickup(state, rng = Math.random) {
-  if (state.pickups.length >= 5) return null;
+  if (state.pickups.length >= 6) return null;
   const roll = rng();
-  const kind = roll < 0.34 ? "heart" : roll < 0.72 ? "pistol" : "rpg";
+  let kind = "heart";
+  if (roll >= 0.2) kind = GUN_KINDS[Math.floor(((roll - 0.2) / 0.8) * GUN_KINDS.length)] || "pistol";
   const pos = placeOnRing(state.arena, rng);
-  const item = { kind, x: pos.x, y: pos.y, r: kind === "heart" ? 12 : 14 };
+  const item = { kind, x: pos.x, y: pos.y, r: WEAPON_ICON_PX / 2 };
   state.pickups.push(item);
   return item;
 }
@@ -92,6 +143,18 @@ export function hurt(fighter, n = 1) {
   return fighter.hearts;
 }
 
+export function armWeapon(fighter, kind) {
+  const spec = WEAPONS[kind];
+  if (!spec) return fighter;
+  fighter.weapon = kind;
+  fighter.ammo = spec.shots;
+  fighter.burstLeft = 0;
+  fighter.burstGap = 0;
+  fighter.aimLock = null;
+  fighter.cooldown = 0;
+  return fighter;
+}
+
 export function collectPickups(fighter, pickups) {
   const left = [];
   let got = null;
@@ -102,7 +165,7 @@ export function collectPickups(fighter, pickups) {
       continue;
     }
     if (item.kind === "heart") heal(fighter, 1);
-    else fighter.weapon = item.kind;
+    else armWeapon(fighter, item.kind);
     got = item;
   }
   pickups.length = 0;
@@ -110,27 +173,83 @@ export function collectPickups(fighter, pickups) {
   return got;
 }
 
-export function fireShot(state, fighter, tx, ty) {
-  if (!fighter.weapon || fighter.cooldown > 0) return null;
-  const spec = WEAPONS[fighter.weapon];
-  if (!spec) return null;
-  const dx = tx - fighter.x;
-  const dy = ty - fighter.y;
-  const dist = Math.hypot(dx, dy) || 1;
+function spawnBullet(state, fighter, spec, tx, ty, spread = 0) {
+  let dx = tx - fighter.x;
+  let dy = ty - fighter.y;
+  let ang = Math.atan2(dy, dx) + spread;
   const shot = {
     owner: fighter.id,
     kind: fighter.weapon,
-    x: fighter.x + (dx / dist) * (fighter.r + 8),
-    y: fighter.y + (dy / dist) * (fighter.r + 8),
-    vx: (dx / dist) * spec.speed,
-    vy: (dy / dist) * spec.speed,
+    x: fighter.x + Math.cos(ang) * (fighter.r + 10),
+    y: fighter.y + Math.sin(ang) * (fighter.r + 10),
+    vx: Math.cos(ang) * spec.speed,
+    vy: Math.sin(ang) * spec.speed,
     r: spec.r,
     damage: spec.damage,
+    knock: spec.knock,
     life: spec.life,
   };
-  fighter.cooldown = spec.cooldown;
   state.shots.push(shot);
   return shot;
+}
+
+function slashKnife(state, fighter, spec, tx, ty) {
+  const other = fighter.id === "player" ? state.foe : state.player;
+  const dx = other.x - fighter.x;
+  const dy = other.y - fighter.y;
+  const dist = Math.hypot(dx, dy);
+  const aim = Math.atan2(ty - fighter.y, tx - fighter.x);
+  const facing = Math.atan2(dy, dx);
+  const gap = Math.atan2(Math.sin(facing - aim), Math.cos(facing - aim));
+  if (dist <= spec.range + other.r && Math.abs(gap) < 0.7) {
+    hurt(other, spec.damage);
+    knockback(other, dx, dy, spec.knock);
+    return true;
+  }
+  return false;
+}
+
+export function triggerWeapon(state, fighter, tx, ty) {
+  if (!fighter.weapon || fighter.cooldown > 0 || fighter.ammo <= 0 || fighter.burstLeft > 0) return null;
+  const spec = WEAPONS[fighter.weapon];
+  if (!spec) return null;
+  fighter.ammo -= 1;
+  fighter.cooldown = spec.cooldown;
+  fighter.aimLock = { x: tx, y: ty };
+  if (spec.melee) {
+    slashKnife(state, fighter, spec, tx, ty);
+    if (fighter.ammo <= 0) fighter.weapon = null;
+    return { kind: "knife" };
+  }
+  if (spec.simultaneous) {
+    const mid = (spec.burst - 1) / 2;
+    for (let i = 0; i < spec.burst; i++) {
+      spawnBullet(state, fighter, spec, tx, ty, (i - mid) * spec.spread);
+    }
+    if (fighter.ammo <= 0) fighter.weapon = null;
+    return { kind: fighter.weapon, count: spec.burst };
+  }
+  if (spec.burst > 1) {
+    spawnBullet(state, fighter, spec, tx, ty, 0);
+    fighter.burstLeft = spec.burst - 1;
+    fighter.burstGap = spec.burstGap;
+    return { kind: fighter.weapon, count: 1 };
+  }
+  spawnBullet(state, fighter, spec, tx, ty, 0);
+  if (fighter.ammo <= 0) fighter.weapon = null;
+  return { kind: fighter.weapon, count: 1 };
+}
+
+export function tickBurst(state, fighter, dt) {
+  if (fighter.burstLeft <= 0 || !fighter.weapon) return;
+  const spec = WEAPONS[fighter.weapon];
+  fighter.burstGap -= dt;
+  if (fighter.burstGap > 0) return;
+  const aim = fighter.aimLock || { x: fighter.x + fighter.vx, y: fighter.y + fighter.vy };
+  spawnBullet(state, fighter, spec, aim.x, aim.y, (Math.random() - 0.5) * (spec.spread || 0));
+  fighter.burstLeft -= 1;
+  fighter.burstGap = spec.burstGap || 0.07;
+  if (fighter.burstLeft <= 0 && fighter.ammo <= 0) fighter.weapon = null;
 }
 
 export function stepShots(state, dt) {
@@ -145,6 +264,7 @@ export function stepShots(state, dt) {
     const target = shot.owner === "player" ? state.foe : state.player;
     if (Math.hypot(shot.x - target.x, shot.y - target.y) <= target.r + shot.r) {
       hurt(target, shot.damage);
+      knockback(target, shot.vx, shot.vy, shot.knock);
       hits.push({ shot, target: target.id, damage: shot.damage });
       continue;
     }
@@ -154,117 +274,56 @@ export function stepShots(state, dt) {
   return hits;
 }
 
-export function startReach(state, fighter) {
-  if (state.reach) return null;
-  state.reach = { owner: fighter.id, t: REACH_TIME, holding: null };
-  return state.reach;
-}
-
-export function reachTip(state, fighter) {
-  const other = fighter.id === "player" ? state.foe : state.player;
-  let aimX = other.x;
-  let aimY = other.y;
-  let nearest = Infinity;
-  for (const item of state.pickups) {
-    if (item.kind !== "heart") continue;
-    const d = Math.hypot(item.x - fighter.x, item.y - fighter.y);
-    if (d < nearest) {
-      nearest = d;
-      aimX = item.x;
-      aimY = item.y;
-    }
-  }
-  const dx = aimX - fighter.x;
-  const dy = aimY - fighter.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const len = Math.min(REACH_LEN, dist);
-  return {
-    x: fighter.x + (dx / dist) * len,
-    y: fighter.y + (dy / dist) * len,
-  };
-}
-
-export function stepReach(state, dt = REACH_TIME) {
-  if (!state.reach) return null;
-  state.reach.t -= dt;
-  if (state.reach.t > 0) return null;
-  const fighter = state.reach.owner === "player" ? state.player : state.foe;
-  const other = fighter.id === "player" ? state.foe : state.player;
-  const tip = reachTip(state, fighter);
-  let event = null;
-  const heartIdx = state.pickups.findIndex((item) => (
-    item.kind === "heart" && Math.hypot(item.x - tip.x, item.y - tip.y) <= 18
-  ));
-  if (heartIdx >= 0) {
-    state.pickups.splice(heartIdx, 1);
-    heal(fighter, 1);
-    state.reach.holding = "heart";
-    event = { type: "heal", owner: fighter.id };
-  } else if (Math.hypot(other.x - tip.x, other.y - tip.y) <= other.r + 10) {
-    hurt(other, 1);
-    event = { type: "slap", owner: fighter.id, target: other.id };
-  }
-  state.reach = null;
-  return event;
-}
-
 export function winnerOf(state) {
   if (state.player.hearts <= 0) return "foe";
   if (state.foe.hearts <= 0) return "player";
   return null;
 }
 
-export function cpuTarget(state) {
+export function cpuAim(state) {
   const foe = state.foe;
-  if (foe.hearts <= 4) {
-    const heart = state.pickups.find((item) => item.kind === "heart");
-    if (heart) return { x: heart.x, y: heart.y, fire: false, grab: true };
-  }
-  if (!foe.weapon) {
-    const gun = state.pickups.find((item) => item.kind === "pistol" || item.kind === "rpg");
-    if (gun) return { x: gun.x, y: gun.y, fire: false, grab: false };
-  }
-  const dx = state.player.x - foe.x;
-  const dy = state.player.y - foe.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const want = 168;
+  const dist = Math.hypot(state.player.x - foe.x, state.player.y - foe.y);
+  const spec = foe.weapon ? WEAPONS[foe.weapon] : null;
+  const range = spec?.melee ? (spec.range + 12) : 320;
   return {
-    x: state.player.x - (dx / dist) * want,
-    y: state.player.y - (dy / dist) * want,
-    fire: Boolean(foe.weapon) && dist < 280,
-    grab: dist < 110,
+    x: state.player.x,
+    y: state.player.y,
+    fire: Boolean(spec) && foe.ammo > 0 && foe.cooldown <= 0 && dist < range,
   };
+}
+
+export function integrateFighter(f, dt, arena) {
+  f.x += f.vx * dt;
+  f.y += f.vy * dt;
+  bounceArena(f, arena);
 }
 
 export function stepMatch(state, dt, input = {}, rng = Math.random) {
   if (state.over) return state.over;
   state.elapsed += dt;
-  state.player.cooldown = Math.max(0, state.player.cooldown - dt);
-  state.foe.cooldown = Math.max(0, state.foe.cooldown - dt);
-
-  if (input.tx != null && input.ty != null) {
-    steerFighter(state.player, input.tx, input.ty, 210, dt);
+  for (const f of [state.player, state.foe]) {
+    f.cooldown = Math.max(0, f.cooldown - dt);
+    integrateFighter(f, dt, state.arena);
+    tickBurst(state, f, dt);
   }
-  const cpu = cpuTarget(state);
-  steerFighter(state.foe, cpu.x, cpu.y, 175, dt);
-  clampToArena(state.player, state.arena);
-  clampToArena(state.foe, state.arena);
+  bounceFighters(state.player, state.foe);
+  bounceArena(state.player, state.arena);
+  bounceArena(state.foe, state.arena);
 
   collectPickups(state.player, state.pickups);
   collectPickups(state.foe, state.pickups);
 
-  if (input.fire) fireShot(state, state.player, state.foe.x, state.foe.y);
-  if (cpu.fire) fireShot(state, state.foe, state.player.x, state.player.y);
+  if (input.fire && input.aimX != null) {
+    triggerWeapon(state, state.player, input.aimX, input.aimY);
+  }
+  const cpu = cpuAim(state);
+  if (cpu.fire) triggerWeapon(state, state.foe, cpu.x, cpu.y);
   stepShots(state, dt);
-
-  if (input.grab) startReach(state, state.player);
-  else if (cpu.grab && rng() < 0.02) startReach(state, state.foe);
-  if (state.reach) stepReach(state, dt);
 
   state.spawnAt -= dt;
   if (state.spawnAt <= 0) {
     spawnPickup(state, rng);
-    state.spawnAt = 3.2 + rng() * 1.6;
+    state.spawnAt = 2.8 + rng() * 1.8;
   }
 
   state.over = winnerOf(state);

@@ -174,6 +174,29 @@ canvas {
 }
 
 #startBtn { background: linear-gradient(135deg, #ff453a, #ff9f0a); }
+#startBtn:disabled { opacity: .4; cursor: not-allowed; }
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.avatar-btn {
+  height: 46px;
+  border: 1px solid #393947;
+  border-radius: 10px;
+  background: #12121a;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.avatar-btn.selected {
+  border-color: #ffd60a;
+  box-shadow: 0 0 0 2px rgba(255, 214, 10, .35);
+}
 
 .control-zone {
   width: min(100%, 900px);

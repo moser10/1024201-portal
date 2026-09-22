@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#050510">
   <title>对圈 Dua | 1024201</title>
   <link rel="stylesheet" href="/js/featurePage.css?v=3">
-  <link rel="stylesheet" href="game.css?v=1">
+  <link rel="stylesheet" href="game.css?v=2">
 </head>
 <body>
   <main class="game-shell">
@@ -33,14 +33,14 @@
         <div class="overlay-card">
           <p class="eyebrow" id="overlayEyebrow">DUA</p>
           <h1 id="overlayTitle">对圈 Dua<br>DUEL CIRCLE</h1>
-          <p id="overlayText">圈内移动，捡枪开火，伸手抓心。红方是你，黄方是 CPU。</p>
-          <button id="startBtn" type="button">START</button>
+          <p id="overlayText">先选头像。开局后只瞄准和开火，路径由圆内碰撞决定。</p>
+          <div class="avatar-grid" id="avatarGrid" aria-label="选择头像"></div>
+          <button id="startBtn" type="button" disabled>START</button>
         </div>
       </div>
     </div>
 
-    <div class="control-zone" id="controlZone" aria-label="移动与动作">
-      <button class="act-btn grab" id="grabBtn" type="button">GRAB</button>
+    <div class="control-zone" id="controlZone" aria-label="开火">
       <button class="act-btn fire" id="fireBtn" type="button">FIRE</button>
     </div>
   </main>
@@ -51,6 +51,6 @@
       document.getElementById("gameBack").textContent = copy[lang] || copy.en;
     })();
   </script>
-  <script type="module" src="game.js?v=1"></script>
+  <script type="module" src="game.js?v=2"></script>
 </body>
 </html>
