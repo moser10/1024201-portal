@@ -2,21 +2,21 @@
 export const HALL_BACK = Object.freeze({
   href: "/",
   zh: "返回大厅",
-  en: "Back to lobby",
+  en: "Back To Lobby",
   ja: "ロビーへ",
 });
 
 export const ROOMS_BACK = Object.freeze({
   href: "/rooms/",
   zh: "返回开房",
-  en: "Back to Rooms",
+  en: "Back To Rooms",
   ja: "ルームへ",
 });
 
 export const GAME_BACK = Object.freeze({
   href: "/game/",
   zh: "返回游戏",
-  en: "Game center",
+  en: "Game Center",
   ja: "ゲームへ",
 });
 
@@ -33,7 +33,7 @@ export function roomsBackLabel(lang) {
 export function roomBackLabel(lang) {
   if (lang === "zh") return "返回房间";
   if (lang === "ja") return "部屋へ";
-  return "Back to room";
+  return "Back To Room";
 }
 
 export function setNavBack(spec) {

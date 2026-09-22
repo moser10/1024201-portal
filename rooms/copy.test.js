@@ -9,6 +9,8 @@ test("rooms tile labels stay distinct in the three portal languages", () => {
   assert.notEqual(roomsCopy("zh").tabGame, roomsCopy("zh").tabChat);
   assert.equal(roomsCopy("zh").sub, undefined);
   assert.equal(roomsCopy("zh").duaSoon, undefined);
+  assert.equal(roomsCopy("zh").unlimited, undefined);
+  assert.equal(roomsCopy("zh").gameBlurb, undefined);
   assert.equal(roomsCopy("zh").close, "关闭房间");
   assert.match(roomsCopy("zh").closeAsk, /聊天记录/);
   assert.equal(roomsCopy("zh").practice, "练习");
@@ -16,7 +18,10 @@ test("rooms tile labels stay distinct in the three portal languages", () => {
   assert.equal(roomsCopy("en").gameDua, "Dua");
   assert.equal(roomsCopy("ja").gameDua, "ガツン");
   assert.equal(roomsCopy("zh").create, "开房");
-  assert.equal(roomsCopy("en").create, "Get a room");
+  assert.equal(roomsCopy("en").create, "Get A Room");
+  assert.equal(roomsCopy("en").close, "Terminate Room");
+  assert.equal(roomsCopy("en").tabGame, "Game Rooms");
+  assert.equal(roomsCopy("en").tabChat, "Chat Rooms");
   assert.equal(roomsCopy("ja").create, "休憩する");
   assert.equal(roomsCopy("zh").ready, "准备");
   assert.equal(roomsCopy("zh").enterDua, "进入对战");

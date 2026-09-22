@@ -10,7 +10,7 @@ globalThis.sessionStorage = {
 
 test("hall back is one shared lobby phrase", () => {
   assert.equal(hallBackLabel("zh"), "返回大厅");
-  assert.equal(hallBackLabel("en"), "Back to lobby");
+  assert.equal(hallBackLabel("en"), "Back To Lobby");
   assert.equal(hallBackLabel("ja"), "ロビーへ");
 });
 
@@ -19,7 +19,7 @@ test("entry context can send Dua back to a room without the room name", () => {
   const nav = resolveNavBack("zh", { follow: true, fallback: "game" });
   assert.equal(nav.href, "/rooms/");
   assert.equal(nav.label, "返回房间");
-  assert.equal(roomBackLabel("en"), "Back to room");
+  assert.equal(roomBackLabel("en"), "Back To Room");
   assert.equal(roomBackLabel("ja"), "部屋へ");
   assert.equal(resolveNavBack("en", "rooms").href, "/rooms/");
 });

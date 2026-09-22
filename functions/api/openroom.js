@@ -1,6 +1,6 @@
 import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
 import { ensureOpenRoomSchema } from "./openroomSchema.js";
-import { parseCreate, canJoin, canReady, canStart, canCall, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat } from "./openroomLogic.js";
+import { parseCreate, canJoin, canReady, canStart, canCall, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat, SEAT_TTL_MS } from "./openroomLogic.js";
 
 async function requireUser(db, userId) {
   const id = Number(userId);
@@ -90,26 +90,31 @@ export async function onRequest(context) {
 
   try {
     const db = requireDb(env);
-    await ensureAppSchema(db);
-    await ensureOpenRoomSchema(db);
 
     if (request.method === "GET" && action === "list") {
+      await ensureOpenRoomSchema(db);
       const kind = String(url.searchParams.get("kind") || "").toLowerCase();
+      const window = `-${Math.round(SEAT_TTL_MS / 1000)} seconds`;
       const { results } = await db
         .prepare(
-          `SELECT * FROM open_rooms WHERE closed_at IS NULL
-           ORDER BY created_at DESC LIMIT 40`
+          `SELECT r.*, (
+             SELECT COUNT(*) FROM open_room_seats s
+             WHERE s.room_id = r.id AND s.last_seen >= datetime('now', ?)
+           ) AS seats
+           FROM open_rooms r
+           WHERE r.closed_at IS NULL
+             AND (? = '' OR r.kind = ?)
+           ORDER BY r.created_at DESC LIMIT 40`
         )
+        .bind(window, kind, kind)
         .all();
-      const rooms = [];
-      for (const row of results || []) {
-        if (kind && row.kind !== kind) continue;
-        await pruneSeats(db, row.id);
-        const seats = await loadSeats(db, row.id);
-        rooms.push(publicRoom(row, seats.length));
-      }
-      return json({ rooms });
+      return json({
+        rooms: (results || []).map((row) => publicRoom(row, Number(row.seats) || 0)),
+      });
     }
+
+    await ensureAppSchema(db);
+    await ensureOpenRoomSchema(db);
 
     if (request.method !== "POST") return json({ error: "method" }, 405);
 

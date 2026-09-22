@@ -16,7 +16,7 @@ export const DUA_COPY = Object.freeze({
     roomCall: "房间在叫你，点此返回",
   }),
   en: Object.freeze({
-    back: "Game center",
+    back: "Game Center",
     subtitle: "Dua",
     hint: "Drag the stick to aim, release to fire. No weapon, no shot.",
     pick: "Pick a face first. After start you only aim and fire; paths bounce in the circle.",
