@@ -1,7 +1,10 @@
 /**
  * 24 original brick layouts. Old procedural shape/cut maps are unused.
  * Prime stages 2,3,5,7,11,13,17,19,23 spell PRIMENUMB in uppercase bricks.
+ * Playable grids come from maps-preview.txt via handMaps.js.
  */
+
+import { HAND_MAP_ART } from "./handMaps.js";
 
 export const PRIME_LETTER_STAGES = Object.freeze({
   2: "P",
@@ -767,9 +770,48 @@ export const LEVEL_BLUEPRINTS = [
   { motif: "meander" },
 ];
 
+export function gridFromArt(lines) {
+  const steel = zeros();
+  const mask = ones();
+  for (let r = 0; r < GRID_ROWS; r++) {
+    const row = lines[r] || "";
+    for (let c = 0; c < GRID_COLS; c++) {
+      const ch = row[c] || ".";
+      if (ch === "#") {
+        steel[r][c] = 1;
+        mask[r][c] = 0;
+      } else if (ch === " ") {
+        steel[r][c] = 0;
+        mask[r][c] = 0;
+      } else {
+        steel[r][c] = 0;
+        mask[r][c] = 1;
+      }
+    }
+  }
+  return { steel, mask };
+}
+
+export function parseMapsPreview(text) {
+  const blocks = [];
+  let cur = null;
+  for (const line of text.split(/\r?\n/)) {
+    if (line.startsWith("=====")) {
+      if (cur?.length) blocks.push(cur);
+      cur = [];
+      continue;
+    }
+    if (cur && line.length === GRID_COLS && /^[#. ]+$/.test(line)) cur.push(line);
+  }
+  if (cur?.length) blocks.push(cur);
+  return blocks;
+}
+
 export function buildSteelGrid(index) {
   const bp = LEVEL_BLUEPRINTS[index];
   if (!bp) throw new RangeError(`Unknown level ${index + 1}`);
+  const art = HAND_MAP_ART[index];
+  if (art) return gridFromArt(art);
   const steel = zeros();
   const mask = ones();
   paintSolidFrame(steel, mask);

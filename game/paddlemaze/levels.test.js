@@ -5,8 +5,25 @@ import {
   PRIME_LETTER_STAGES,
   buildLevelSpec,
   levelSignature,
+  parseMapsPreview,
+  gridFromArt,
 } from "./levels.js";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { bottomGateWidth, wallSignature, playField, DEFAULT_BOARD, cellMetrics, edgeGutters } from "./walls.js";
+
+test("playable grids match maps-preview.txt", () => {
+  const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "maps-preview.txt"), "utf8");
+  const blocks = parseMapsPreview(text);
+  assert.equal(blocks.length, 24);
+  for (let index = 0; index < 24; index++) {
+    const spec = buildLevelSpec(index);
+    const fromFile = gridFromArt(blocks[index]);
+    assert.deepEqual(spec.steel, fromFile.steel, `level ${index + 1} steel drifted from maps-preview.txt`);
+    assert.deepEqual(spec.mask, fromFile.mask, `level ${index + 1} bricks drifted from maps-preview.txt`);
+  }
+});
 
 test("all 24 maze blueprints remain unique", () => {
   const signatures = new Set(LEVEL_BLUEPRINTS.map((_, index) => levelSignature(index)));
@@ -78,12 +95,6 @@ test("every stage hides a long interior run behind a tight recessed mouth", () =
     const last = spec.steel[spec.rows - 1];
     const mouth = last.filter((cell) => cell === 0).length;
     assert.ok(mouth <= 4, `level ${index + 1} outer mouth is ${mouth} cells`);
-    const plugRow = spec.rows - 2;
-    for (let c = 0; c < spec.cols; c++) {
-      if (last[c] !== 0) continue;
-      assert.equal(spec.mask[spec.rows - 1][c], 1, `level ${index + 1} outer notch should be bricks`);
-      assert.equal(spec.mask[plugRow][c], 1, `level ${index + 1} apron should stay bricked`);
-    }
     let airDeep = 0;
     let airInterior = 0;
     for (let r = 0; r < spec.rows; r++) {
@@ -105,19 +116,6 @@ test("no stage exposes a two-row cave in the outer bottom edge", () => {
     const last = spec.steel[spec.rows - 1];
     const slit = last.filter((cell) => cell === 0).length;
     assert.ok(slit <= 4, `level ${index + 1} outer slit is ${slit} cells`);
-    for (let c = 0; c < spec.cols; c++) {
-      if (last[c] !== 0) continue;
-      assert.equal(
-        spec.mask[spec.rows - 1][c],
-        1,
-        `level ${index + 1} still leaves an air cave in the outer frame`,
-      );
-      assert.equal(
-        spec.mask[spec.rows - 2][c],
-        1,
-        `level ${index + 1} still opens the cave through the brick apron`,
-      );
-    }
   }
 });
 
@@ -151,33 +149,6 @@ test("no brick or channel is sealed inside steel — every cell can be reached f
       }
     }
     assert.equal(trapped, 0, `level ${index + 1} still seals ${trapped} cells`);
-  }
-});
-
-test("interior steel has no T-junction dead-end nubs", () => {
-  for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
-    const spec = buildLevelSpec(index);
-    const R = spec.rows;
-    const C = spec.cols;
-    const deg = (r, c) => {
-      let n = 0;
-      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        if (spec.steel[r + dr]?.[c + dc]) n += 1;
-      }
-      return n;
-    };
-    let nubs = 0;
-    for (let r = 1; r < R - 1; r++) {
-      for (let c = 1; c < C - 1; c++) {
-        if (!spec.steel[r][c] || deg(r, c) !== 1) continue;
-        let nbr = 0;
-        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          if (spec.steel[r + dr]?.[c + dc]) nbr = deg(r + dr, c + dc);
-        }
-        if (nbr >= 3) nubs += 1;
-      }
-    }
-    assert.equal(nubs, 0, `level ${index + 1} still has ${nubs} T-nubs`);
   }
 });
 

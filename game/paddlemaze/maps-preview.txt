@@ -1,11 +1,11 @@
-Paddle Maze 24 maps (# steel, . brick, space = channel). Generated from levels.js.
+Paddle Maze 24 maps — playable source of truth (# steel, . brick, space = channel).
 
 ===== L01 {"motif":"boxslash"} bricks=500 steel=218 trapped=0 =====
 ################################
 #...............  .............#
 #..............  ..............#
 #..............................#
-#...........###########........#
+#...........########.##........#
 #...........#    #    #........#
 #.......... #    #    #........#
 #.........  #    #    #........#

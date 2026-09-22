@@ -1,4 +1,4 @@
-import { buildLevelSpec } from "./levels.js?v=27";
+import { buildLevelSpec } from "./levels.js?v=28";
 import { buildWallRects, playField } from "./walls.js?v=27";
 import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=25";
 import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=25";
