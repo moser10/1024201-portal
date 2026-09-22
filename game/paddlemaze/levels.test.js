@@ -121,6 +121,39 @@ test("no stage exposes a two-row cave in the outer bottom edge", () => {
   }
 });
 
+test("no brick or channel is sealed inside steel — every cell can be reached from the paddle gate", () => {
+  for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
+    const spec = buildLevelSpec(index);
+    const R = spec.rows;
+    const C = spec.cols;
+    const pass = (r, c) => r >= 0 && r < R && c >= 0 && c < C && !spec.steel[r][c];
+    const seen = Array.from({ length: R }, () => Array(C).fill(false));
+    const q = [];
+    for (let c = 0; c < C; c++) {
+      if (!pass(R - 1, c)) continue;
+      seen[R - 1][c] = true;
+      q.push([R - 1, c]);
+    }
+    for (let i = 0; i < q.length; i++) {
+      const [r, c] = q[i];
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const rr = r + dr;
+        const cc = c + dc;
+        if (!pass(rr, cc) || seen[rr][cc]) continue;
+        seen[rr][cc] = true;
+        q.push([rr, cc]);
+      }
+    }
+    let trapped = 0;
+    for (let r = 0; r < R; r++) {
+      for (let c = 0; c < C; c++) {
+        if (pass(r, c) && !seen[r][c]) trapped += 1;
+      }
+    }
+    assert.equal(trapped, 0, `level ${index + 1} still seals ${trapped} cells`);
+  }
+});
+
 test("each stage rolls independent 1-4 cell gutters on top/left/right and keeps a taller bottom apron", () => {
   const gutters = [];
   const flies = [];

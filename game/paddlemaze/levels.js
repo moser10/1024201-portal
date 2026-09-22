@@ -258,14 +258,169 @@ function paintLetter(steel, mask, letter, variant = 1) {
   stampSteel(steel, mask, scaled, r0, c0);
 }
 
-function paintChamber(steel, mask, r0, c0, h, w) {
-  for (let r = r0; r < r0 + h; r++) {
+function paintLadder(steel, mask, r0, c0, h, w) {
+  const r1 = r0 + h - 1;
+  const c1 = c0 + w - 1;
+  const mid = c0 + Math.floor(w / 2);
+  for (let r = r0; r <= r1; r++) {
     setSteel(steel, mask, r, c0);
-    setSteel(steel, mask, r, c0 + w - 1);
+    setSteel(steel, mask, r, c1);
   }
-  for (let c = c0; c < c0 + w; c++) {
-    setSteel(steel, mask, r0, c);
-    setSteel(steel, mask, r0 + h - 1, c);
+  for (let r = r0 + 2; r < r1; r += 2) {
+    for (let c = c0 + 1; c < c1; c++) {
+      if (c === mid || c === mid - 1) {
+        if (steel[r]) steel[r][c] = 0;
+        setAir(mask, r, c);
+      } else {
+        setSteel(steel, mask, r, c);
+      }
+    }
+  }
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0 + 1; c < c1; c++) {
+      if (steel[r]?.[c]) continue;
+      setAir(mask, r, c);
+    }
+  }
+}
+
+function paintChamber(steel, mask, r0, c0, h, w) {
+  paintLadder(steel, mask, r0, c0, h, w);
+}
+
+function nonSteelComponents(steel, mask) {
+  const R = steel.length;
+  const C = steel[0].length;
+  const seen = Array.from({ length: R }, () => Array(C).fill(0));
+  const regions = [];
+  const pass = (r, c) => r >= 0 && r < R && c >= 0 && c < C && !steel[r][c];
+  let id = 0;
+  for (let r = 0; r < R; r++) {
+    for (let c = 0; c < C; c++) {
+      if (!pass(r, c) || seen[r][c]) continue;
+      id += 1;
+      const cells = [];
+      let bricks = 0;
+      let touchBottom = false;
+      const stack = [[r, c]];
+      seen[r][c] = id;
+      while (stack.length) {
+        const [y, x] = stack.pop();
+        cells.push([y, x]);
+        if (mask[y][x]) bricks += 1;
+        if (y === R - 1) touchBottom = true;
+        for (const [dy, dx] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const yy = y + dy;
+          const xx = x + dx;
+          if (!pass(yy, xx) || seen[yy][xx]) continue;
+          seen[yy][xx] = id;
+          stack.push([yy, xx]);
+        }
+      }
+      regions.push({ cells, bricks, air: cells.length - bricks, touchBottom });
+    }
+  }
+  return regions;
+}
+
+function isFrameCell(r, c, rows, cols) {
+  return r <= 0 || c <= 0 || r >= rows - 1 || c >= cols - 1;
+}
+
+function punchTunnel(steel, mask, fromCells, toCells) {
+  const R = steel.length;
+  const C = steel[0].length;
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const fromAdj = [];
+  const toAdj = new Set();
+  for (const [r, c] of fromCells) {
+    for (const [dr, dc] of dirs) {
+      const rr = r + dr;
+      const cc = c + dc;
+      if (steel[rr]?.[cc] && !isFrameCell(rr, cc, R, C)) fromAdj.push(`${rr},${cc}`);
+    }
+  }
+  for (const [r, c] of toCells) {
+    for (const [dr, dc] of dirs) {
+      const rr = r + dr;
+      const cc = c + dc;
+      if (steel[rr]?.[cc] && !isFrameCell(rr, cc, R, C)) toAdj.add(`${rr},${cc}`);
+    }
+  }
+  const seen = new Map();
+  const q = [];
+  for (const key of fromAdj) {
+    if (seen.has(key)) continue;
+    seen.set(key, null);
+    q.push(key);
+  }
+  let end = null;
+  for (let i = 0; i < q.length; i++) {
+    const key = q[i];
+    if (toAdj.has(key)) {
+      end = key;
+      break;
+    }
+    const [r, c] = key.split(",").map(Number);
+    for (const [dr, dc] of dirs) {
+      const rr = r + dr;
+      const cc = c + dc;
+      const next = `${rr},${cc}`;
+      if (!steel[rr]?.[cc] || isFrameCell(rr, cc, R, C) || seen.has(next)) continue;
+      seen.set(next, key);
+      q.push(next);
+    }
+  }
+  const open = (r, c) => {
+    if (!steel[r] || steel[r][c] === undefined || isFrameCell(r, c, R, C)) return;
+    steel[r][c] = 0;
+    mask[r][c] = 0;
+  };
+  if (!end) {
+    for (const [r, c] of fromCells) {
+      for (const [dr, dc] of dirs) {
+        const rr = r + dr;
+        const cc = c + dc;
+        if (steel[rr]?.[cc] && !isFrameCell(rr, cc, R, C)) {
+          open(rr, cc);
+          open(rr + dr, cc + dc);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  for (let key = end; key; key = seen.get(key)) {
+    const [r, c] = key.split(",").map(Number);
+    open(r, c);
+    for (const [dr, dc] of dirs) {
+      if (steel[r + dr]?.[c + dc] && !isFrameCell(r + dr, c + dc, R, C)) {
+        open(r + dr, c + dc);
+        break;
+      }
+    }
+  }
+  return true;
+}
+
+/** Closed steel shapes become through-channels; sealed brick pockets get a door. */
+function openSealedShapes(steel, mask) {
+  for (let n = 0; n < 48; n++) {
+    const regions = nonSteelComponents(steel, mask);
+    const main = regions.find((region) => region.touchBottom) || regions[0];
+    if (!main) return;
+    const sealed = regions
+      .filter((region) => region !== main)
+      .sort((a, b) => a.cells.length - b.cells.length || a.cells[0][0] - b.cells[0][0] || a.cells[0][1] - b.cells[0][1]);
+    if (!sealed.length) return;
+    const pocket = sealed[0];
+    if (pocket.cells.length <= 80) {
+      for (const [r, c] of pocket.cells) {
+        steel[r][c] = 0;
+        mask[r][c] = 0;
+      }
+    }
+    punchTunnel(steel, mask, pocket.cells, main.cells);
   }
 }
 
@@ -505,6 +660,7 @@ export function buildSteelGrid(index) {
   paintSolidFrame(steel, mask);
   paintApproach(steel, mask, APPROACH[index], index);
   if (bp.letter) paintLetter(steel, mask, bp.letter, bp.letterVariant || 1);
+  openSealedShapes(steel, mask);
   return { steel, mask };
 }
 
