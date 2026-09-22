@@ -8,8 +8,8 @@
   <style>html,body{background:#f2f2f7;margin:0}</style>
   <script>
     (function () {
-      var id = new URLSearchParams(location.search).get("id");
-      location.replace(id ? "/blog/?id=" + encodeURIComponent(id) : "/blog/?new=1");
+      var id = new URLSearchParams(location.search).get("id") || new URLSearchParams(location.search).get("edit");
+      location.replace(id ? "/blog/?edit=" + encodeURIComponent(id) : "/blog/?new=1");
     })();
   </script>
 </head>

@@ -161,7 +161,7 @@ function paintList(blogs, userId) {
             ? `<span class="blog-pill public">${esc(ui.public)}</span>`
             : `<span class="blog-pill private">${esc(ui.private)}</span>`;
       return `<li>
-        <a class="blog-item" href="/blog/edit.html?id=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
+        <a class="blog-item" href="/blog/?id=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
           <div class="blog-item-title">${esc(b.title || "(untitled)")}</div>
           <div class="blog-item-meta"><span>${esc(formatDate(b.created_at))}</span>${vis}</div>
         </a>

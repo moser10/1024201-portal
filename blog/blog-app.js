@@ -1,5 +1,6 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser } from "/game/js/store.js";
+import { renderMarkdown, formatBlogDate } from "./md.js";
 
 const MAX_IMAGES = 12;
 const MAX_MB = 5;
@@ -23,15 +24,15 @@ const UI = {
     titleNew: "New post",
     titleEdit: "Edit post",
     editBack: "Back",
-    editSub: "A quiet place for your words and images.",
+    editSub: "Title, visibility and images use ordinary controls. The body is Markdown.",
     lblTitle: "Title",
     lblVis: "Visibility",
     visPrivate: "Hidden",
     visPrivateDesc: "Only you can see it",
     visPublic: "Public",
     visPublicDesc: "Anyone with the link",
-    lblBody: "Content",
-    bodyPh: "Start writing…",
+    lblBody: "Markdown",
+    bodyPh: "Write Markdown…",
     lblImages: "Images",
     addImg: "Add image",
     imgHint: `JPEG/PNG/WebP/GIF · max ${MAX_MB}MB · up to ${MAX_IMAGES}`,
@@ -45,6 +46,15 @@ const UI = {
     bodyRequired: "Please add some content",
     tooMany: "Too many images",
     tooLarge: "Image too large",
+    edit: "Edit",
+    readBack: "Back",
+    author: "By",
+    updated: "Updated",
+    like: "Like",
+    liked: "Liked",
+    likes: (n) => `${n} likes`,
+    notFound: "This post is unavailable.",
+    privateNote: "Private post",
   },
   zh: {
     title: "博客",
@@ -62,15 +72,15 @@ const UI = {
     titleNew: "新建博客",
     titleEdit: "编辑博客",
     editBack: "返回",
-    editSub: "写下此刻想留下的文字与图片。",
+    editSub: "标题、可见范围和图片用普通表单；正文是 Markdown。",
     lblTitle: "标题",
     lblVis: "可见范围",
     visPrivate: "隐藏",
     visPrivateDesc: "仅自己可见",
     visPublic: "展现",
     visPublicDesc: "可通过链接访问",
-    lblBody: "正文",
-    bodyPh: "在这里写下正文…",
+    lblBody: "Markdown",
+    bodyPh: "用 Markdown 写正文…",
     lblImages: "图片",
     addImg: "添加图片",
     imgHint: `JPEG/PNG/WebP/GIF · 单张 ≤ ${MAX_MB}MB · 最多 ${MAX_IMAGES} 张`,
@@ -84,6 +94,15 @@ const UI = {
     bodyRequired: "请填写正文",
     tooMany: "图片数量过多",
     tooLarge: "图片太大",
+    edit: "编辑",
+    readBack: "返回",
+    author: "作者",
+    updated: "更新",
+    like: "点赞",
+    liked: "已赞",
+    likes: (n) => `${n} 赞`,
+    notFound: "这篇博客不可用或不存在。",
+    privateNote: "仅自己可见",
   },
   ja: {
     title: "ブログ",
@@ -101,15 +120,15 @@ const UI = {
     titleNew: "新規ブログ",
     titleEdit: "ブログ編集",
     editBack: "戻る",
-    editSub: "いま残したい言葉と画像を。",
+    editSub: "タイトル・公開範囲・画像は通常のUI。本文は Markdown です。",
     lblTitle: "タイトル",
     lblVis: "公開範囲",
     visPrivate: "非公開",
     visPrivateDesc: "自分だけ",
     visPublic: "公開",
     visPublicDesc: "リンクで閲覧可",
-    lblBody: "本文",
-    bodyPh: "本文を入力…",
+    lblBody: "Markdown",
+    bodyPh: "Markdown で本文を入力…",
     lblImages: "画像",
     addImg: "画像を追加",
     imgHint: `JPEG/PNG/WebP/GIF · 各 ${MAX_MB}MB まで · 最大 ${MAX_IMAGES}`,
@@ -123,6 +142,15 @@ const UI = {
     bodyRequired: "本文を入力してください",
     tooMany: "画像が多すぎます",
     tooLarge: "画像が大きすぎます",
+    edit: "編集",
+    readBack: "戻る",
+    author: "作者",
+    updated: "更新",
+    like: "いいね",
+    liked: "いいね済み",
+    likes: (n) => `${n} いいね`,
+    notFound: "この投稿は表示できません。",
+    privateNote: "非公開",
   },
 };
 
@@ -131,6 +159,7 @@ let imageIds = [];
 let listFingerprint = "";
 let wired = false;
 let editorLoadSeq = 0;
+let readerLoadSeq = 0;
 const prefetchInflight = new Map();
 
 function t() {
@@ -146,12 +175,7 @@ function esc(s) {
 }
 
 function formatDate(raw) {
-  if (!raw) return "";
-  const d = new Date(String(raw).includes("T") ? raw : `${String(raw).replace(" ", "T")}Z`);
-  if (Number.isNaN(d.getTime())) return String(raw).slice(0, 10);
-  const lang = getPortalLang();
-  const locale = lang === "ja" ? "ja-JP" : lang === "en" ? "en-US" : "zh-CN";
-  return d.toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
+  return formatBlogDate(raw, getPortalLang());
 }
 
 function showErr(msg, boxId = "errBox") {
@@ -170,8 +194,8 @@ function showErr(msg, boxId = "errBox") {
   el.textContent = msg;
 }
 
-function setLoading(on) {
-  const el = document.getElementById("editLoading");
+function setLoading(on, elId = "editLoading") {
+  const el = document.getElementById(elId);
   if (!el) return;
   if (on) {
     el.hidden = false;
@@ -263,15 +287,35 @@ function runViewSwap(fn) {
   }
 }
 
-function showList() {
-  document.getElementById("listView").hidden = false;
+function hideViews() {
+  document.getElementById("listView").hidden = true;
+  document.getElementById("readView").hidden = true;
   document.getElementById("editView").hidden = true;
+}
+
+function showList() {
+  hideViews();
+  document.getElementById("listView").hidden = false;
   document.title = `${t().title} | 1024201`;
 }
 
+function showReader() {
+  hideViews();
+  document.getElementById("readView").hidden = false;
+}
+
 function showEditor() {
-  document.getElementById("listView").hidden = true;
+  hideViews();
   document.getElementById("editView").hidden = false;
+}
+
+function parseRoute() {
+  const params = new URLSearchParams(location.search);
+  return {
+    readId: (params.get("id") || "").trim(),
+    editId: (params.get("edit") || "").trim(),
+    isNew: params.get("new") === "1",
+  };
 }
 
 function getVisibility() {
@@ -299,15 +343,38 @@ function syncPrimaryBtn() {
   btn.dataset.mode = pub ? "publish" : "draft";
 }
 
+function leaveEditor() {
+  if (blogId) goRead(blogId, { replace: true });
+  else goList({ replace: true });
+}
+
 function goList({ replace = false } = {}) {
   runViewSwap(() => {
     blogId = "";
     imageIds = [];
     setLoading(false);
+    setLoading(false, "readLoading");
     showList();
     if (replace) history.replaceState({ view: "list" }, "", "/blog/");
     else history.pushState({ view: "list" }, "", "/blog/");
   });
+}
+
+function goRead(id, { replace = false } = {}) {
+  const nextId = id || "";
+  if (!nextId) {
+    goList({ replace });
+    return;
+  }
+  runViewSwap(() => {
+    blogId = nextId;
+    showReader();
+    applyReadI18n();
+    const url = `/blog/?id=${encodeURIComponent(nextId)}`;
+    if (replace) history.replaceState({ view: "read", id: nextId }, "", url);
+    else history.pushState({ view: "read", id: nextId }, "", url);
+  });
+  openReader(nextId);
 }
 
 function goEdit(id, { replace = false } = {}) {
@@ -316,7 +383,7 @@ function goEdit(id, { replace = false } = {}) {
     blogId = nextId;
     showEditor();
     applyEditI18n();
-    const url = nextId ? `/blog/?id=${encodeURIComponent(nextId)}` : "/blog/?new=1";
+    const url = nextId ? `/blog/?edit=${encodeURIComponent(nextId)}` : "/blog/?new=1";
     if (replace) history.replaceState({ view: "edit", id: nextId }, "", url);
     else history.pushState({ view: "edit", id: nextId }, "", url);
   });
@@ -333,13 +400,23 @@ function bindListNav(userId) {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       warm();
-      goEdit(a.dataset.id);
+      goRead(a.dataset.id);
+    });
+  });
+  list.querySelectorAll("button.blog-item-edit").forEach((btn) => {
+    if (btn.dataset.softBound === "1") return;
+    btn.dataset.softBound = "1";
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      prefetchDoc(btn.dataset.id, userId);
+      goEdit(btn.dataset.id);
     });
   });
 }
 
 function listFp(blogs) {
-  return JSON.stringify((blogs || []).map((b) => [b.id, b.title, b.status, b.visibility, b.created_at]));
+  return JSON.stringify((blogs || []).map((b) => [b.id, b.title, b.status, b.visibility, b.created_at, t().edit]));
 }
 
 function paintList(blogs, userId) {
@@ -370,11 +447,12 @@ function paintList(blogs, userId) {
           : b.visibility === "public"
             ? `<span class="blog-pill public">${esc(ui.public)}</span>`
             : `<span class="blog-pill private">${esc(ui.private)}</span>`;
-      return `<li>
+      return `<li class="blog-row">
         <a class="blog-item" href="/blog/?id=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
           <div class="blog-item-title">${esc(b.title || "(untitled)")}</div>
           <div class="blog-item-meta"><span>${esc(formatDate(b.created_at))}</span>${vis}</div>
         </a>
+        <button type="button" class="btn-ghost blog-item-edit" data-id="${esc(b.id)}">${esc(ui.edit)}</button>
       </li>`;
     })
     .join("");
@@ -385,7 +463,6 @@ function paintList(blogs, userId) {
 
 function warmListDocs(blogs, userId) {
   if (!userId || !blogs?.length) return;
-  // Prefetch full bodies so opening a post is instant
   blogs.slice(0, 12).forEach((b) => prefetchDoc(b.id, userId));
 }
 
@@ -449,6 +526,124 @@ function sameDoc(a, b) {
   );
 }
 
+function isPublicLive(data) {
+  return data?.status === "published" && data?.visibility === "public";
+}
+
+function paintReader(data) {
+  const ui = t();
+  const lang = getPortalLang();
+  document.getElementById("readTitleEl").textContent = data?.title || "";
+  document.title = `${data?.title || ui.title} | 1024201`;
+
+  const metaBits = [];
+  if (data?.author) metaBits.push(`${ui.author} @${data.author}`);
+  if (data?.created_at) metaBits.push(formatBlogDate(data.created_at, lang));
+  if (!isPublicLive(data)) metaBits.push(ui.privateNote);
+  document.getElementById("readMetaEl").textContent = metaBits.join(" · ");
+
+  const bodyHtml = renderMarkdown(data?.body_md || "");
+  const updatedBlock = data?.updated_at
+    ? `<p class="blog-updated-in-body">${esc(ui.updated)} ${esc(formatBlogDate(data.updated_at, lang))}</p>`
+    : "";
+  document.getElementById("readBodyEl").innerHTML = `${updatedBlock}${bodyHtml}`;
+
+  const editBtn = document.getElementById("readEditBtn");
+  const owner = data?.is_owner !== false && !!getUser()?.id;
+  editBtn.hidden = !owner;
+  editBtn.textContent = ui.edit;
+
+  wireLikeBar(data);
+}
+
+function wireLikeBar(data) {
+  const ui = t();
+  const likeBar = document.getElementById("readLikeBar");
+  const likeBtn = document.getElementById("readLikeBtn");
+  const likeCount = document.getElementById("readLikeCount");
+  const id = data?.id || blogId;
+  likeBtn.onclick = null;
+
+  if (!isPublicLive(data)) {
+    likeBar.hidden = true;
+    return;
+  }
+
+  likeBar.hidden = false;
+  likeCount.textContent = ui.likes(data.like_count || 0);
+  if (data.liked) {
+    likeBtn.disabled = true;
+    likeBtn.classList.add("is-liked");
+    likeBtn.textContent = ui.liked;
+    return;
+  }
+  likeBtn.disabled = false;
+  likeBtn.classList.remove("is-liked");
+  likeBtn.textContent = ui.like;
+  likeBtn.onclick = async () => {
+    likeBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/blog?action=like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || "fail");
+      likeBtn.classList.add("is-liked");
+      likeBtn.textContent = ui.liked;
+      likeCount.textContent = ui.likes(out.like_count || data.like_count || 0);
+    } catch {
+      likeBtn.disabled = false;
+    }
+  };
+}
+
+async function openReader(id) {
+  const seq = ++readerLoadSeq;
+  showErr("", "readErrBox");
+  applyReadI18n();
+
+  let cached = readDocCache(id);
+  if (hasFullDoc(cached) || (cached && typeof cached.body_md === "string")) {
+    paintReader({ ...cached, id, is_owner: cached.is_owner !== false });
+    setLoading(false, "readLoading");
+  } else {
+    const user = getUser();
+    const stub = (readListCache(user?.id) || []).find((b) => b.id === id);
+    if (stub) {
+      paintReader({
+        ...stub,
+        id,
+        body_md: "",
+        is_owner: true,
+      });
+    } else {
+      document.getElementById("readTitleEl").textContent = "";
+      document.getElementById("readMetaEl").textContent = "";
+      document.getElementById("readBodyEl").innerHTML = "";
+    }
+    setLoading(true, "readLoading");
+  }
+
+  try {
+    let data = null;
+    const pending = prefetchInflight.get(id);
+    if (pending) data = await pending;
+    if (!data) data = await api("get", { query: { id } });
+    if (seq !== readerLoadSeq) return;
+    paintReader(data);
+    writeDocCache(data);
+  } catch (e) {
+    if (seq !== readerLoadSeq) return;
+    if (!document.getElementById("readBodyEl").innerHTML.trim()) {
+      showErr(e.message || t().notFound, "readErrBox");
+    }
+  } finally {
+    if (seq === readerLoadSeq) setLoading(false, "readLoading");
+  }
+}
+
 async function openEditor(id) {
   const seq = ++editorLoadSeq;
   showErr("", "editErrBox");
@@ -482,7 +677,10 @@ async function openEditor(id) {
     if (pending) data = await pending;
     if (!data) data = await api("get", { query: { id } });
     if (seq !== editorLoadSeq) return;
-    if (data.is_owner === false) throw new Error(t().err);
+    if (data.is_owner === false) {
+      goRead(id, { replace: true });
+      return;
+    }
     if (!sameDoc(cached, data)) fillForm(data);
     writeDocCache(data);
   } catch (e) {
@@ -504,6 +702,12 @@ function applyListI18n() {
   document.getElementById("loginDesc").textContent = ui.loginDesc;
   document.getElementById("loginBtn").textContent = ui.loginBtn;
   document.getElementById("newBtn").textContent = ui.newPost;
+}
+
+function applyReadI18n() {
+  const ui = t();
+  document.getElementById("readBackBtn").textContent = ui.readBack;
+  document.getElementById("readEditBtn").textContent = ui.edit;
 }
 
 function applyEditI18n() {
@@ -597,6 +801,7 @@ async function save(mode) {
       body: { id: blogId || undefined, title, body_md, visibility, mode, images: imageIds },
     });
     blogId = data.blog?.id || blogId;
+    if (data.blog) data.blog.is_owner = true;
     writeDocCache(data.blog);
 
     const user = getUser();
@@ -616,11 +821,11 @@ async function save(mode) {
     paintList(blogs, user.id);
 
     if (mode === "publish") {
-      goList({ replace: true });
+      goRead(blogId, { replace: true });
       return;
     }
 
-    history.replaceState({ view: "edit", id: blogId }, "", `/blog/?id=${encodeURIComponent(blogId)}`);
+    history.replaceState({ view: "edit", id: blogId }, "", `/blog/?edit=${encodeURIComponent(blogId)}`);
     document.getElementById("deleteBtn").hidden = false;
     applyEditI18n();
     const err = document.getElementById("editErrBox");
@@ -639,7 +844,6 @@ async function save(mode) {
 function runPrimaryAction() {
   const vis = getVisibility();
   if (vis === "public") return save("publish");
-  // Hidden: keep as private published when content is ready; otherwise draft
   const title = document.getElementById("titleIn").value.trim();
   const body = document.getElementById("bodyIn").value.trim();
   if (title && body) return save("publish");
@@ -668,15 +872,7 @@ async function bootList() {
   userLine.textContent = `@${user.username || user.email || user.id}`;
 
   const cached = readListCache(user.id);
-  if (cached) {
-    if (document.querySelector("#blogList .blog-item")) {
-      listFingerprint = listFp(cached);
-      bindListNav(user.id);
-      warmListDocs(cached, user.id);
-    } else {
-      paintList(cached, user.id);
-    }
-  }
+  if (cached) paintList(cached, user.id);
 
   try {
     const data = await api("mine");
@@ -693,6 +889,40 @@ async function bootList() {
   }
 }
 
+function applyRoute(replace = false) {
+  const { readId, editId, isNew } = parseRoute();
+  if (isNew || editId) {
+    blogId = editId;
+    if (replace) {
+      showEditor();
+      applyEditI18n();
+      history.replaceState({ view: "edit", id: editId }, "", editId ? `/blog/?edit=${encodeURIComponent(editId)}` : "/blog/?new=1");
+      openEditor(editId);
+    } else {
+      blogId = editId;
+      showEditor();
+      openEditor(editId);
+    }
+    return;
+  }
+  if (readId) {
+    blogId = readId;
+    if (replace) {
+      showReader();
+      applyReadI18n();
+      history.replaceState({ view: "read", id: readId }, "", `/blog/?id=${encodeURIComponent(readId)}`);
+      openReader(readId);
+    } else {
+      showReader();
+      openReader(readId);
+    }
+    return;
+  }
+  blogId = "";
+  showList();
+  if (replace) history.replaceState({ view: "list" }, "", "/blog/");
+}
+
 function wireOnce() {
   if (wired) return;
   wired = true;
@@ -701,8 +931,12 @@ function wireOnce() {
     resetForm();
     goEdit("");
   };
-  document.getElementById("editBackBtn").onclick = () => goList();
-  document.getElementById("cancelBtn").onclick = () => goList();
+  document.getElementById("editBackBtn").onclick = () => leaveEditor();
+  document.getElementById("cancelBtn").onclick = () => leaveEditor();
+  document.getElementById("readBackBtn").onclick = () => goList();
+  document.getElementById("readEditBtn").onclick = () => {
+    if (blogId) goEdit(blogId);
+  };
   document.getElementById("addImgBtn").onclick = () => document.getElementById("imgInput").click();
   document.getElementById("imgInput").onchange = async (e) => {
     const files = [...(e.target.files || [])];
@@ -740,58 +974,45 @@ function wireOnce() {
     }
   };
 
-  window.addEventListener("popstate", () => {
-    const params = new URLSearchParams(location.search);
-    const id = (params.get("id") || "").trim();
-    const isNew = params.get("new") === "1";
-    if (id || isNew) {
-      blogId = id;
-      showEditor();
-      openEditor(id);
-    } else {
-      blogId = "";
-      showList();
+  window.addEventListener("popstate", () => applyRoute(false));
+}
+
+function mountAllLangTabs() {
+  const onChange = () => {
+    applyListI18n();
+    applyReadI18n();
+    applyEditI18n();
+    const user = getUser();
+    if (user?.id) {
+      const cached = readListCache(user.id);
+      if (cached) {
+        listFingerprint = "";
+        paintList(cached, user.id);
+      }
+    }
+    const { readId } = parseRoute();
+    if (readId && !document.getElementById("readView").hidden) {
+      const cached = readDocCache(readId);
+      if (cached) paintReader({ ...cached, id: readId });
+    }
+  };
+  mountLangTabs(document.getElementById("langSlot"), { onChange });
+  ["editLangSlot", "readLangSlot"].forEach((id) => {
+    const slot = document.getElementById(id);
+    if (slot && !slot.childElementCount) {
+      mountLangTabs(slot, { onChange });
     }
   });
 }
 
 function boot() {
   window.__blogSoftNav = true;
-  mountLangTabs(document.getElementById("langSlot"), {
-    onChange: () => {
-      applyListI18n();
-      applyEditI18n();
-      bootList();
-    },
-  });
-  const editSlot = document.getElementById("editLangSlot");
-  if (editSlot && !editSlot.childElementCount) {
-    mountLangTabs(editSlot, {
-      onChange: () => {
-        applyListI18n();
-        applyEditI18n();
-      },
-    });
-  }
-
+  mountAllLangTabs();
   applyListI18n();
+  applyReadI18n();
   applyEditI18n();
   wireOnce();
-
-  const params = new URLSearchParams(location.search);
-  const id = (params.get("id") || "").trim();
-  const isNew = params.get("new") === "1";
-
-  if (id || isNew) {
-    blogId = id;
-    showEditor();
-    openEditor(id);
-    history.replaceState({ view: "edit", id }, "", id ? `/blog/?id=${encodeURIComponent(id)}` : "/blog/?new=1");
-  } else {
-    showList();
-    history.replaceState({ view: "list" }, "", "/blog/");
-  }
-
+  applyRoute(true);
   bootList();
   document.documentElement.classList.remove("blog-booting");
 }

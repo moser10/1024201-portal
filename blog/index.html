@@ -13,9 +13,10 @@
     html.blog-booting .blog-late { visibility: hidden; }
   </style>
   <link rel="modulepreload" href="/js/langTabs.js">
+  <link rel="modulepreload" href="md.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="blog.css?v=9">
+  <link rel="stylesheet" href="blog.css?v=10">
 </head>
 <body class="feature-page blog-page" data-tool="blog">
   <div class="feature-shell">
@@ -50,7 +51,32 @@
         </div>
       </section>
 
-      <!-- EDITOR (same document — no full reload) -->
+      <!-- READER — StackEdit-style markdown page -->
+      <section id="readView" class="blog-view" hidden>
+        <article class="blog-article" id="readArticle">
+          <div class="blog-article-top">
+            <button type="button" class="feature-back" id="readBackBtn">Back</button>
+            <div class="blog-read-actions">
+              <div id="readLangSlot"></div>
+              <button type="button" class="btn-primary" id="readEditBtn" hidden>Edit</button>
+            </div>
+          </div>
+          <div class="page-mark-row blog-article-title">
+            <img class="page-mark" src="/icons/apps/blog.svg" alt="">
+            <h1 id="readTitleEl"></h1>
+          </div>
+          <div class="blog-article-meta" id="readMetaEl"></div>
+          <p class="blog-loading" id="readLoading" hidden></p>
+          <div class="blog-md" id="readBodyEl"></div>
+          <div class="blog-like-bar" id="readLikeBar" hidden>
+            <button type="button" class="blog-like-btn" id="readLikeBtn">Like</button>
+            <span class="blog-like-count" id="readLikeCount"></span>
+          </div>
+          <p class="err" id="readErrBox" hidden></p>
+        </article>
+      </section>
+
+      <!-- EDITOR: ordinary form chrome, markdown body -->
       <section id="editView" class="blog-view" hidden>
         <div class="feature-top">
           <button type="button" class="feature-back" id="editBackBtn">Blog</button>
@@ -82,7 +108,7 @@
             <input type="hidden" id="visValue" value="private" />
 
             <label class="blog-label" id="lblBody" for="bodyIn">Content</label>
-            <textarea class="blog-textarea" id="bodyIn" spellcheck="true"></textarea>
+            <textarea class="blog-textarea blog-textarea-md" id="bodyIn" spellcheck="true"></textarea>
             <p class="blog-loading" id="editLoading" hidden></p>
 
             <span class="blog-label" id="lblImages">Images</span>
@@ -125,8 +151,11 @@
       }
       const uid = userId();
       const params = new URLSearchParams(location.search);
-      const editId = (params.get("id") || "").trim();
+      const readId = (params.get("id") || "").trim();
+      const editId = (params.get("edit") || "").trim();
+      const isNew = params.get("new") === "1";
       const listView = document.getElementById("listView");
+      const readView = document.getElementById("readView");
       const editView = document.getElementById("editView");
 
       if (uid) {
@@ -142,21 +171,38 @@
             list.innerHTML = blogs.map(function (b) {
               var pill = b.status === "draft" ? "draft" : b.visibility === "public" ? "public" : "private";
               var lab = pill === "draft" ? "草稿" : pill === "public" ? "展现" : "隐藏";
-              return '<li><a class="blog-item" href="/blog/?id=' + encodeURIComponent(b.id) + '" data-id="' + esc(b.id) + '">' +
+              return '<li class="blog-row">' +
+                '<a class="blog-item" href="/blog/?id=' + encodeURIComponent(b.id) + '" data-id="' + esc(b.id) + '">' +
                 '<div class="blog-item-title">' + esc(b.title || "(untitled)") + '</div>' +
                 '<div class="blog-item-meta"><span>' + esc(fmt(b.created_at)) + '</span>' +
-                '<span class="blog-pill ' + pill + '">' + lab + '</span></div></a></li>';
+                '<span class="blog-pill ' + pill + '">' + lab + '</span></div></a>' +
+                '<button type="button" class="btn-ghost blog-item-edit" data-id="' + esc(b.id) + '">编辑</button></li>';
             }).join("");
           }
         } catch (e) {}
       }
 
-      if (editId) {
+      function showRead(id) {
         listView.hidden = true;
-        editView.hidden = false;
-        document.getElementById("deleteBtn").hidden = false;
+        readView.hidden = false;
+        editView.hidden = true;
+        document.getElementById("readEditBtn").hidden = false;
         try {
-          var doc = sessionStorage.getItem("blog_doc_v2:" + editId);
+          var raw = sessionStorage.getItem("blog_doc_v2:" + id);
+          if (raw) {
+            var d = JSON.parse(raw);
+            document.getElementById("readTitleEl").textContent = d.title || "";
+          }
+        } catch (e) {}
+      }
+
+      function showEdit(id) {
+        listView.hidden = true;
+        readView.hidden = true;
+        editView.hidden = false;
+        document.getElementById("deleteBtn").hidden = !id;
+        try {
+          var doc = id ? sessionStorage.getItem("blog_doc_v2:" + id) : null;
           if (doc) {
             var d = JSON.parse(doc);
             document.getElementById("titleIn").value = d.title || "";
@@ -172,35 +218,34 @@
         } catch (e) {}
       }
 
-      // Soft navigate before module boots — no full reload flash on early taps
+      if (isNew || editId) {
+        showEdit(editId);
+      } else if (readId) {
+        showRead(readId);
+      }
+
       document.getElementById("blogList").addEventListener("click", function (e) {
         if (window.__blogSoftNav) return;
+        var editBtn = e.target.closest("button.blog-item-edit");
+        if (editBtn) {
+          e.preventDefault();
+          var eid = editBtn.getAttribute("data-id") || "";
+          showEdit(eid);
+          history.pushState({ view: "edit", id: eid }, "", "/blog/?edit=" + encodeURIComponent(eid));
+          return;
+        }
         var a = e.target.closest("a.blog-item");
         if (!a) return;
         e.preventDefault();
         var id = a.getAttribute("data-id") || "";
-        listView.hidden = true;
-        editView.hidden = false;
-        document.getElementById("deleteBtn").hidden = !id;
-        try {
-          var raw = sessionStorage.getItem("blog_doc_v2:" + id);
-          if (raw) {
-            var d2 = JSON.parse(raw);
-            document.getElementById("titleIn").value = d2.title || "";
-            document.getElementById("bodyIn").value = d2.body_md || "";
-          } else {
-            var titleEl = a.querySelector(".blog-item-title");
-            document.getElementById("titleIn").value = titleEl ? titleEl.textContent : "";
-            document.getElementById("bodyIn").value = "";
-          }
-        } catch (err) {}
-        history.pushState({ view: "edit", id: id }, "", "/blog/?id=" + encodeURIComponent(id));
+        var titleEl = a.querySelector(".blog-item-title");
+        document.getElementById("readTitleEl").textContent = titleEl ? titleEl.textContent : "";
+        showRead(id);
+        history.pushState({ view: "read", id: id }, "", "/blog/?id=" + encodeURIComponent(id));
       });
       document.getElementById("newBtn").addEventListener("click", function () {
         if (window.__blogSoftNav) return;
-        listView.hidden = true;
-        editView.hidden = false;
-        document.getElementById("deleteBtn").hidden = true;
+        showEdit("");
         document.getElementById("titleIn").value = "";
         document.getElementById("bodyIn").value = "";
         history.pushState({ view: "edit", id: "" }, "", "/blog/?new=1");
@@ -211,11 +256,24 @@
         listView.hidden = false;
         history.pushState({ view: "list" }, "", "/blog/");
       });
+      document.getElementById("readBackBtn").addEventListener("click", function () {
+        if (window.__blogSoftNav) return;
+        readView.hidden = true;
+        listView.hidden = false;
+        history.pushState({ view: "list" }, "", "/blog/");
+      });
+      document.getElementById("readEditBtn").addEventListener("click", function () {
+        if (window.__blogSoftNav) return;
+        var id = (new URLSearchParams(location.search).get("id") || "").trim();
+        if (!id) return;
+        showEdit(id);
+        history.pushState({ view: "edit", id: id }, "", "/blog/?edit=" + encodeURIComponent(id));
+      });
 
       document.documentElement.classList.remove("blog-booting");
     })();
   </script>
-  <script type="module" src="blog-app.js?v=3"></script>
+  <script type="module" src="blog-app.js?v=4"></script>
   <script src="/js/edgeBack.js"></script>
 </body>
 </html>

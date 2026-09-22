@@ -138,16 +138,30 @@ html.blog-page body {
   padding: 0;
 }
 
-.blog-item {
-  display: block;
-  padding: 14px 4px;
+.blog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border-bottom: 1px solid var(--blog-line);
-  text-decoration: none;
-  color: inherit;
 }
 
-.blog-item:last-child {
+.blog-row:last-child {
   border-bottom: none;
+}
+
+.blog-item {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  padding: 14px 4px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.blog-item-edit {
+  flex-shrink: 0;
+  margin: 0 4px 0 0;
 }
 
 .blog-item-title {
@@ -237,6 +251,13 @@ html.blog-page body {
   min-height: 280px;
   resize: vertical;
   line-height: 1.55;
+}
+
+.blog-textarea-md {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.65;
+  tab-size: 2;
 }
 
 .blog-switch {
@@ -366,23 +387,33 @@ html.blog-page body {
   margin-top: 10px;
 }
 
-/* Article view — flat markdown typography */
+/* Article view — StackEdit-like markdown reader */
 .blog-article {
-  max-width: 720px;
+  max-width: 740px;
   margin: 0 auto;
-  color: #1d1d1f;
+  color: #2c2c2c;
   padding:
     max(20px, env(safe-area-inset-top))
-    max(18px, env(safe-area-inset-right))
-    max(40px, env(safe-area-inset-bottom))
-    max(18px, env(safe-area-inset-left));
+    max(22px, env(safe-area-inset-right))
+    max(48px, env(safe-area-inset-bottom))
+    max(22px, env(safe-area-inset-left));
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(20, 22, 40, 0.06);
+}
+
+.blog-read-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .blog-article-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 22px;
 }
 
 .blog-article-top .feature-back,
@@ -443,10 +474,14 @@ html.blog-page body {
 }
 
 .blog-md {
-  font-size: 16.5px;
-  line-height: 1.75;
-  letter-spacing: -0.01em;
-  color: var(--blog-text);
+  font-family:
+    "Iowan Old Style", Palatino, Palatino Linotype, "Book Antiqua",
+    Georgia, "Songti SC", "Noto Serif CJK SC", serif;
+  font-size: 18px;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+  color: #2c2c2c;
+  max-width: 42em;
 }
 
 .blog-md > * + * {
@@ -587,7 +622,14 @@ html.blog-page body {
   }
 
   .blog-md {
-    font-size: 16px;
+    font-size: 17px;
+  }
+
+  .blog-article {
+    border-radius: 0;
+    box-shadow: none;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
   }
 
   .blog-md .md-img,

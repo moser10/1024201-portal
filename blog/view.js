@@ -11,6 +11,7 @@ const UI = {
     like: "Like",
     liked: "Liked",
     likes: (n) => `${n} likes`,
+    edit: "Edit",
     notFound: "This post is unavailable.",
     privateNote: "Private post",
   },
@@ -22,6 +23,7 @@ const UI = {
     like: "点赞",
     liked: "已赞",
     likes: (n) => `${n} 赞`,
+    edit: "编辑",
     notFound: "这篇博客不可用或不存在。",
     privateNote: "仅自己可见",
   },
@@ -33,6 +35,7 @@ const UI = {
     like: "いいね",
     liked: "いいね済み",
     likes: (n) => `${n} いいね`,
+    edit: "編集",
     notFound: "この投稿は表示できません。",
     privateNote: "非公開",
   },
@@ -57,7 +60,7 @@ async function boot() {
   const ui = t();
   const lang = getPortalLang();
 
-  document.getElementById("backLink").textContent = ui.backPortal;
+  document.getElementById("backLink").textContent = ui.back;
 
   if (!id) {
     errBox.hidden = false;
@@ -137,8 +140,17 @@ async function boot() {
     }
   }
 
-  document.getElementById("backLink").href = "/";
-  document.getElementById("backLink").textContent = ui.backPortal;
+  document.getElementById("backLink").href = "/blog/";
+  document.getElementById("backLink").textContent = ui.back;
+
+  const editBtn = document.getElementById("editBtn");
+  if (editBtn && data.is_owner) {
+    editBtn.hidden = false;
+    editBtn.textContent = ui.edit;
+    editBtn.onclick = () => {
+      location.assign(`/blog/?edit=${encodeURIComponent(id)}`);
+    };
+  }
 }
 
 boot();
