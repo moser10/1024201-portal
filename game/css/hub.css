@@ -37,7 +37,8 @@ body {
 .game-icon {
   width: 88px;
   height: 88px;
-  border-radius: 20px;
+  border-radius: 50%;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,13 +46,6 @@ body {
   transition: transform 0.2s;
 }
 .game-card:hover .game-icon { transform: scale(1.05); }
-.game-card[data-id="dua"] .game-icon,
-.dua-icon {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  box-shadow: 0 10px 24px rgba(0, 80, 180, 0.28);
-}
 .game-label {
   margin-top: 10px;
   font-size: 13px;

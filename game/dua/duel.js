@@ -3,11 +3,16 @@ export const ARENA_R = 420;
 export const FIGHTER_R = 28;
 export const AVATAR_PX = FIGHTER_R * 2;
 export const WEAPON_ICON_PX = Math.round(AVATAR_PX * 0.8);
-export const START_SPEED = 252;
+export const START_SPEED = 262;
 export const BOOST_MUL = 1.85;
 export const BOOST_TIME = 5.2;
 export const RIM_DRIFT = 5 * Math.PI / 180;
-export const MIN_INWARD = 155;
+export const MIN_INWARD = 250;
+export const MIN_INWARD_RATIO = 0.97;
+export const RIM_TUCK = 52;
+export const TANGENT_KEEP = 0.12;
+export const RECOIL_TIME = 0.2;
+export const WEAPON_DIR = "/icons/weapon";
 export const EMOJI_STACK = '"Noto Color Emoji","Noto Emoji","Segoe UI Emoji","Apple Color Emoji","Android Emoji","Twemoji Mozilla",sans-serif';
 
 export const AVATARS = Object.freeze([
@@ -17,23 +22,23 @@ export const AVATARS = Object.freeze([
 export const WEAPONS = Object.freeze({
   pistol: Object.freeze({
     speed: 540, damage: 1, cooldown: 0.32, life: 1.2, r: 5,
-    shots: 5, burst: 1, spread: 0, knock: 240, emoji: "🔫",
+    shots: 5, burst: 1, spread: 0, knock: 240, emoji: "🔫", icon: `${WEAPON_DIR}/pistol.png`,
   }),
   ak: Object.freeze({
     speed: 580, damage: 1, cooldown: 0.9, life: 1.05, r: 4,
-    shots: 2, burst: 3, burstGap: 0.07, spread: 0.07, knock: 190, emoji: "🔫",
+    shots: 2, burst: 3, burstGap: 0.07, spread: 0.07, knock: 190, emoji: "🔫", icon: `${WEAPON_DIR}/ak.png`,
   }),
   rpg: Object.freeze({
     speed: 270, damage: 2, cooldown: 0.4, life: 1.7, r: 8,
-    shots: 1, burst: 1, spread: 0, knock: 360, emoji: "🚀",
+    shots: 1, burst: 1, spread: 0, knock: 360, emoji: "🚀", icon: `${WEAPON_DIR}/rpg.png`,
   }),
   knife: Object.freeze({
     speed: 0, damage: 2, cooldown: 0.2, life: 0.16, r: 18,
-    shots: 1, burst: 1, melee: true, range: 58, knock: 300, emoji: "🔪",
+    shots: 1, burst: 1, melee: true, range: 58, knock: 300, emoji: "🔪", icon: `${WEAPON_DIR}/knife.png`,
   }),
   shotgun: Object.freeze({
     speed: 430, damage: 1, cooldown: 0.75, life: 0.5, r: 4,
-    shots: 2, burst: 3, spread: 0.28, simultaneous: true, knock: 210, emoji: "💥",
+    shots: 2, burst: 3, spread: 0.28, simultaneous: true, knock: 210, emoji: "💥", icon: `${WEAPON_DIR}/shotgun.png`,
   }),
 });
 
@@ -57,6 +62,9 @@ export function makeFighter(id, x, y, emoji, angle) {
     burstGap: 0,
     aimLock: null,
     boostT: 0,
+    recoilT: 0,
+    recoilVx: 0,
+    recoilVy: 0,
   };
 }
 
@@ -94,13 +102,27 @@ export function rotateVec(vx, vy, rad) {
   return { vx: vx * c - vy * s, vy: vx * s + vy * c };
 }
 
+export function cruiseSpeed(f) {
+  return f.boostT > 0 ? START_SPEED * BOOST_MUL : START_SPEED;
+}
+
+export function restoreCruise(f) {
+  const mag = Math.hypot(f.vx, f.vy) || 1;
+  const c = cruiseSpeed(f);
+  f.vx = (f.vx / mag) * c;
+  f.vy = (f.vy / mag) * c;
+  return f;
+}
+
 export function peelOffWall(f, nx, ny) {
-  const inward = -(f.vx * nx + f.vy * ny);
-  if (inward < MIN_INWARD) {
-    const add = MIN_INWARD - inward;
-    f.vx -= add * nx;
-    f.vy -= add * ny;
-  }
+  const speed = cruiseSpeed(f);
+  const radial = f.vx * nx + f.vy * ny;
+  const tx = f.vx - radial * nx;
+  const ty = f.vy - radial * ny;
+  const minIn = Math.max(MIN_INWARD, speed * MIN_INWARD_RATIO);
+  f.vx = -minIn * nx + tx * TANGENT_KEEP;
+  f.vy = -minIn * ny + ty * TANGENT_KEEP;
+  restoreCruise(f);
 }
 
 export function bounceArena(f, arena, rimHits = null) {
@@ -111,13 +133,18 @@ export function bounceArena(f, arena, rimHits = null) {
   if (dist <= max) return null;
   const nx = dx / dist;
   const ny = dy / dist;
-  f.x = arena.x + nx * (max - 3);
-  f.y = arena.y + ny * (max - 3);
-  const dot = f.vx * nx + f.vy * ny;
+  f.x = arena.x + nx * (max - RIM_TUCK);
+  f.y = arena.y + ny * (max - RIM_TUCK);
+  let vx = f.vx + (f.recoilVx || 0);
+  let vy = f.vy + (f.recoilVy || 0);
+  const dot = vx * nx + vy * ny;
   if (dot > 0) {
-    f.vx -= 2 * dot * nx;
-    f.vy -= 2 * dot * ny;
+    vx -= 2 * dot * nx;
+    vy -= 2 * dot * ny;
   }
+  f.vx = vx;
+  f.vy = vy;
+  peelOffWall(f, nx, ny);
   if (rimHits) {
     const key = `${f.id}:${rimBin(nx, ny)}`;
     const seen = rimHits[key] || 0;
@@ -131,18 +158,15 @@ export function bounceArena(f, arena, rimHits = null) {
     }
     rimHits[key] = seen + 1;
   }
-  peelOffWall(f, nx, ny);
+  f.recoilVx = 0;
+  f.recoilVy = 0;
+  f.recoilT = 0;
   return { x: f.x, y: f.y, nx, ny, id: f.id };
 }
 
 export function applyBoost(fighter) {
-  if (fighter.boostT > 0) {
-    fighter.boostT = BOOST_TIME;
-    return fighter;
-  }
-  fighter.vx *= BOOST_MUL;
-  fighter.vy *= BOOST_MUL;
   fighter.boostT = BOOST_TIME;
+  restoreCruise(fighter);
   return fighter;
 }
 
@@ -150,9 +174,8 @@ export function tickBoost(fighter, dt) {
   if (fighter.boostT <= 0) return;
   fighter.boostT -= dt;
   if (fighter.boostT <= 0) {
-    fighter.vx /= BOOST_MUL;
-    fighter.vy /= BOOST_MUL;
     fighter.boostT = 0;
+    restoreCruise(fighter);
   }
 }
 
@@ -170,18 +193,41 @@ export function bounceFighters(a, b) {
   b.x += nx * overlap * 0.5;
   b.y += ny * overlap * 0.5;
   const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-  if (rel > 0) return true;
-  a.vx += rel * nx;
-  a.vy += rel * ny;
-  b.vx -= rel * nx;
-  b.vy -= rel * ny;
+  if (rel <= 0) {
+    a.vx += rel * nx;
+    a.vy += rel * ny;
+    b.vx -= rel * nx;
+    b.vy -= rel * ny;
+  }
+  restoreCruise(a);
+  restoreCruise(b);
   return true;
 }
 
 export function knockback(f, nx, ny, force) {
   const mag = Math.hypot(nx, ny) || 1;
-  f.vx += (nx / mag) * force;
-  f.vy += (ny / mag) * force;
+  f.recoilVx = (nx / mag) * force;
+  f.recoilVy = (ny / mag) * force;
+  f.recoilT = RECOIL_TIME;
+}
+
+export function tickRecoil(f, dt) {
+  if (f.recoilT <= 0) {
+    f.recoilVx = 0;
+    f.recoilVy = 0;
+    return;
+  }
+  f.recoilT -= dt;
+  if (f.recoilT <= 0) {
+    f.recoilT = 0;
+    f.recoilVx = 0;
+    f.recoilVy = 0;
+    restoreCruise(f);
+    return;
+  }
+  const k = Math.max(0, f.recoilT / RECOIL_TIME);
+  f.recoilVx *= k;
+  f.recoilVy *= k;
 }
 
 export function placeOnRing(arena, rng, inset = 70) {
@@ -363,8 +409,9 @@ export function cpuAim(state) {
 }
 
 export function integrateFighter(f, dt, arena, rimHits) {
-  f.x += f.vx * dt;
-  f.y += f.vy * dt;
+  tickRecoil(f, dt);
+  f.x += (f.vx + (f.recoilVx || 0)) * dt;
+  f.y += (f.vy + (f.recoilVy || 0)) * dt;
   return bounceArena(f, arena, rimHits);
 }
 

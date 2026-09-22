@@ -1,4 +1,4 @@
-import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=5";
+import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=7";
 import { duaCopy } from "./copy.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
 
@@ -19,13 +19,17 @@ const aimHint = document.getElementById("aimHint");
 const stick = document.getElementById("stick");
 const stickKnob = document.getElementById("stickKnob");
 const gameBack = document.getElementById("gameBack");
-const gameSub = document.getElementById("gameSub");
 
 const W = canvas.width;
 const H = canvas.height;
 const EMOJI_FONT = `${AVATAR_PX}px ${EMOJI_STACK}`;
 const GUN_FONT = `${WEAPON_ICON_PX}px ${EMOJI_STACK}`;
-const STICK_R = 54;
+const weaponImgs = {};
+for (const kind of Object.keys(WEAPONS)) {
+  const img = new Image();
+  img.src = WEAPONS[kind].icon;
+  weaponImgs[kind] = img;
+}
 
 let lang = getPortalLang();
 let copy = duaCopy(lang);
@@ -57,7 +61,6 @@ function applyLang() {
   lang = getPortalLang();
   copy = duaCopy(lang);
   if (gameBack) gameBack.textContent = copy.back;
-  if (gameSub) gameSub.textContent = copy.subtitle;
   if (aimHint) aimHint.textContent = copy.hint;
   stick.classList.toggle("armed", canFire(match.player));
   if (!running || paused || overlayMode !== "hidden") refreshOverlayCopy();
@@ -81,7 +84,7 @@ function refreshOverlayCopy() {
     startBtn.textContent = copy.restart;
     avatarGrid.hidden = false;
   } else {
-    overlayTitle.innerHTML = "对圈 Dua<br>DUEL CIRCLE";
+    overlayTitle.textContent = "对圈 Dua";
     overlayText.textContent = copy.pick;
     startBtn.textContent = copy.start;
     avatarGrid.hidden = false;
@@ -207,7 +210,18 @@ function draw() {
   drawFlashes();
 
   for (const item of match.pickups) {
-    drawEmoji(item.x, item.y, pickupGlyph(item.kind), GUN_FONT);
+    const img = weaponImgs[item.kind];
+    if (img?.complete && img.naturalWidth) {
+      const s = WEAPON_ICON_PX;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(item.x, item.y, s / 2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(img, item.x - s / 2, item.y - s / 2, s, s);
+      ctx.restore();
+    } else {
+      drawEmoji(item.x, item.y, pickupGlyph(item.kind), GUN_FONT);
+    }
   }
   for (const shot of match.shots) {
     ctx.fillStyle = shot.kind === "rpg" ? "#34c759" : "#f2f2f7";

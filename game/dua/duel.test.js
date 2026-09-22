@@ -10,16 +10,19 @@ import {
   WEAPONS,
   BOOST_MUL,
   START_SPEED,
-  MIN_INWARD,
+  MIN_INWARD_RATIO,
   applyBoost,
+  integrateFighter,
   armWeapon,
   bounceArena,
   bounceFighters,
   canFire,
   createMatch,
+  knockback,
   pickAvatar,
   stepMatch,
   stepShots,
+  tickRecoil,
   triggerWeapon,
 } from "./duel.js";
 import { DUA_COPY } from "./copy.js";
@@ -35,6 +38,7 @@ test("avatar picker only returns catalog faces and never the used one", () => {
 
 test("weapon icons are 80 percent of the avatar size", () => {
   assert.equal(WEAPON_ICON_PX, Math.round(AVATAR_PX * 0.8));
+  assert.match(WEAPONS.pistol.icon, /\/icons\/weapon\/pistol\.png$/);
 });
 
 test("ammo: pistol 5, ak two bursts of 3, rpg 1, knife 1, shotgun two sprays of 3", () => {
@@ -92,15 +96,16 @@ test("fighters bounce apart and shots knock the target back", () => {
   match.player.vx = 80;
   match.foe.vx = -20;
   bounceFighters(match.player, match.foe);
-  assert.ok(match.player.vx < 80);
+  assert.ok(match.player.x < match.foe.x);
 
-  const before = match.foe.vx;
   match.shots.push({
     owner: "player", kind: "pistol", x: match.foe.x, y: match.foe.y,
     vx: 200, vy: 0, r: 6, damage: 1, knock: 240, life: 1,
   });
+  const cruise = Math.hypot(match.foe.vx, match.foe.vy);
   stepShots(match, 0.01);
-  assert.ok(match.foe.vx > before);
+  assert.ok(match.foe.recoilVx > 0);
+  assert.ok(Math.abs(Math.hypot(match.foe.vx, match.foe.vy) - cruise) < 0.02);
   assert.equal(match.foe.hearts, 9);
 });
 
@@ -150,8 +155,24 @@ test("grazing the rim must bounce inward instead of sliding around", () => {
   bounceArena(f, match.arena, match.rimHits);
   const nx = 1;
   const inward = -(f.vx * nx + f.vy * 0);
-  assert.ok(inward >= MIN_INWARD - 0.01, `inward=${inward}`);
+  assert.ok(inward >= START_SPEED * MIN_INWARD_RATIO - 0.5, `inward=${inward}`);
+  assert.ok(Math.abs(f.vy) < Math.abs(f.vx));
   assert.ok(f.x < match.arena.x + match.arena.r - f.r);
+});
+
+test("a rim hit leaves the wall instead of hopping along it", () => {
+  const match = createMatch();
+  const f = match.player;
+  f.x = match.arena.x + match.arena.r;
+  f.y = match.arena.y;
+  f.vx = 40;
+  f.vy = START_SPEED;
+  bounceArena(f, match.arena, match.rimHits);
+  let hits = 0;
+  for (let i = 0; i < 24; i++) {
+    if (integrateFighter(f, 0.016, match.arena, match.rimHits)) hits += 1;
+  }
+  assert.equal(hits, 0);
 });
 
 test("boost pickup makes a fighter extra fast", () => {
@@ -161,6 +182,18 @@ test("boost pickup makes a fighter extra fast", () => {
   applyBoost(match.player);
   assert.ok(Math.abs(match.player.vx - START_SPEED * BOOST_MUL) < 0.01);
   assert.ok(match.player.boostT > 0);
+});
+
+test("recoil fades and cruise speed returns", () => {
+  const match = createMatch();
+  match.foe.vx = START_SPEED;
+  match.foe.vy = 0;
+  knockback(match.foe, 1, 0, 300);
+  assert.ok(match.foe.recoilT > 0);
+  assert.ok(Math.abs(Math.hypot(match.foe.vx, match.foe.vy) - START_SPEED) < 0.01);
+  tickRecoil(match.foe, 1);
+  assert.equal(match.foe.recoilT, 0);
+  assert.ok(Math.abs(Math.hypot(match.foe.vx, match.foe.vy) - START_SPEED) < 0.01);
 });
 
 test("queued fire shoots once a weapon is collected", () => {
