@@ -1,5 +1,5 @@
 import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch, triggerWeapon } from "./duel.js?v=12";
-import { duaCopy } from "./copy.js?v=4";
+import { duaCopy } from "./copy.js?v=5";
 import { getPortalLang } from "/js/langTabs.js";
 import { applyNavBack } from "/js/navBack.js?v=3";
 import { AIM_REACH, STICK_TRAVEL, STICK_DEADZONE, clampStick, aimFromDir, lerpToward } from "./stick.js?v=2";
@@ -85,6 +85,7 @@ function applyLang() {
   lang = getPortalLang();
   copy = duaCopy(lang);
   if (gameBack) applyNavBack(gameBack, lang, { follow: true, fallback: "game" });
+  document.title = `${copy.subtitle} | 1024201`;
   if (aimHint) aimHint.textContent = copy.hint;
   stick.classList.toggle("armed", canFire(match.player));
   if (!running || paused || overlayMode !== "hidden") refreshOverlayCopy();
@@ -108,7 +109,7 @@ function refreshOverlayCopy() {
     startBtn.textContent = copy.restart;
     avatarGrid.hidden = false;
   } else {
-    overlayTitle.textContent = "对圈 Dua";
+    overlayTitle.textContent = copy.subtitle;
     overlayText.textContent = copy.pick;
     startBtn.textContent = copy.start;
     avatarGrid.hidden = false;

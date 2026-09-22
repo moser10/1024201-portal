@@ -31,7 +31,7 @@ export const DUA_COPY = Object.freeze({
   }),
   ja: Object.freeze({
     back: "ゲームへ",
-    subtitle: "デュエル円",
+    subtitle: "ガツン",
     hint: "スティックで照準し、指を離すと発射。武器がなければ撃てません。",
     pick: "先に顔を選んでください。開始後は照準と発射のみ。軌道は円内の反射です。",
     pause: "一時停止",

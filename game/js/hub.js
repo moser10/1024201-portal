@@ -2,6 +2,7 @@ import { getUser } from "./store.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getPortalLang } from "/js/langTabs.js";
 import { hallBackLabel, setNavBack } from "/js/navBack.js?v=3";
+import { GAME_NAMES } from "./gameNames.js?v=1";
 
 const GAMES = [
   {
@@ -15,16 +16,16 @@ const GAMES = [
   {
     id: "paddlemaze",
     code: "PBM",
-    title: { zh: "挡板方块迷宫", en: "Paddle Block Maze", ja: "パドルブロック迷路" },
-    fullName: "Paddle Block Maze",
+    title: GAME_NAMES.paddle,
+    fullName: GAME_NAMES.paddle.en,
     href: "paddlemaze/",
     gradient: "linear-gradient(135deg, #ff42bb 0%, #8b0aa8 58%, #24113f 100%)",
   },
   {
     id: "dua",
     code: "DUA",
-    title: { zh: "对圈", en: "Dua", ja: "デュエル円" },
-    fullName: "Dua Circle",
+    title: GAME_NAMES.dua,
+    fullName: GAME_NAMES.dua.en,
     href: "dua/",
     gradient: "linear-gradient(160deg, #64d2ff 0%, #00c7be 48%, #0040c7 100%)",
   },
@@ -52,6 +53,8 @@ const grid = document.getElementById("gameGrid");
 for (const game of GAMES) {
   const label = grid.querySelector(`[data-label="${game.id}"]`);
   if (label) label.textContent = game.title[lang] || game.title.zh;
+  const full = grid.querySelector(`[data-full="${game.id}"]`);
+  if (full) full.textContent = game.fullName;
 }
 
 grid.querySelectorAll(".game-card").forEach((card) => {

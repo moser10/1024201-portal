@@ -41,13 +41,13 @@
           </a>
           <a class="game-card" href="paddlemaze/" data-href="paddlemaze/" data-id="paddlemaze">
             <div class="game-icon"><img src="/icons/apps/pbm.svg" alt=""></div>
-            <div class="game-label" data-label="paddlemaze">挡板方块迷宫</div>
-            <div class="game-full">Paddle Block Maze</div>
+            <div class="game-label" data-label="paddlemaze">打砖块</div>
+            <div class="game-full" data-full="paddlemaze">Paddle</div>
           </a>
           <a class="game-card" href="dua/" data-href="dua/" data-id="dua">
             <div class="game-icon"><img src="/icons/apps/dua.svg" alt=""></div>
             <div class="game-label" data-label="dua">对圈</div>
-            <div class="game-full">Dua Circle</div>
+            <div class="game-full" data-full="dua">Dua</div>
           </a>
         </div>
       </div>
@@ -56,9 +56,9 @@
       (function () {
         var lang = localStorage.getItem("portal_lang") || "en";
         var text = {
-          zh: { title:"游戏中心", back:"返回大厅", osn:"一人一句，一句成书", paddlemaze:"挡板方块迷宫", dua:"对圈" },
-          en: { title:"Game Center", back:"Back to lobby", osn:"One sentence, one novel", paddlemaze:"Paddle Block Maze", dua:"Dua" },
-          ja: { title:"ゲームセンター", back:"ロビーへ", osn:"一文執筆", paddlemaze:"パドルブロック迷路", dua:"デュエル円" }
+          zh: { title:"游戏中心", back:"返回大厅", osn:"一人一句，一句成书", paddlemaze:"打砖块", dua:"对圈" },
+          en: { title:"Game Center", back:"Back to lobby", osn:"One sentence, one novel", paddlemaze:"Paddle", dua:"Dua" },
+          ja: { title:"ゲームセンター", back:"ロビーへ", osn:"一文執筆", paddlemaze:"ブロック崩し", dua:"ガツン" }
         }[lang] || null;
         if (!text) return;
         document.getElementById("hubTitle").textContent = text.title;
@@ -68,7 +68,7 @@
         document.querySelector('[data-label="dua"]').textContent = text.dua;
       })();
     </script>
-    <script type="module" src="js/hub.js?v=8"></script>
+    <script type="module" src="js/hub.js?v=9"></script>
     <script src="/pwa.js" defer></script>
 </body>
 </html>

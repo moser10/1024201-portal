@@ -2,7 +2,7 @@ import { getPortalLang } from "/js/langTabs.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getUser, requireAuth } from "/game/js/store.js";
 import { applyNavBack, setNavBack, roomReturnId } from "/js/navBack.js?v=3";
-import { roomsCopy } from "./copy.js?v=4";
+import { roomsCopy } from "./copy.js?v=5";
 
 const root = document.getElementById("roomsRoot");
 const backLink = document.getElementById("backLink");

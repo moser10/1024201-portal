@@ -6,7 +6,7 @@
   <meta name="format-detection" content="telephone=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0a0a12">
-  <title>Paddle Block Maze | 1024201</title>
+  <title>Paddle | 1024201</title>
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
   <link rel="stylesheet" href="game.css?v=27">
 </head>
@@ -15,7 +15,7 @@
     <header class="game-top">
       <a class="game-back" id="gameBack" href="/">Back to lobby</a>
       <div class="game-title">
-        <strong>PADDLE BLOCK MAZE</strong>
+        <strong id="gameBrand">PADDLE</strong>
         <span id="levelText">LEVEL 01 / 24</span>
       </div>
       <button class="icon-btn" id="pauseBtn" type="button" aria-label="暂停">Ⅱ</button>
@@ -35,11 +35,11 @@
     </section>
 
     <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="gameCanvas" width="900" height="1100" draggable="false" aria-label="Paddle Block Maze 游戏区域"></canvas>
+      <canvas id="gameCanvas" width="900" height="1100" draggable="false" aria-label="Paddle 游戏区域"></canvas>
       <div class="overlay" id="overlay">
         <div class="overlay-card">
           <p class="eyebrow" id="overlayEyebrow" hidden></p>
-          <h1 id="overlayTitle">Paddle Block Maze<br>挡板方块迷宫<br>パドルブロック迷路</h1>
+          <h1 id="overlayTitle">Paddle</h1>
           <p id="overlayText"></p>
           <button id="startBtn" type="button">START</button>
         </div>
@@ -65,10 +65,15 @@
   <script>
     (function () {
       var lang = localStorage.getItem("portal_lang") || "en";
-      var copy = { en: "Back to lobby", zh: "返回大厅", ja: "ロビーへ" };
-      document.getElementById("gameBack").textContent = copy[lang] || copy.en;
+      var back = { en: "Back to lobby", zh: "返回大厅", ja: "ロビーへ" };
+      var name = { zh: "打砖块", en: "Paddle", ja: "ブロック崩し" };
+      document.getElementById("gameBack").textContent = back[lang] || back.en;
+      var brand = name[lang] || name.en;
+      document.getElementById("gameBrand").textContent = lang === "en" ? "PADDLE" : brand;
+      document.getElementById("overlayTitle").textContent = brand;
+      document.title = brand + " | 1024201";
     })();
   </script>
-  <script type="module" src="game.js?v=27"></script>
+  <script type="module" src="game.js?v=28"></script>
 </body>
 </html>

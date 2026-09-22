@@ -638,7 +638,7 @@ function loop(time) {
   animationId = requestAnimationFrame(loop);
 }
 
-function showOverlay(title, text, button, eyebrow = "PADDLE BLOCK MAZE") {
+function showOverlay(title, text, button, eyebrow = "PADDLE") {
   overlayTitleEl.textContent = title;
   overlayTextEl.textContent = text;
   overlayEyebrowEl.textContent = eyebrow;
@@ -648,7 +648,7 @@ function showOverlay(title, text, button, eyebrow = "PADDLE BLOCK MAZE") {
 
 function startLevel() {
   const title = overlayTitleEl.textContent || "";
-  if (title.includes("全部通关") || title.includes("GAME OVER") || title.includes("Paddle Block Maze")) {
+  if (title.includes("全部通关") || title.includes("GAME OVER") || /Paddle|打砖块|ブロック崩し/.test(title)) {
     sessionElapsed = 0;
     if (title.includes("全部通关")) score = 0;
   }

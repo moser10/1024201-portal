@@ -79,7 +79,7 @@ export const ROOMS_COPY = Object.freeze({
     create: "部屋を作る",
     name: "部屋名",
     game: "ゲーム",
-    gameDua: "対圈",
+    gameDua: "ガツン",
     gameBlurb: "今オンラインにできるのは対圈だけ。最大3人。",
     pin: "暗証（任意）",
     unlimited: "人数制限なし",
