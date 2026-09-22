@@ -1,8 +1,8 @@
 import { getPortalLang } from "/js/langTabs.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getUser, requireAuth } from "/game/js/store.js";
-import { applyNavBack, setNavBack } from "/js/navBack.js?v=1";
-import { roomsCopy } from "./copy.js?v=2";
+import { applyNavBack, setNavBack, readNavBack } from "/js/navBack.js?v=2";
+import { roomsCopy } from "./copy.js?v=3";
 
 const root = document.getElementById("roomsRoot");
 const backLink = document.getElementById("backLink");
@@ -15,6 +15,25 @@ let kind = "dua";
 let view = "lobby";
 let current = null;
 let pulse = 0;
+let askingClose = false;
+const ROOM_KEY = "portal_open_room";
+
+function rememberRoom(id) {
+  try {
+    if (id) sessionStorage.setItem(ROOM_KEY, String(id));
+    else sessionStorage.removeItem(ROOM_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function recalledRoom() {
+  try {
+    return sessionStorage.getItem(ROOM_KEY) || "";
+  } catch {
+    return "";
+  }
+}
 
 function esc(s) {
   return String(s ?? "")
@@ -131,7 +150,7 @@ function paintList(rooms) {
       <article class="room-card">
         <div>
           <strong>${esc(r.title)}</strong>
-          <small>${esc(copy.code)} ${esc(r.id)} · ${seatLine(r)}${r.has_pin ? ` · ${esc(copy.locked)}` : ""} · ${esc(copy.host)} @${esc(r.host_name)}</small>
+          <small>${seatLine(r)}${r.has_pin ? ` · ${esc(copy.locked)}` : ""} · ${esc(copy.host)} @${esc(r.host_name)}</small>
         </div>
         <button type="button" class="btn-primary" data-join="${esc(r.id)}" data-pin="${r.has_pin ? "1" : "0"}">${esc(copy.join)}</button>
       </article>`
@@ -164,8 +183,9 @@ async function tryJoin(id, needPin) {
 
 function openInside(data) {
   current = data;
+  rememberRoom(data.room.id);
   setNavBack({ type: "rooms" });
-  history.replaceState(null, "", `/rooms/?r=${encodeURIComponent(data.room.id)}`);
+  history.replaceState(null, "", "/rooms/");
   renderInside(data);
   startPulse();
 }
@@ -176,7 +196,7 @@ function renderInside(data) {
   const seats = data.seats || [];
   const msgs = data.messages || [];
   root.innerHTML = `
-    <p class="rooms-note">${esc(copy.code)} <strong>${esc(room.id)}</strong> · ${seatLine({ seats: seats.length, max_seats: room.max_seats })}</p>
+    <p class="rooms-note"><strong>${esc(room.title)}</strong> · ${seatLine({ seats: seats.length, max_seats: room.max_seats })}</p>
     <div class="seat-list">${seats.map((s) => `<span class="seat-chip">@${esc(s.username)}</span>`).join("")}</div>
     ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p><div class="rooms-actions"><a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a></div>` : ""}
     <div class="msg-list">${msgs.map((m) => `<p class="msg-row"><b>@${esc(m.username)}</b> ${esc(m.text)}</p>`).join("")}</div>
@@ -187,6 +207,15 @@ function renderInside(data) {
     <div class="rooms-actions">
       <button type="button" class="btn-secondary" id="leaveBtn">${esc(copy.leave)}</button>
       ${room.host ? `<button type="button" class="btn-danger" id="closeBtn">${esc(copy.close)}</button>` : ""}
+    </div>
+    <div class="rooms-modal" id="closeAsk" ${askingClose ? "" : "hidden"}>
+      <div class="rooms-modal-card">
+        <p>${esc(copy.closeAsk)}</p>
+        <div class="rooms-actions">
+          <button type="button" class="btn-secondary" id="closeNo">${esc(copy.cancel)}</button>
+          <button type="button" class="btn-danger" id="closeYes">${esc(copy.ok)}</button>
+        </div>
+      </div>
     </div>
   `;
   document.getElementById("sayForm").addEventListener("submit", async (e) => {
@@ -203,7 +232,18 @@ function renderInside(data) {
     await api("leave", { room_id: room.id }).catch(() => {});
     backToLobby();
   });
-  document.getElementById("closeBtn")?.addEventListener("click", async () => {
+  document.getElementById("closeBtn")?.addEventListener("click", () => {
+    askingClose = true;
+    const box = document.getElementById("closeAsk");
+    if (box) box.hidden = false;
+  });
+  document.getElementById("closeNo")?.addEventListener("click", () => {
+    askingClose = false;
+    const box = document.getElementById("closeAsk");
+    if (box) box.hidden = true;
+  });
+  document.getElementById("closeYes")?.addEventListener("click", async () => {
+    askingClose = false;
     await api("close", { room_id: room.id }).catch(() => {});
     backToLobby();
   });
@@ -215,7 +255,9 @@ function renderInside(data) {
 
 function backToLobby() {
   stopPulse();
+  askingClose = false;
   current = null;
+  rememberRoom("");
   setNavBack({ type: "hall" });
   history.replaceState(null, "", "/rooms/");
   loadLobby();
@@ -228,7 +270,7 @@ function startPulse() {
     if (!current?.room?.id) return;
     try {
       current = await api("heartbeat", { room_id: current.room.id });
-      if (view === "inside") {
+      if (view === "inside" && !askingClose) {
         const draft = document.getElementById("sayText")?.value || "";
         renderInside(current);
         const box = document.getElementById("sayText");
@@ -249,7 +291,9 @@ if (!requireAuth("rooms/")) {
   /* redirected */
 } else {
   applyChrome();
-  const want = new URLSearchParams(location.search).get("r");
+  const fromUrl = new URLSearchParams(location.search).get("r");
+  const want = recalledRoom() || readNavBack()?.roomId || fromUrl;
+  if (fromUrl) history.replaceState(null, "", "/rooms/");
   if (want) {
     api("get", { room_id: want })
       .then((data) => {

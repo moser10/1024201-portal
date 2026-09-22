@@ -1,7 +1,10 @@
 export const ACCOUNT_COPY = Object.freeze({
   zh: Object.freeze({
     title: "设置",
-    sub: "改用户名、密码或邮箱。换邮箱要用验证码。",
+    sub: "点编辑再改用户名、密码或邮箱。换邮箱要用验证码。",
+    edit: "编辑",
+    change: "更改",
+    cancel: "取消",
     username: "用户名",
     saveName: "保存用户名",
     password: "密码",
@@ -19,7 +22,10 @@ export const ACCOUNT_COPY = Object.freeze({
   }),
   en: Object.freeze({
     title: "Settings",
-    sub: "Change your name, password, or email. Email changes use a code.",
+    sub: "Tap Edit to change your name, password, or email. Email changes use a code.",
+    edit: "Edit",
+    change: "Change",
+    cancel: "Cancel",
     username: "Username",
     saveName: "Save name",
     password: "Password",
@@ -37,7 +43,10 @@ export const ACCOUNT_COPY = Object.freeze({
   }),
   ja: Object.freeze({
     title: "設定",
-    sub: "名前・パスワード・メールを変更。メール変更は確認コードです。",
+    sub: "編集を押してから名前・パスワード・メールを変更。メール変更は確認コードです。",
+    edit: "編集",
+    change: "変更",
+    cancel: "キャンセル",
     username: "ユーザー名",
     saveName: "名前を保存",
     password: "パスワード",

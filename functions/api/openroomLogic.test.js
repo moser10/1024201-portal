@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeRoomCode, parseCreate, canJoin, sanitizeMsg, publicRoom, CODE_ALPHABET } from "./openroomLogic.js";
+import { makeRoomCode, parseCreate, canJoin, sanitizeMsg, publicRoom, chatFate, CODE_ALPHABET } from "./openroomLogic.js";
 
 test("room codes stay in the readable alphabet", () => {
   for (let i = 0; i < 20; i++) {
@@ -27,6 +27,12 @@ test("join is blocked when full, closed, or pin is wrong", () => {
   assert.equal(canJoin({ room, seats: [{ user_id: 1 }], pin: "0000", userId: 3 }).error, "pin");
   assert.equal(canJoin({ room: { ...room, closed_at: "now" }, seats: [], pin: "1024", userId: 3 }).error, "closed");
   assert.equal(canJoin({ room, seats: [{ user_id: 3 }], pin: "nope", userId: 3 }).already, true);
+});
+
+test("leave keeps chat; close wipes it for game and chat rooms", () => {
+  assert.equal(chatFate("leave"), "keep");
+  assert.equal(chatFate("close"), "wipe");
+  assert.equal(chatFate("say"), null);
 });
 
 test("public rooms hide the pin and chat text is clipped", () => {

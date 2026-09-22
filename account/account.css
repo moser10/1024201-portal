@@ -1,8 +1,26 @@
+.account-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #ece7df;
+}
+.account-row:last-child { border-bottom: 0; }
+.account-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.account-row-head h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #2B3054;
+}
+.account-edit { flex-shrink: 0; }
+.account-panel { margin-top: 10px; }
 .account-form {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 22px;
+  margin-bottom: 0;
 }
 .account-form h2 {
   margin: 0;

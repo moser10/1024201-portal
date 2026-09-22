@@ -76,6 +76,13 @@ export function publicRoom(row, seatCount) {
   };
 }
 
+/** Leave keeps messages. Only an explicit close wipes the room chat. */
+export function chatFate(action) {
+  if (action === "leave") return "keep";
+  if (action === "close") return "wipe";
+  return null;
+}
+
 export function sanitizeMsg(text) {
   const msg = String(text || "").replace(/\s+/g, " ").trim();
   if (!msg || msg.length > MSG_MAX) return null;

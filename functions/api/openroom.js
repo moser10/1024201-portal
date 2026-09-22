@@ -143,16 +143,14 @@ export async function onRequest(context) {
 
     if (action === "leave") {
       await db.prepare("DELETE FROM open_room_seats WHERE room_id = ? AND user_id = ?").bind(room.id, user.id).run();
-      if (Number(room.host_id) === Number(user.id)) {
-        await db.prepare("UPDATE open_rooms SET closed_at = datetime('now') WHERE id = ?").bind(room.id).run();
-      }
       return json({ ok: true });
     }
 
     if (action === "close") {
       if (Number(room.host_id) !== Number(user.id)) return json({ error: "host" }, 403);
       await db.prepare("UPDATE open_rooms SET closed_at = datetime('now') WHERE id = ?").bind(room.id).run();
-      return json({ ok: true });
+      await db.prepare("DELETE FROM open_room_msgs WHERE room_id = ?").bind(room.id).run();
+      return json({ ok: true, wiped: true });
     }
 
     if (action === "get") {

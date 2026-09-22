@@ -63,10 +63,10 @@ export function resolveNavBack(lang, opt = "hall") {
   const options = typeof opt === "string" ? { type: opt } : opt || {};
   if (options.follow) {
     const spec = readNavBack();
-    if (spec?.type === "room" && spec.roomId) {
+    if (spec?.type === "room" && (spec.roomId || spec.roomTitle)) {
       return {
-        href: `/rooms/?r=${encodeURIComponent(spec.roomId)}`,
-        label: roomBackLabel(lang, spec.roomTitle || spec.roomId),
+        href: ROOMS_BACK.href,
+        label: roomBackLabel(lang, spec.roomTitle),
       };
     }
     if (spec?.type === "rooms") return pack(lang, "rooms");
