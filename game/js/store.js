@@ -39,7 +39,7 @@ export function clearRoom() {
 
 export function requireAuth(returnPath) {
   if (getUser()) return true;
-  const ret = returnPath ? `?return=${encodeURIComponent(returnPath)}` : "";
+  const ret = returnPath ? `?return=${encodeURIComponent(returnPath.startsWith("/") ? returnPath : `/${returnPath}`)}` : "";
   window.location.href = `/game/register/${ret}`;
   return false;
 }

@@ -3,7 +3,7 @@ import { buildWallRects, playField } from "./walls.js?v=27";
 import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=25";
 import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=25";
 import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=25";
-import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=27";
+import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=28";
 import { heldBallPose, launchVelocity } from "./serve.js?v=1";
 
 const canvas = document.getElementById("gameCanvas");
@@ -224,6 +224,8 @@ function launchHeldBalls() {
     ball.vx = v.vx;
     ball.vy = v.vy;
   }
+  levelElapsed = 0;
+  resetStallRelief(stallRelief, bricks.length);
 }
 
 function releaseBallAt(index) {
@@ -424,26 +426,16 @@ function applyPower(power) {
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
     syncPaddleCap(paddleCap, paddle.w, W);
   } else if (spec.kind === "balls") {
-    const ballCap = Math.max(1, Math.min(MAX_BALLS, bricks.length));
-    const target = targetBallCount(balls.length, spec, ballCap);
-    if (target > balls.length) {
-      if (spec.operation === "add") {
-        while (balls.length < target) {
-          const paddleSource = {
-            x: paddle.x + paddle.w / 2,
-            y: paddle.y - BALL_R - 1,
-            vx: (Math.random() - 0.5) * 90,
-            vy: -buildLevelSpec(levelIndex).speed,
-          };
-          if (!activateBall(undefined, paddleSource, false)) break;
-        }
-      } else {
-        const sources = balls.slice();
-        let sourceIndex = 0;
-        while (sources.length && balls.length < target) {
-          if (!activateBall(undefined, sources[sourceIndex % sources.length], false)) break;
-          sourceIndex++;
-        }
+    const target = targetBallCount(balls.length, spec, MAX_BALLS);
+    if (spec.buff) {
+      while (balls.length < target) {
+        const paddleSource = {
+          x: paddle.x + paddle.w / 2,
+          y: paddle.y - BALL_R - 1,
+          vx: (Math.random() - 0.5) * 90,
+          vy: -buildLevelSpec(levelIndex).speed,
+        };
+        if (!activateBall(undefined, paddleSource, false)) break;
       }
     } else {
       while (balls.length > target) releaseBallAt(balls.length - 1);

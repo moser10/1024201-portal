@@ -1,5 +1,5 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
-import { mountAccountChrome } from "/js/accountChrome.js?v=3";
+import { mountAccountChrome } from "/js/accountChrome.js?v=4";
 import { hallBackLabel } from "/js/navBack.js?v=3";
 
 const MUSIC_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>`;

@@ -1,8 +1,9 @@
 import { setUser } from "../js/store.js";
 import { bindNameCheck } from "../onesentence/js/nameCheck.js";
-import { mountAccountChrome } from "/js/accountChrome.js?v=3";
+import { mountAccountChrome } from "/js/accountChrome.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
 import { hallBackLabel } from "/js/navBack.js?v=3";
+import { leaveAuthTo, safeAuthDest } from "/js/authNav.js?v=1";
 
 const API = "";
 const CODE_WINDOW_MS = 60_000;
@@ -199,37 +200,17 @@ function hideVerifyError() {
 }
 
 function resolveDest() {
-  const raw = (returnTo || "").trim();
-  if (!raw || raw === "/game/register/" || raw.includes("/register")) return DEFAULT_HOME;
-  // Portal home (empty path / ".") → site root, not toolbox / game hub
-  if (raw === "/" || raw === "." || raw === "index.html" || raw === "/index.html") return "/";
-  if (raw.startsWith("/")) return raw;
-  return `/${raw}`;
+  return safeAuthDest(returnTo);
 }
 
 function goAfterRegister(user) {
   setUser(user);
-  finishAuthNavigation();
+  leaveAuthTo(resolveDest());
 }
 
 function goAfterLogin(user) {
   setUser(user);
-  finishAuthNavigation();
-}
-
-function finishAuthNavigation() {
-  const dest = resolveDest();
-  try {
-    sessionStorage.setItem("portal_auth_redirect", dest);
-  } catch {
-    /* ignore */
-  }
-  app.innerHTML = `<div class="auth-page"><div class="card"><h1>登录成功</h1><p class="sub">正在进入门户…</p><a class="btn-primary" href="${dest}">继续</a></div></div>`;
-  // replace() avoids a broken standalone-PWA history entry on iOS Safari.
-  requestAnimationFrame(() => window.location.replace(new URL(dest, window.location.origin).href));
-  setTimeout(() => {
-    if (location.pathname.includes("/game/register")) window.location.assign(dest);
-  }, 900);
+  leaveAuthTo(resolveDest());
 }
 
 async function handleRegBtnClick() {

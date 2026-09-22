@@ -59,6 +59,23 @@ test("weapon icons are 80 percent of the avatar size", () => {
   assert.match(PICKUP_ICONS.boost, /\/icons\/weapon\/boost\.png$/);
 });
 
+test("same-type pickups stack ammo and a new type keeps the old bag", () => {
+  const match = createMatch();
+  armWeapon(match.player, "pistol");
+  armWeapon(match.player, "pistol");
+  assert.equal(match.player.ammo, 10);
+  armWeapon(match.player, "ak");
+  assert.equal(match.player.weapon, "ak");
+  assert.equal(match.player.ammo, 2);
+  assert.equal(match.player.ammoBag.pistol, 10);
+  match.player.cooldown = 0;
+  triggerWeapon(match, match.player, match.foe.x, match.foe.y);
+  match.player.cooldown = 0;
+  triggerWeapon(match, match.player, match.foe.x, match.foe.y);
+  assert.equal(match.player.weapon, "pistol");
+  assert.equal(match.player.ammo, 10);
+});
+
 test("ammo: pistol 5, ak two bursts of 3, rpg 1, knife 1, shotgun two sprays of 3", () => {
   assert.deepEqual(
     [WEAPONS.pistol.shots, WEAPONS.ak.shots, WEAPONS.ak.burst, WEAPONS.rpg.shots, WEAPONS.knife.shots, WEAPONS.shotgun.shots, WEAPONS.shotgun.burst],

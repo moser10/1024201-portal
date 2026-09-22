@@ -79,6 +79,7 @@ export function makeFighter(id, x, y, emoji, angle) {
     hearts: MAX_HEARTS,
     weapon: null,
     ammo: 0,
+    ammoBag: {},
     cooldown: 0,
     burstLeft: 0,
     burstGap: 0,
@@ -379,13 +380,28 @@ export function hurt(fighter, n = 1) {
 export function armWeapon(fighter, kind) {
   const spec = WEAPONS[kind];
   if (!spec) return fighter;
+  if (!fighter.ammoBag) fighter.ammoBag = {};
+  if (fighter.weapon && fighter.weapon !== kind) {
+    fighter.ammoBag[fighter.weapon] = Math.max(0, fighter.ammo);
+  }
+  fighter.ammoBag[kind] = (fighter.ammoBag[kind] || 0) + spec.shots;
   fighter.weapon = kind;
-  fighter.ammo = spec.shots;
+  fighter.ammo = fighter.ammoBag[kind];
   fighter.burstLeft = 0;
   fighter.burstGap = 0;
   fighter.aimLock = null;
   fighter.cooldown = 0;
   return fighter;
+}
+
+function settleWeapon(fighter) {
+  if (!fighter.ammoBag) fighter.ammoBag = {};
+  if (fighter.weapon) fighter.ammoBag[fighter.weapon] = Math.max(0, fighter.ammo);
+  if (fighter.ammo > 0) return;
+  if (fighter.weapon) delete fighter.ammoBag[fighter.weapon];
+  const next = Object.keys(fighter.ammoBag).find((kind) => fighter.ammoBag[kind] > 0) || null;
+  fighter.weapon = next;
+  fighter.ammo = next ? fighter.ammoBag[next] : 0;
 }
 
 export function tickPickups(pickups, dt) {
@@ -449,7 +465,7 @@ export function triggerWeapon(state, fighter, tx, ty) {
   } else {
     spawnBullet(state, fighter, spec, tx, ty, 0);
   }
-  if (fighter.ammo <= 0) fighter.weapon = null;
+  if (fighter.ammo <= 0) settleWeapon(fighter);
   return { kind: fighter.weapon, count };
 }
 
@@ -462,7 +478,7 @@ export function tickBurst(state, fighter, dt) {
   spawnBullet(state, fighter, spec, aim.x, aim.y, (Math.random() - 0.5) * (spec.spread || 0));
   fighter.burstLeft -= 1;
   fighter.burstGap = spec.burstGap || 0.07;
-  if (fighter.burstLeft <= 0 && fighter.ammo <= 0) fighter.weapon = null;
+  if (fighter.burstLeft <= 0 && fighter.ammo <= 0) settleWeapon(fighter);
 }
 
 export function stepShots(state, dt) {

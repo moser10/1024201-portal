@@ -1,5 +1,5 @@
 import { getUser } from "./store.js";
-import { mountAccountChrome } from "/js/accountChrome.js?v=3";
+import { mountAccountChrome } from "/js/accountChrome.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
 import { hallBackLabel, setNavBack } from "/js/navBack.js?v=3";
 import { GAME_NAMES } from "./gameNames.js?v=1";

@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v136";
+const CACHE = "1042-pwa-v137";
 const SHELL = [
   "/",
   "/index.html",
@@ -9,6 +9,8 @@ const SHELL = [
   "/js/langTabs.js",
   "/js/accountChrome.js",
   "/js/accountChrome.js?v=3",
+  "/js/accountChrome.js?v=4",
+  "/js/authNav.js?v=1",
   "/js/accountChrome.css",
   "/js/accountChrome.css?v=2",
   "/js/device.js",
@@ -30,12 +32,14 @@ const SHELL = [
   "/game/js/hub.js?v=7",
   "/game/js/hub.js?v=8",
   "/game/js/hub.js?v=9",
+  "/game/js/hub.js?v=10",
   "/game/js/gameNames.js?v=1",
   "/tools/",
   "/tools/index.html",
   "/tools/css/icons.css",
   "/tools/js/hub.js?v=8",
   "/tools/js/hub.js?v=9",
+  "/tools/js/hub.js?v=10",
   "/game/register/",
   "/game/register/index.html",
   "/game/register/auth.css?v=7",
@@ -43,6 +47,7 @@ const SHELL = [
   "/game/register/auth.js?v=15",
   "/game/register/auth.js?v=16",
   "/game/register/auth.js?v=17",
+  "/game/register/auth.js?v=18",
   "/game/paddlemaze/",
   "/game/paddlemaze/index.html",
   "/game/paddlemaze/game.css?v=27",
@@ -52,6 +57,7 @@ const SHELL = [
   "/game/paddlemaze/game.js?v=30",
   "/game/paddlemaze/game.js?v=31",
   "/game/paddlemaze/game.js?v=32",
+  "/game/paddlemaze/game.js?v=33",
   "/game/paddlemaze/serve.js?v=1",
   "/game/paddlemaze/levels.js?v=25",
   "/game/paddlemaze/levels.js?v=26",
@@ -64,6 +70,7 @@ const SHELL = [
   "/game/paddlemaze/resources.js?v=25",
   "/game/paddlemaze/welfare.js?v=25",
   "/game/paddlemaze/stallRelief.js?v=27",
+  "/game/paddlemaze/stallRelief.js?v=28",
   "/game/dua/",
   "/game/dua/index.html",
   "/game/dua/game.css?v=10",
@@ -74,8 +81,10 @@ const SHELL = [
   "/game/dua/game.js?v=17",
   "/game/dua/game.js?v=18",
   "/game/dua/game.js?v=19",
+  "/game/dua/game.js?v=20",
   "/game/dua/duel.js?v=12",
   "/game/dua/duel.js?v=13",
+  "/game/dua/duel.js?v=14",
   "/game/dua/copy.js?v=4",
   "/game/dua/copy.js?v=5",
   "/game/dua/copy.js?v=6",
@@ -107,6 +116,7 @@ const SHELL = [
   "/rooms/rooms.js?v=11",
   "/rooms/rooms.js?v=12",
   "/rooms/rooms.js?v=13",
+  "/rooms/rooms.js?v=14",
   "/rooms/copy.js?v=3",
   "/rooms/copy.js?v=4",
   "/rooms/copy.js?v=5",
@@ -218,13 +228,16 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => null);
 
-      // Authentication navigations must use the latest HTML on iOS standalone.
-      // Fall back to cache only when offline; never keep a stale/blank auth shell.
-      if (request.mode === "navigate" && url.pathname.startsWith("/game/register")) {
+      // HTML navigations: network-first so login/home-screen never paints a stale white shell.
+      if (request.mode === "navigate") {
         const fresh = await networkPromise;
         if (fresh) return fresh;
-        return cached || (await cache.match("/game/register/index.html")) ||
-          new Response("Offline", { status: 503 });
+        if (url.pathname.startsWith("/game/register")) {
+          return cached || (await cache.match("/game/register/index.html")) ||
+            new Response("Offline", { status: 503 });
+        }
+        return cached || (await cache.match("/index.html")) || (await cache.match("/")) ||
+          new Response("", { status: 504, statusText: "Offline" });
       }
 
       if (url.pathname.startsWith("/game/paddlemaze")) {

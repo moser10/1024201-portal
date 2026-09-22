@@ -12,6 +12,9 @@ import {
   targetBallCount,
   targetPaddleWidth,
 } from "./resources.js";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const CJK = /[\u4e00-\u9fff]/;
 
@@ -130,6 +133,19 @@ test("ball additions, subtractions, multipliers and caps are calculated correctl
   assert.equal(targetBallCount(100, { kind: "balls", operation: "multiply", value: 20 }, 128), 128);
   assert.equal(targetBallCount(100, { kind: "balls", operation: "multiply", value: 20 }, 12), 12);
   assert.equal(targetBallCount(42, { kind: "reset" }, 128), 1);
+});
+
+test("red ball buffs never shrink the count even if few bricks remain", () => {
+  const add = materializePower({ kind: "balls", operation: "add", value: 5 });
+  const mul = materializePower({ kind: "balls", operation: "multiply", value: 2 });
+  assert.equal(add.buff, true);
+  assert.equal(add.color, RESOURCE_COLORS.ballsUp);
+  assert.ok(targetBallCount(40, add, 128) > 40);
+  assert.ok(targetBallCount(40, mul, 128) > 40);
+  const js = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "game.js"), "utf8");
+  assert.match(js, /spec\.buff/);
+  assert.equal(js.includes("bricks.length"), true);
+  assert.match(js, /targetBallCount\(balls\.length, spec, MAX_BALLS\)/);
 });
 
 test("paddle changes persist and reductions use the current width", () => {

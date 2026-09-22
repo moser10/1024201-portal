@@ -25,7 +25,12 @@ function watchLayout(container) {
 }
 
 function buildLoginUrl(returnPath) {
-  const ret = returnPath || location.pathname.replace(/^\//, "") + location.search;
+  let ret = returnPath;
+  if (ret == null || ret === "") {
+    ret = location.pathname + location.search;
+  }
+  if (ret === "/" || ret === "/index.html") ret = "/";
+  else if (!String(ret).startsWith("/")) ret = `/${ret}`.replace(/^\/\//, "/");
   return `/game/register/?return=${encodeURIComponent(ret)}`;
 }
 

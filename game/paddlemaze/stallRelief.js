@@ -83,8 +83,8 @@ export function applyStallActions(walls, actions) {
 
 /**
  * Fire one silent checkpoint per completed 4-minute window.
- * Window 1: top-frame hole if <20% bricks cleared since start.
- * Window 2+: T/L/R hole if <20% cleared since last mark; never the bottom frame.
+ * Window 1: from the serve, 4 minutes with <20% brick loss opens the top frame.
+ * Window 2+: another 4 minutes from the last mark, T/L/R (never the paddle side).
  * At 8 minutes and every later window: if remaining >50% of start, cut interior steel.
  */
 export function tickStallRelief(state, { elapsed, brickCount, walls, bricks = [], rng = Math.random }) {

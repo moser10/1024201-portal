@@ -22,19 +22,24 @@
 <body>
   <div id="app"><div id="authBoot">正在打开账户页面…</div></div>
   <script>
-    // iOS home-screen recovery: never strand an already-authenticated user here.
+    // iOS home-screen recovery: one assign, never a 继续 interstitial + second hop.
     (function () {
       try {
         var user = JSON.parse(localStorage.getItem("osn_user") || "null");
         if (!user || !user.id) return;
         var raw = new URLSearchParams(location.search).get("return") || "/";
+        try { raw = decodeURIComponent(raw); } catch (_) {}
+        if (!raw || raw.indexOf("..") !== -1 || /^[a-z][a-z0-9+.-]*:/i.test(raw) || raw.indexOf("//") === 0) raw = "/";
         var dest = raw.charAt(0) === "/" ? raw : "/" + raw;
-        if (dest.indexOf("/register") !== -1) dest = "/";
-        location.replace(dest);
+        if (dest.indexOf("/register") !== -1 || dest === "/index.html") dest = "/";
+        if (dest === "/onesentence" || dest === "/onesentence/") dest = "/game/onesentence/";
+        if (dest === "/paddlemaze" || dest === "/paddlemaze/") dest = "/game/paddlemaze/";
+        if (dest === "/dua" || dest === "/dua/") dest = "/game/dua/";
+        location.assign(dest);
       } catch (_) {}
     })();
   </script>
-  <script type="module" src="auth.js?v=17"></script>
+  <script type="module" src="auth.js?v=18"></script>
   <script src="/pwa.js" defer></script>
 </body>
 </html>

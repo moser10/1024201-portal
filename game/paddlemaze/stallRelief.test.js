@@ -130,7 +130,8 @@ test("game page hides the stall clock and still wires the relief tick", () => {
   const js = readFileSync(join(dir, "game.js"), "utf8");
   const html = readFileSync(join(dir, "index.html"), "utf8");
   assert.match(js, /tickStallRelief/);
-  assert.match(js, /resetStallRelief/);
+  assert.match(js, /resetStallRelief\(stallRelief, bricks\.length\)/);
+  assert.match(js, /launchHeldBalls[\s\S]*resetStallRelief/);
   assert.equal(js.includes("stallTime"), false);
   assert.equal(html.includes("stall"), false);
 });
