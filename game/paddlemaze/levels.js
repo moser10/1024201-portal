@@ -258,34 +258,40 @@ function paintLetter(steel, mask, letter, variant = 1) {
   stampSteel(steel, mask, scaled, r0, c0);
 }
 
-function paintLadder(steel, mask, r0, c0, h, w) {
+/** Closed 异形: steel outline, air channel inside, 1-cell gap on the top wall so both sides are reachable. */
+function paintChamber(steel, mask, r0, c0, h, w) {
   const r1 = r0 + h - 1;
   const c1 = c0 + w - 1;
-  const mid = c0 + Math.floor(w / 2);
   for (let r = r0; r <= r1; r++) {
     setSteel(steel, mask, r, c0);
     setSteel(steel, mask, r, c1);
   }
-  for (let r = r0 + 2; r < r1; r += 2) {
-    for (let c = c0 + 1; c < c1; c++) {
-      if (c === mid || c === mid - 1) {
-        if (steel[r]) steel[r][c] = 0;
-        setAir(mask, r, c);
-      } else {
-        setSteel(steel, mask, r, c);
-      }
-    }
+  for (let c = c0; c <= c1; c++) {
+    setSteel(steel, mask, r0, c);
+    setSteel(steel, mask, r1, c);
   }
-  for (let r = r0; r <= r1; r++) {
+  for (let r = r0 + 1; r < r1; r++) {
     for (let c = c0 + 1; c < c1; c++) {
-      if (steel[r]?.[c]) continue;
+      if (!steel[r]) continue;
+      steel[r][c] = 0;
       setAir(mask, r, c);
     }
   }
+  openTopGap(steel, mask, r0, c0 + 1, c1 - 1);
 }
 
-function paintChamber(steel, mask, r0, c0, h, w) {
-  paintLadder(steel, mask, r0, c0, h, w);
+function paintLadder(steel, mask, r0, c0, h, w) {
+  paintChamber(steel, mask, r0, c0, h, w);
+}
+
+function openTopGap(steel, mask, row, c0, c1) {
+  const lo = Math.min(c0, c1);
+  const hi = Math.max(c0, c1);
+  const mid = Math.floor((lo + hi) / 2);
+  if (!steel[row] || steel[row][mid] === undefined) return;
+  if (isFrameCell(row, mid, steel.length, steel[0].length)) return;
+  steel[row][mid] = 0;
+  mask[row][mid] = 0;
 }
 
 function nonSteelComponents(steel, mask) {
@@ -327,92 +333,190 @@ function isFrameCell(r, c, rows, cols) {
   return r <= 0 || c <= 0 || r >= rows - 1 || c >= cols - 1;
 }
 
-function punchTunnel(steel, mask, fromCells, toCells) {
+function steelNeighbors(steel, r, c) {
+  const out = [];
+  for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    if (steel[r + dr]?.[c + dc]) out.push([r + dr, c + dc]);
+  }
+  return out;
+}
+
+function removeSteelToBrick(steel, mask, r, c) {
+  if (!steel[r]?.[c] || isFrameCell(r, c, steel.length, steel[0].length)) return;
+  steel[r][c] = 0;
+  mask[r][c] = 1;
+}
+
+/** Strip short T-stubs and nubs. Do not eat 1-thick rails or letter strokes. */
+function pruneSteelSpurs(steel, mask) {
   const R = steel.length;
   const C = steel[0].length;
+  const SPUR = 3;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let r = 1; r < R - 1; r++) {
+      for (let c = 1; c < C - 1; c++) {
+        if (!steel[r][c] || isFrameCell(r, c, R, C)) continue;
+        const n0 = steelNeighbors(steel, r, c);
+        if (n0.length === 0) {
+          removeSteelToBrick(steel, mask, r, c);
+          changed = true;
+          continue;
+        }
+        if (n0.length !== 1) continue;
+        const chain = [[r, c]];
+        let prev = [r, c];
+        let cur = n0[0];
+        while (chain.length <= SPUR) {
+          chain.push(cur);
+          const n = steelNeighbors(steel, cur[0], cur[1]).filter(([y, x]) => y !== prev[0] || x !== prev[1]);
+          if (n.length !== 1) break;
+          if (steelNeighbors(steel, n[0][0], n[0][1]).length >= 3) {
+            chain.push(n[0]);
+            break;
+          }
+          prev = cur;
+          cur = n[0];
+        }
+        const end = chain[chain.length - 1];
+        const endDeg = steelNeighbors(steel, end[0], end[1]).length;
+        const body = endDeg >= 3 ? chain.slice(0, -1) : chain;
+        if (body.length === 0 || body.length > SPUR) continue;
+        if (endDeg < 3 && body.length > 2) continue;
+        for (const [y, x] of body) removeSteelToBrick(steel, mask, y, x);
+        changed = true;
+      }
+    }
+  }
+}
+
+function isPureAir(steel, mask, r, c) {
+  return steel[r]?.[c] === 0 && mask[r]?.[c] === 0;
+}
+
+function airExitStats(steel, mask, cells) {
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  const fromAdj = [];
-  const toAdj = new Set();
-  for (const [r, c] of fromCells) {
+  const self = new Set(cells.map(([r, c]) => `${r},${c}`));
+  const air = new Set();
+  let bricks = 0;
+  for (const [r, c] of cells) {
     for (const [dr, dc] of dirs) {
       const rr = r + dr;
       const cc = c + dc;
-      if (steel[rr]?.[cc] && !isFrameCell(rr, cc, R, C)) fromAdj.push(`${rr},${cc}`);
+      if (self.has(`${rr},${cc}`)) continue;
+      if (steel[rr]?.[cc] !== 0) continue;
+      if (mask[rr][cc]) bricks += 1;
+      else air.add(`${rr},${cc}`);
     }
   }
-  for (const [r, c] of toCells) {
-    for (const [dr, dc] of dirs) {
-      const rr = r + dr;
-      const cc = c + dc;
-      if (steel[rr]?.[cc] && !isFrameCell(rr, cc, R, C)) toAdj.add(`${rr},${cc}`);
-    }
-  }
-  const seen = new Map();
-  const q = [];
-  for (const key of fromAdj) {
-    if (seen.has(key)) continue;
-    seen.set(key, null);
-    q.push(key);
-  }
-  let end = null;
-  for (let i = 0; i < q.length; i++) {
-    const key = q[i];
-    if (toAdj.has(key)) {
-      end = key;
-      break;
-    }
-    const [r, c] = key.split(",").map(Number);
-    for (const [dr, dc] of dirs) {
-      const rr = r + dr;
-      const cc = c + dc;
-      const next = `${rr},${cc}`;
-      if (!steel[rr]?.[cc] || isFrameCell(rr, cc, R, C) || seen.has(next)) continue;
-      seen.set(next, key);
-      q.push(next);
-    }
-  }
-  const open = (r, c) => {
-    if (!steel[r] || steel[r][c] === undefined || isFrameCell(r, c, R, C)) return;
-    steel[r][c] = 0;
-    mask[r][c] = 0;
-  };
-  if (!end) {
-    for (const [r, c] of fromCells) {
-      for (const [dr, dc] of dirs) {
-        const rr = r + dr;
-        const cc = c + dc;
-        if (steel[rr]?.[cc] && !isFrameCell(rr, cc, R, C)) {
-          open(rr, cc);
-          open(rr + dr, cc + dc);
-          return true;
+  return { air: air.size, bricks };
+}
+
+function fillDeadEndAir(steel, mask) {
+  const R = steel.length;
+  const C = steel[0].length;
+  const limitR = R - 6;
+  for (let iter = 0; iter < 3; iter++) {
+    const kill = [];
+    for (let r = 1; r < limitR; r++) {
+      for (let c = 1; c < C - 1; c++) {
+        if (!isPureAir(steel, mask, r, c)) continue;
+        const one = airExitStats(steel, mask, [[r, c]]);
+        if (one.bricks === 0 && one.air <= 1) kill.push([r, c]);
+        for (const [dr, dc] of [[0, 1], [1, 0]]) {
+          const r2 = r + dr;
+          const c2 = c + dc;
+          if (r2 >= limitR || c2 >= C - 1) continue;
+          if (!isPureAir(steel, mask, r2, c2)) continue;
+          const ps = airExitStats(steel, mask, [[r, c], [r2, c2]]);
+          if (ps.bricks === 0 && ps.air <= 1) kill.push([r, c], [r2, c2]);
         }
       }
     }
-    return false;
+    if (!kill.length) break;
+    for (const [r, c] of kill) mask[r][c] = 1;
   }
-  for (let key = end; key; key = seen.get(key)) {
-    const [r, c] = key.split(",").map(Number);
-    open(r, c);
-    for (const [dr, dc] of dirs) {
-      if (steel[r + dr]?.[c + dc] && !isFrameCell(r + dr, c + dc, R, C)) {
-        open(r + dr, c + dc);
-        break;
-      }
-    }
-  }
-  return true;
 }
 
-/** Closed steel shapes become through-channels; sealed brick pockets get a door. */
+function openGapOnRow(steel, mask, row, c0, c1) {
+  const lo = Math.min(c0, c1);
+  const hi = Math.max(c0, c1);
+  const mid = Math.floor((lo + hi) / 2);
+  const R = steel.length;
+  const C = steel[0].length;
+  const tryCol = (c) => {
+    if (!steel[row]?.[c] || isFrameCell(row, c, R, C)) return false;
+    steel[row][c] = 0;
+    mask[row][c] = 0;
+    return true;
+  };
+  if (tryCol(mid)) return true;
+  for (let d = 1; d <= hi - lo; d++) {
+    if (tryCol(mid - d) || tryCol(mid + d)) return true;
+  }
+  return false;
+}
+
+function openTopOfCells(steel, mask, cells) {
+  let minR = Infinity;
+  let maxR = -Infinity;
+  let minC = Infinity;
+  let maxC = -Infinity;
+  for (const [r, c] of cells) {
+    minR = Math.min(minR, r);
+    maxR = Math.max(maxR, r);
+    minC = Math.min(minC, c);
+    maxC = Math.max(maxC, c);
+  }
+  const R = steel.length;
+  const C = steel[0].length;
+  for (let r = Math.max(1, minR - 1); r <= Math.min(minR + 2, R - 2); r++) {
+    if (openGapOnRow(steel, mask, r, minC, maxC)) return;
+  }
+  for (let r = 1; r <= Math.min(maxR, R - 2); r++) {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let c = minC; c <= maxC; c++) {
+      if (!steel[r][c] || isFrameCell(r, c, R, C)) continue;
+      lo = Math.min(lo, c);
+      hi = Math.max(hi, c);
+    }
+    if (lo !== Infinity && openGapOnRow(steel, mask, r, lo, hi)) return;
+  }
+}
+
+function openBottomOfCells(steel, mask, cells) {
+  let maxR = -Infinity;
+  let minC = Infinity;
+  let maxC = -Infinity;
+  for (const [r, c] of cells) {
+    if (r > maxR) {
+      maxR = r;
+      minC = c;
+      maxC = c;
+    } else if (r === maxR) {
+      minC = Math.min(minC, c);
+      maxC = Math.max(maxC, c);
+    }
+  }
+  const R = steel.length;
+  for (const row of [maxR + 1, maxR, maxR - 1]) {
+    if (row < 1 || row > R - 2) continue;
+    if (openGapOnRow(steel, mask, row, minC, maxC)) return;
+  }
+}
+
+/** Sealed 异形: 1-cell gap on the top wall; small interiors become through-channels. Dead-end stubs are removed. */
 function openSealedShapes(steel, mask) {
   for (let n = 0; n < 48; n++) {
     const regions = nonSteelComponents(steel, mask);
     const main = regions.find((region) => region.touchBottom) || regions[0];
-    if (!main) return;
+    if (!main) break;
     const sealed = regions
       .filter((region) => region !== main)
       .sort((a, b) => a.cells.length - b.cells.length || a.cells[0][0] - b.cells[0][0] || a.cells[0][1] - b.cells[0][1]);
-    if (!sealed.length) return;
+    if (!sealed.length) break;
     const pocket = sealed[0];
     if (pocket.cells.length <= 80) {
       for (const [r, c] of pocket.cells) {
@@ -420,8 +524,19 @@ function openSealedShapes(steel, mask) {
         mask[r][c] = 0;
       }
     }
-    punchTunnel(steel, mask, pocket.cells, main.cells);
+    openTopOfCells(steel, mask, pocket.cells);
+    openBottomOfCells(steel, mask, pocket.cells);
   }
+}
+
+function polishMaze(steel, mask) {
+  pruneSteelSpurs(steel, mask);
+  openSealedShapes(steel, mask);
+  pruneSteelSpurs(steel, mask);
+  fillDeadEndAir(steel, mask);
+  pruneSteelSpurs(steel, mask);
+  openSealedShapes(steel, mask);
+  fillDeadEndAir(steel, mask);
 }
 
 function clampLaneCol(c, cols, lane = 2) {
@@ -444,6 +559,7 @@ function paintRectLoop(steel, mask, r0, c0, r1, c1, lane = 2) {
   vLane(steel, mask, r1, r0, c0, lane);
   hLane(steel, mask, c0, c1, r0, lane);
   vLane(steel, mask, r0, r1, c1, lane);
+  openTopGap(steel, mask, Math.min(r0, r1) - 1, c0, c1);
 }
 
 function paintPoly(steel, mask, pts, lane = 2) {
@@ -485,8 +601,7 @@ function paintApproach(steel, mask, kind, index) {
     case "boxslash":
       paintChamber(steel, mask, 3, 12, 8, 11);
       paintPoly(steel, mask, [
-        [mouthR, mouthC], [14, 4], [14, 4], [4, 18],
-        [4, 24], [12, 24], [12, 16],
+        [mouthR, mouthC], [13, mouthC], [8, 9], [4, 16],
       ]);
       break;
     case "hookJ":
@@ -660,7 +775,7 @@ export function buildSteelGrid(index) {
   paintSolidFrame(steel, mask);
   paintApproach(steel, mask, APPROACH[index], index);
   if (bp.letter) paintLetter(steel, mask, bp.letter, bp.letterVariant || 1);
-  openSealedShapes(steel, mask);
+  polishMaze(steel, mask);
   return { steel, mask };
 }
 

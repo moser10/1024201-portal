@@ -154,6 +154,33 @@ test("no brick or channel is sealed inside steel — every cell can be reached f
   }
 });
 
+test("interior steel has no T-junction dead-end nubs", () => {
+  for (let index = 0; index < LEVEL_BLUEPRINTS.length; index++) {
+    const spec = buildLevelSpec(index);
+    const R = spec.rows;
+    const C = spec.cols;
+    const deg = (r, c) => {
+      let n = 0;
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (spec.steel[r + dr]?.[c + dc]) n += 1;
+      }
+      return n;
+    };
+    let nubs = 0;
+    for (let r = 1; r < R - 1; r++) {
+      for (let c = 1; c < C - 1; c++) {
+        if (!spec.steel[r][c] || deg(r, c) !== 1) continue;
+        let nbr = 0;
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          if (spec.steel[r + dr]?.[c + dc]) nbr = deg(r + dr, c + dc);
+        }
+        if (nbr >= 3) nubs += 1;
+      }
+    }
+    assert.equal(nubs, 0, `level ${index + 1} still has ${nubs} T-nubs`);
+  }
+});
+
 test("each stage rolls independent 1-4 cell gutters on top/left/right and keeps a taller bottom apron", () => {
   const gutters = [];
   const flies = [];
