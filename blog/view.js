@@ -5,34 +5,37 @@ import { renderMarkdown, formatBlogDate } from "./md.js";
 const UI = {
   en: {
     back: "Blog",
-    backPortal: "Portal",
+    backPortal: "Back to lobby",
     updated: "Updated",
     author: "By",
     like: "Like",
     liked: "Liked",
     likes: (n) => `${n} likes`,
+    edit: "Edit",
     notFound: "This post is unavailable.",
     privateNote: "Private post",
   },
   zh: {
     back: "博客",
-    backPortal: "门户",
+    backPortal: "返回大厅",
     updated: "更新",
     author: "作者",
     like: "点赞",
     liked: "已赞",
     likes: (n) => `${n} 赞`,
+    edit: "编辑",
     notFound: "这篇博客不可用或不存在。",
     privateNote: "仅自己可见",
   },
   ja: {
     back: "ブログ",
-    backPortal: "ポータル",
+    backPortal: "ロビーへ",
     updated: "更新",
     author: "作者",
     like: "いいね",
     liked: "いいね済み",
     likes: (n) => `${n} いいね`,
+    edit: "編集",
     notFound: "この投稿は表示できません。",
     privateNote: "非公開",
   },
@@ -137,11 +140,16 @@ async function boot() {
     }
   }
 
-  if (data.is_owner) {
-    document.getElementById("backLink").href = "/blog/";
-  } else {
-    document.getElementById("backLink").href = "/";
-    document.getElementById("backLink").textContent = ui.backPortal;
+  document.getElementById("backLink").href = "/blog/";
+  document.getElementById("backLink").textContent = ui.back;
+
+  const editBtn = document.getElementById("editBtn");
+  if (editBtn && data.is_owner) {
+    editBtn.hidden = false;
+    editBtn.textContent = ui.edit;
+    editBtn.onclick = () => {
+      location.assign(`/blog/?edit=${encodeURIComponent(id)}`);
+    };
   }
 }
 

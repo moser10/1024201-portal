@@ -5,6 +5,7 @@ import * as room from "./functions/api/room.js";
 import * as admin from "./functions/api/admin.js";
 import * as portal from "./functions/api/portal.js";
 import * as blog from "./functions/api/blog.js";
+import * as openroom from "./functions/api/openroom.js";
 import { refreshAddressData } from "./functions/api/address.js";
 import { fileStoreStatus } from "./functions/api/vpsStore.js";
 
@@ -15,6 +16,7 @@ const API_ROUTES = {
   "/api/admin": admin,
   "/api/portal": portal,
   "/api/blog": blog,
+  "/api/openroom": openroom,
 };
 
 export default {
@@ -76,15 +78,26 @@ async function serveStatic(request, env) {
   }
 
   let response = await env.ASSETS.fetch(request);
-  if (response.status !== 404) return response;
-
-  if (pathname.endsWith("/")) {
+  if (response.status === 404 && pathname.endsWith("/")) {
     const indexUrl = new URL(request.url);
     indexUrl.pathname = `${pathname}index.html`;
     response = await env.ASSETS.fetch(new Request(indexUrl, request));
   }
+  if (response.status === 404) return response;
 
-  return response;
+  // Cache static shells aggressively; HTML short-cache for snappy repeat visits
+  const headers = new Headers(response.headers);
+  const lower = pathname.toLowerCase();
+  if (lower.endsWith("/sw.js") || lower === "/sw.js") {
+    headers.set("Cache-Control", "no-cache");
+  } else if ((lower.includes("/game/paddlemaze") || lower.includes("/game/dua") || lower.includes("/rooms") || lower.includes("/account")) && (lower.endsWith("/") || lower.endsWith(".html"))) {
+    headers.set("Cache-Control", "no-cache");
+  } else if (/\.(css|js|png|jpg|jpeg|webp|svg|ico|woff2|webmanifest)$/.test(lower)) {
+    headers.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+  } else if (lower.endsWith(".html") || lower.endsWith("/") || lower === "") {
+    headers.set("Cache-Control", "public, max-age=60, stale-while-revalidate=600");
+  }
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 /**

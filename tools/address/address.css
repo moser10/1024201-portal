@@ -53,9 +53,11 @@
   width: 100%;
   padding: 11px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   font-weight: 600;
   cursor: pointer;
+  background: #E07A3D;
+  color: #F4EFE4;
 }
 .addr-hint {
   font-size: 12px;

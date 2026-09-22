@@ -3,17 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#ff2d55">
+  <meta name="theme-color" content="#f2f2f7">
   <meta id="robotsMeta" name="robots" content="noindex, nofollow">
   <title>Blog</title>
-  <link rel="stylesheet" href="blog.css?v=2">
+  <link rel="stylesheet" href="blog.css?v=12">
 </head>
 <body class="blog-page">
   <article class="blog-article" id="article" hidden>
     <div class="blog-article-top">
-      <a class="feature-back" id="backLink" href="/blog/">Blog</a>
+      <a class="feature-back" id="backLink" href="/blog/">Back</a>
     </div>
-    <h1 id="titleEl"></h1>
+    <div class="page-mark-row blog-article-title">
+      <img class="page-mark" src="/icons/apps/blog.svg" alt="">
+      <h1 id="titleEl"></h1>
+      <button type="button" class="btn-primary blog-title-action" id="editBtn" hidden>Edit</button>
+    </div>
     <div class="blog-article-meta" id="metaEl"></div>
     <div class="blog-md" id="bodyEl"></div>
     <div class="blog-like-bar" id="likeBar" hidden>
@@ -23,6 +27,6 @@
   </article>
   <p class="blog-empty" id="errBox" hidden style="padding-top:48px"></p>
   <script src="/js/edgeBack.js"></script>
-  <script type="module" src="view.js?v=2"></script>
+  <script type="module" src="view.js?v=6"></script>
 </body>
 </html>

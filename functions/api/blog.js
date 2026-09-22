@@ -1,4 +1,4 @@
-import { corsHeaders, json, requireDb, resolveUserId } from "./_shared.js";
+import { corsHeaders, requireDb, resolveUserId } from "./_shared.js";
 import { requireRegisteredUser, newFileId } from "./r2files.js";
 
 let blogSchemaJob = null;
@@ -233,7 +233,7 @@ export async function onRequest(context) {
       const now = new Date().toISOString().replace("T", " ").slice(0, 19);
 
       if (idIn) {
-        const existing = await db.prepare("SELECT id, user_id, published_at, created_at FROM blogs WHERE id = ?").bind(idIn).first();
+        const existing = await db.prepare("SELECT id, user_id, published_at, created_at, like_count FROM blogs WHERE id = ?").bind(idIn).first();
         if (!existing || Number(existing.user_id) !== Number(userId)) {
           return fastJson({ error: "not_found" }, 404);
         }
@@ -261,7 +261,7 @@ export async function onRequest(context) {
             images_json: imagesJson,
             visibility,
             status,
-            like_count: 0,
+            like_count: existing.like_count || 0,
             created_at: existing.created_at,
             updated_at: now,
             published_at: publishedAt,

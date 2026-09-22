@@ -58,6 +58,15 @@ async function ensureAppSchemaInner(db) {
   );
   await ensureColumn(db, "users", "email_verify_token", "ALTER TABLE users ADD COLUMN email_verify_token TEXT");
   await ensureColumn(db, "users", "email_verify_expires", "ALTER TABLE users ADD COLUMN email_verify_expires TEXT");
+  await ensureColumn(db, "users", "email_change_to", "ALTER TABLE users ADD COLUMN email_change_to TEXT");
+  await ensureColumn(db, "users", "email_change_code", "ALTER TABLE users ADD COLUMN email_change_code TEXT");
+  await ensureColumn(db, "users", "email_change_expires", "ALTER TABLE users ADD COLUMN email_change_expires TEXT");
+  await ensureColumn(
+    db,
+    "users",
+    "email_change_attempts",
+    "ALTER TABLE users ADD COLUMN email_change_attempts INTEGER NOT NULL DEFAULT 0"
+  );
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS pending_registrations (
@@ -84,6 +93,24 @@ async function ensureAppSchemaInner(db) {
     "register_channel",
     "ALTER TABLE pending_registrations ADD COLUMN register_channel TEXT NOT NULL DEFAULT 'web'"
   );
+  await ensureColumn(
+    db,
+    "pending_registrations",
+    "invitation_code",
+    "ALTER TABLE pending_registrations ADD COLUMN invitation_code TEXT"
+  );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS registration_invitations (
+        code TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        is_special INTEGER NOT NULL DEFAULT 0,
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        used_at TEXT
+      )`
+    )
+    .run();
   await db.prepare("DELETE FROM pending_registrations WHERE expires_at <= datetime('now')").run();
   await db
     .prepare(
@@ -127,6 +154,8 @@ async function ensureAppSchemaInner(db) {
   await ensureSyncNoteSchema(db);
   await ensureCliTokenSchema(db);
   await ensureAddressSchema(db);
+  const { ensureOpenRoomSchema } = await import("./openroomSchema.js");
+  await ensureOpenRoomSchema(db);
 }
 
 /** Once per Worker isolate — do not re-run migrations on every API hit. */
@@ -208,7 +237,9 @@ export async function resolveUserId(request, env, url, body) {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
-async function ensureSyncNoteSchema(db) {
+let syncNoteSchemaJob = null;
+
+async function ensureSyncNoteSchemaInner(db) {
   const { results } = await db.prepare("PRAGMA table_info(user_sync_notes)").all();
   const hasTable = results.length > 0;
   const hasSlot = results.some((r) => r.name === "slot");
@@ -249,6 +280,17 @@ async function ensureSyncNoteSchema(db) {
     await db.prepare("DROP TABLE user_sync_notes").run();
     await db.prepare("ALTER TABLE user_sync_notes_v2 RENAME TO user_sync_notes").run();
   }
+}
+
+/** Memoized — syncnote reads must not run the full app migration suite. */
+export async function ensureSyncNoteSchema(db) {
+  if (!syncNoteSchemaJob) {
+    syncNoteSchemaJob = ensureSyncNoteSchemaInner(db).catch((err) => {
+      syncNoteSchemaJob = null;
+      throw err;
+    });
+  }
+  return syncNoteSchemaJob;
 }
 
 export async function generateUniqueName(db, baseName, table, column) {

@@ -1,58 +1,61 @@
 .lang-tabs {
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-  width: 36px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  width: auto;
+  gap: 6px;
   flex-shrink: 0;
 }
 
 .lang-tabs--row {
   flex-direction: row;
-  width: auto;
 }
 
 .lang-tab {
-  border: none;
-  background: transparent;
-  padding: 7px 0;
+  border: 0;
+  background: #2B3054;
+  color: #E8D4B8;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 10px;
   font-size: 11px;
-  font-weight: 600;
-  color: #007aff;
+  font-weight: 700;
   cursor: pointer;
   line-height: 1;
-  width: 100%;
   text-align: center;
+  box-shadow: none;
 }
 
 .lang-tabs--row .lang-tab {
-  padding: 7px 11px;
-  width: auto;
-  min-width: 34px;
+  padding: 0;
+  width: 36px;
 }
 
 .lang-tab.active {
-  background: #e8f4fd;
+  background: #E07A3D;
+  color: #F4EFE4;
 }
 
 .lang-tab:active {
-  background: #e5e5ea;
+  transform: scale(0.94);
 }
 
-.lang-tab + .lang-tab {
-  border-top: 1px solid #f0f0f0;
-}
-
+.lang-tab + .lang-tab,
 .lang-tabs--row .lang-tab + .lang-tab {
-  border-top: none;
-  border-left: 1px solid #f0f0f0;
+  border: 0;
 }
 
 .lang-tabs-host {
   display: flex;
   flex-shrink: 0;
+  justify-content: flex-end;
+  align-self: flex-start;
+  margin-left: auto;
 }
 
 .top-right {

@@ -5,7 +5,7 @@ const UI = {
   en: {
     title: "Blog",
     sub: "Image & text posts. Drafts stay private until you publish.",
-    back: "Portal",
+    back: "Back to lobby",
     loginDesc: "Sign in to write and manage your blog.",
     loginBtn: "Sign in / Register",
     newPost: "New post",
@@ -18,7 +18,7 @@ const UI = {
   zh: {
     title: "博客",
     sub: "图文博客。草稿默认不公开，发布后按展现状态决定是否可访问。",
-    back: "门户",
+    back: "返回大厅",
     loginDesc: "登录后可写博客、管理已发布内容。",
     loginBtn: "登录 / 注册",
     newPost: "新建博客",
@@ -31,7 +31,7 @@ const UI = {
   ja: {
     title: "ブログ",
     sub: "画像とテキストのブログ。下書きは非公開、公開後は表示設定に従います。",
-    back: "ポータル",
+    back: "ロビーへ",
     loginDesc: "ログインしてブログを作成・管理。",
     loginBtn: "ログイン / 登録",
     newPost: "新規作成",
@@ -161,7 +161,7 @@ function paintList(blogs, userId) {
             ? `<span class="blog-pill public">${esc(ui.public)}</span>`
             : `<span class="blog-pill private">${esc(ui.private)}</span>`;
       return `<li>
-        <a class="blog-item" href="/blog/edit.html?id=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
+        <a class="blog-item" href="/blog/?id=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
           <div class="blog-item-title">${esc(b.title || "(untitled)")}</div>
           <div class="blog-item-meta"><span>${esc(formatDate(b.created_at))}</span>${vis}</div>
         </a>
@@ -191,14 +191,14 @@ async function bootContent() {
   const user = getUser();
   const loginPanel = document.getElementById("loginPanel");
   const listWrap = document.getElementById("listWrap");
-  const toolbar = document.getElementById("toolbar");
+  const newBtn = document.getElementById("newBtn");
   const userLine = document.getElementById("userLine");
   showErr("");
 
   if (!user?.id) {
     loginPanel.hidden = false;
     listWrap.hidden = true;
-    toolbar.hidden = true;
+    newBtn.hidden = true;
     userLine.hidden = true;
     document.getElementById("loginBtn").href = `/game/register/?return=${encodeURIComponent("/blog/")}`;
     return;
@@ -206,7 +206,7 @@ async function bootContent() {
 
   loginPanel.hidden = true;
   listWrap.hidden = false;
-  toolbar.hidden = false;
+  newBtn.hidden = false;
   userLine.hidden = false;
   userLine.textContent = `@${user.username || user.email || user.id}`;
   document.getElementById("newBtn").onclick = () => location.assign("/blog/edit.html");
@@ -223,7 +223,7 @@ async function bootContent() {
     if (e.data?.needLogin || e.status === 403) {
       loginPanel.hidden = false;
       listWrap.hidden = true;
-      toolbar.hidden = true;
+      newBtn.hidden = true;
       return;
     }
     if (!cached) showErr(e.message || t().err);

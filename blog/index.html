@@ -1,49 +1,275 @@
 <!DOCTYPE html>
-<html lang="en" class="feature-page blog-page">
+<html lang="en" class="feature-page blog-page blog-booting">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#ff2d55">
+  <meta name="theme-color" content="#f2f2f7">
   <meta name="robots" content="noindex, nofollow">
   <title>Blog | 1024201</title>
+  <style>
+    /* Match page bg before CSS loads — kills white flash on enter */
+    html.blog-page, html.blog-page body { background: #f2f2f7; color: #1d1d1f; }
+    @view-transition { navigation: auto; }
+    html.blog-booting .blog-late { visibility: hidden; }
+  </style>
   <link rel="modulepreload" href="/js/langTabs.js">
-  <link rel="stylesheet" href="/js/langTabs.css">
-  <link rel="stylesheet" href="/js/featurePage.css?v=2">
-  <link rel="stylesheet" href="blog.css?v=2">
+  <link rel="modulepreload" href="md.js">
+  <link rel="stylesheet" href="/js/langTabs.css?v=5">
+  <link rel="stylesheet" href="/js/featurePage.css?v=7">
+  <link rel="stylesheet" href="blog.css?v=12">
 </head>
 <body class="feature-page blog-page" data-tool="blog">
   <div class="feature-shell">
     <div class="feature-main">
-      <div class="feature-top">
-        <a class="feature-back" id="backLink" href="/">Portal</a>
-        <div id="langSlot"></div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-card-head">
-          <h1 id="pageTitle">Blog</h1>
-          <p class="sub" id="pageSub"></p>
-          <p class="tool-user" id="userLine" hidden></p>
+      <!-- LIST -->
+      <section id="listView" class="blog-view">
+        <div class="feature-top">
+          <a class="feature-back" id="backLink" href="/">Back to lobby</a>
+          <div id="langSlot"></div>
         </div>
-
-        <div class="blog-toolbar" id="toolbar" hidden>
-          <button type="button" class="btn-primary" id="newBtn">New post</button>
+        <div class="feature-card">
+          <div class="feature-card-head">
+            <div class="page-mark-row">
+              <img class="page-mark" src="/icons/apps/blog.svg" alt="">
+              <h1 id="pageTitle">Blog</h1>
+              <button type="button" class="btn-primary blog-title-action" id="newBtn" hidden>New post</button>
+            </div>
+            <p class="sub" id="pageSub"></p>
+            <p class="tool-user" id="userLine" hidden></p>
+          </div>
+          <div id="listWrap">
+            <ul class="blog-list" id="blogList"></ul>
+            <p class="blog-empty" id="emptyBox" hidden></p>
+          </div>
+          <div class="login-panel" id="loginPanel" hidden>
+            <p id="loginDesc"></p>
+            <a class="btn-primary btn-link" id="loginBtn" href="/game/register/">Sign in</a>
+          </div>
+          <p class="err" id="errBox" hidden></p>
         </div>
+      </section>
 
-        <div id="listWrap" hidden>
-          <ul class="blog-list" id="blogList"></ul>
-          <p class="blog-empty" id="emptyBox" hidden></p>
+      <!-- READER — StackEdit-style markdown page -->
+      <section id="readView" class="blog-view" hidden>
+        <div class="feature-top">
+          <button type="button" class="feature-back" id="readBackBtn">Back</button>
+          <div id="readLangSlot"></div>
         </div>
+        <article class="blog-article" id="readArticle">
+          <div class="page-mark-row blog-article-title">
+            <img class="page-mark" src="/icons/apps/blog.svg" alt="">
+            <h1 id="readTitleEl"></h1>
+            <button type="button" class="btn-primary blog-title-action" id="readEditBtn" hidden>Edit</button>
+          </div>
+          <div class="blog-article-meta" id="readMetaEl"></div>
+          <p class="blog-loading" id="readLoading" hidden></p>
+          <div class="blog-md" id="readBodyEl"></div>
+          <div class="blog-like-bar" id="readLikeBar" hidden>
+            <button type="button" class="blog-like-btn" id="readLikeBtn">Like</button>
+            <span class="blog-like-count" id="readLikeCount"></span>
+          </div>
+          <p class="err" id="readErrBox" hidden></p>
+        </article>
+      </section>
 
-        <div class="login-panel" id="loginPanel" hidden>
-          <p id="loginDesc"></p>
-          <a class="btn-primary btn-link" id="loginBtn" href="/game/register/">Sign in</a>
+      <!-- EDITOR: ordinary form chrome, markdown body -->
+      <section id="editView" class="blog-view" hidden>
+        <div class="feature-top">
+          <button type="button" class="feature-back" id="editBackBtn">Blog</button>
+          <div id="editLangSlot"></div>
         </div>
+        <div class="feature-card">
+          <div class="feature-card-head">
+            <div class="page-mark-row">
+              <img class="page-mark" src="/icons/apps/blog.svg" alt="">
+              <h1 id="editPageTitle">New post</h1>
+            </div>
+            <p class="sub" id="editPageSub"></p>
+          </div>
+          <form class="blog-form" id="editForm" onsubmit="return false">
+            <label class="blog-label" id="lblTitle" for="titleIn">Title</label>
+            <input class="blog-input" id="titleIn" type="text" maxlength="200" autocomplete="off" />
 
-        <p class="err" id="errBox" hidden></p>
-      </div>
+            <span class="blog-label" id="lblVis">Visibility</span>
+            <div class="blog-switch" role="radiogroup" aria-labelledby="lblVis">
+              <button type="button" class="blog-switch-opt is-on" data-vis="private" id="visPrivateBtn" aria-pressed="true">
+                <span class="blog-switch-title" id="visPrivate">Hidden</span>
+                <span class="blog-switch-desc" id="visPrivateDesc">Only you</span>
+              </button>
+              <button type="button" class="blog-switch-opt" data-vis="public" id="visPublicBtn" aria-pressed="false">
+                <span class="blog-switch-title" id="visPublic">Public</span>
+                <span class="blog-switch-desc" id="visPublicDesc">Shareable link</span>
+              </button>
+            </div>
+            <input type="hidden" id="visValue" value="private" />
+
+            <label class="blog-label" id="lblBody" for="bodyIn">Content</label>
+            <textarea class="blog-textarea blog-textarea-md" id="bodyIn" spellcheck="true"></textarea>
+            <p class="blog-loading" id="editLoading" hidden></p>
+
+            <span class="blog-label" id="lblImages">Images</span>
+            <div class="blog-img-tools">
+              <button type="button" class="btn-ghost" id="addImgBtn">Add image</button>
+              <input type="file" id="imgInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden multiple />
+              <span class="blog-hint" id="imgHint"></span>
+            </div>
+            <div class="blog-thumbs" id="thumbGrid"></div>
+
+            <div class="blog-actions">
+              <button type="button" class="feature-back" id="cancelBtn">Back</button>
+              <button type="button" class="btn-primary" id="primaryBtn">Save</button>
+              <button type="button" class="btn-danger" id="deleteBtn" hidden>Delete</button>
+            </div>
+          </form>
+          <p class="err" id="editErrBox" hidden></p>
+        </div>
+      </section>
     </div>
   </div>
-  <script type="module" src="blog.js?v=3"></script>
+
+  <!-- Sync paint before modules: no empty→list flash -->
+  <script>
+    (function () {
+      function esc(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+      function userId() {
+        try {
+          const u = JSON.parse(localStorage.getItem("osn_user") || "null");
+          return u && u.id ? u.id : null;
+        } catch { return null; }
+      }
+      function fmt(raw) {
+        if (!raw) return "";
+        const d = new Date(String(raw).includes("T") ? raw : String(raw).replace(" ", "T") + "Z");
+        if (isNaN(d.getTime())) return String(raw).slice(0, 10);
+        return d.toLocaleDateString("zh-CN", { year: "numeric", month: "short", day: "numeric" });
+      }
+      const uid = userId();
+      const params = new URLSearchParams(location.search);
+      const readId = (params.get("id") || "").trim();
+      const editId = (params.get("edit") || "").trim();
+      const isNew = params.get("new") === "1";
+      const listView = document.getElementById("listView");
+      const readView = document.getElementById("readView");
+      const editView = document.getElementById("editView");
+
+      if (uid) {
+        document.getElementById("newBtn").hidden = false;
+        document.getElementById("userLine").hidden = false;
+        try {
+          const raw = localStorage.getItem("blog_mine_v2:" + uid);
+          const blogs = raw ? (JSON.parse(raw).blogs || []) : [];
+          const list = document.getElementById("blogList");
+          const empty = document.getElementById("emptyBox");
+          if (blogs.length) {
+            empty.hidden = true;
+            list.innerHTML = blogs.map(function (b) {
+              var pill = b.status === "draft" ? "draft" : b.visibility === "public" ? "public" : "private";
+              var lab = pill === "draft" ? "草稿" : pill === "public" ? "展现" : "隐藏";
+              return '<li class="blog-row">' +
+                '<a class="blog-item" href="/blog/?id=' + encodeURIComponent(b.id) + '" data-id="' + esc(b.id) + '">' +
+                '<div class="blog-item-title">' + esc(b.title || "(untitled)") + '</div>' +
+                '<div class="blog-item-meta"><span>' + esc(fmt(b.created_at)) + '</span>' +
+                '<span class="blog-pill ' + pill + '">' + lab + '</span></div></a>' +
+                '<button type="button" class="btn-ghost blog-item-edit" data-id="' + esc(b.id) + '">编辑</button></li>';
+            }).join("");
+          }
+        } catch (e) {}
+      }
+
+      function showRead(id) {
+        listView.hidden = true;
+        readView.hidden = false;
+        editView.hidden = true;
+        document.getElementById("readEditBtn").hidden = false;
+        try {
+          var raw = sessionStorage.getItem("blog_doc_v2:" + id);
+          if (raw) {
+            var d = JSON.parse(raw);
+            document.getElementById("readTitleEl").textContent = d.title || "";
+          }
+        } catch (e) {}
+      }
+
+      function showEdit(id) {
+        listView.hidden = true;
+        readView.hidden = true;
+        editView.hidden = false;
+        document.getElementById("deleteBtn").hidden = !id;
+        try {
+          var doc = id ? sessionStorage.getItem("blog_doc_v2:" + id) : null;
+          if (doc) {
+            var d = JSON.parse(doc);
+            document.getElementById("titleIn").value = d.title || "";
+            document.getElementById("bodyIn").value = d.body_md || "";
+            var vis = d.visibility === "public" ? "public" : "private";
+            document.getElementById("visValue").value = vis;
+            document.querySelectorAll(".blog-switch-opt").forEach(function (btn) {
+              var on = btn.getAttribute("data-vis") === vis;
+              btn.classList.toggle("is-on", on);
+              btn.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+          }
+        } catch (e) {}
+      }
+
+      if (isNew || editId) {
+        showEdit(editId);
+      } else if (readId) {
+        showRead(readId);
+      }
+
+      document.getElementById("blogList").addEventListener("click", function (e) {
+        if (window.__blogSoftNav) return;
+        var editBtn = e.target.closest("button.blog-item-edit");
+        if (editBtn) {
+          e.preventDefault();
+          var eid = editBtn.getAttribute("data-id") || "";
+          showEdit(eid);
+          history.pushState({ view: "edit", id: eid }, "", "/blog/?edit=" + encodeURIComponent(eid));
+          return;
+        }
+        var a = e.target.closest("a.blog-item");
+        if (!a) return;
+        e.preventDefault();
+        var id = a.getAttribute("data-id") || "";
+        var titleEl = a.querySelector(".blog-item-title");
+        document.getElementById("readTitleEl").textContent = titleEl ? titleEl.textContent : "";
+        showRead(id);
+        history.pushState({ view: "read", id: id }, "", "/blog/?id=" + encodeURIComponent(id));
+      });
+      document.getElementById("newBtn").addEventListener("click", function () {
+        if (window.__blogSoftNav) return;
+        showEdit("");
+        document.getElementById("titleIn").value = "";
+        document.getElementById("bodyIn").value = "";
+        history.pushState({ view: "edit", id: "" }, "", "/blog/?new=1");
+      });
+      document.getElementById("editBackBtn").addEventListener("click", function () {
+        if (window.__blogSoftNav) return;
+        editView.hidden = true;
+        listView.hidden = false;
+        history.pushState({ view: "list" }, "", "/blog/");
+      });
+      document.getElementById("readBackBtn").addEventListener("click", function () {
+        if (window.__blogSoftNav) return;
+        readView.hidden = true;
+        listView.hidden = false;
+        history.pushState({ view: "list" }, "", "/blog/");
+      });
+      document.getElementById("readEditBtn").addEventListener("click", function () {
+        if (window.__blogSoftNav) return;
+        var id = (new URLSearchParams(location.search).get("id") || "").trim();
+        if (!id) return;
+        showEdit(id);
+        history.pushState({ view: "edit", id: id }, "", "/blog/?edit=" + encodeURIComponent(id));
+      });
+
+      document.documentElement.classList.remove("blog-booting");
+    })();
+  </script>
+  <script type="module" src="blog-app.js?v=6"></script>
   <script src="/js/edgeBack.js"></script>
 </body>
 </html>

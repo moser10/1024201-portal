@@ -1,7 +1,6 @@
 import { roomApi } from "./api.js";
 import { bindNameCheck } from "./nameCheck.js";
 import { getUser, setRoom, clearRoom } from "../../js/store.js";
-import { mountUserBar } from "../../js/userBar.js";
 import { mountLangTabs } from "/js/langTabs.js";
 import { renderTodos } from "../../js/todos.js";
 import { showToast } from "../../js/toast.js";
@@ -14,6 +13,11 @@ export function renderLobby(app, onEnterRoom, game) {
   }
   let todoTimer = null;
   let lobbyDisposed = false;
+  const portalBack = {
+    en: "Back to lobby",
+    zh: "返回大厅",
+    ja: "ロビーへ",
+  }[getPortalLang()] || "Back to lobby";
 
   app.innerHTML = `
     <div class="card">
@@ -22,10 +26,10 @@ export function renderLobby(app, onEnterRoom, game) {
           <p class="game-brand">${game.nameEn}</p>
           <h1>${game.lobbyTitle}</h1>
         </div>
-        <div class="row header-lang-row" style="margin:0;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;">
+        <div class="header-actions">
           <div id="lobbyLangSlot"></div>
           <div id="lobbyUserBar"></div>
-          <button type="button" id="leaveLobbyBtn" class="btn-secondary btn-small">返回游戏中心</button>
+          <button type="button" id="leaveLobbyBtn" class="btn-secondary btn-small">${portalBack}</button>
         </div>
       </div>
 
@@ -67,20 +71,13 @@ export function renderLobby(app, onEnterRoom, game) {
     </div>`;
 
   mountLangTabs(document.getElementById("lobbyLangSlot"));
-  mountUserBar(document.getElementById("lobbyUserBar"), {
-    variant: "game",
-    returnPath: "onesentence/",
-    onLogout: () => {
-      lobbyDisposed = true;
-      clearInterval(todoTimer);
-      window.location.href = "/game/register/";
-    },
-  });
+  const lobbyUserBar = document.getElementById("lobbyUserBar");
+  if (lobbyUserBar) lobbyUserBar.hidden = true;
 
   document.getElementById("leaveLobbyBtn").onclick = () => {
     clearInterval(todoTimer);
     clearRoom();
-    window.location.href = "/game/";
+    window.location.href = "/";
   };
 
   bindNameCheck({

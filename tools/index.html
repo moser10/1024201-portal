@@ -3,18 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#636366">
+  <meta name="theme-color" content="#f2f2f7">
   <title>Toolbox | 1024201</title>
-  <link rel="stylesheet" href="/game/css/hub.css">
-  <link rel="stylesheet" href="/js/featurePage.css?v=2">
+  <style>html,body{background:#f2f2f7}body{margin:0}</style>
+  <link rel="modulepreload" href="/js/langTabs.js">
+  <link rel="modulepreload" href="/js/accountChrome.js">
+  <link rel="stylesheet" href="/game/css/hub.css?v=13">
+  <link rel="stylesheet" href="/js/featurePage.css?v=7">
   <link rel="stylesheet" href="css/icons.css">
-  <link rel="stylesheet" href="/js/langTabs.css">
-  <link rel="stylesheet" href="/js/accountChrome.css">
-  <link rel="stylesheet" href="/game/css/userBar.css?v=7">
+  <link rel="stylesheet" href="/js/langTabs.css?v=4">
+  <link rel="stylesheet" href="/js/accountChrome.css?v=2">
+  <link rel="stylesheet" href="/game/css/userBar.css?v=12">
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <div class="hub">
+      <div class="hub-top">
+        <a href="/" class="feature-back" id="hubBack">Back to lobby</a>
+        <div id="hubAccountChrome" class="hub-account-slot"></div>
+      </div>
+      <div class="page-mark-row">
+        <img class="page-mark" src="/icons/apps/tools.svg" alt="">
+        <h1 id="hubTitle">Toolbox</h1>
+      </div>
+      <p class="sub" id="hubSub">Handy tools · pick one</p>
+      <div class="grid" id="toolGrid">
+        <a class="game-card" href="showcase/" data-tool-card="showcase">
+          <div class="game-icon"><img src="/icons/apps/showcase.svg" alt=""></div>
+          <div class="game-label" data-title>Portfolio</div><div class="game-full" data-sub>Watermark · share safely</div>
+        </a>
+        <a class="game-card" href="syncnote/" data-tool-card="syncnote">
+          <div class="game-icon"><img src="/icons/apps/syncnote.svg" alt=""></div>
+          <div class="game-label" data-title>Text Relay</div><div class="game-full" data-sub>Cross-device paste</div>
+        </a>
+        <a class="game-card" href="music/" data-tool-card="music">
+          <div class="game-icon"><img src="/icons/apps/music.svg" alt=""></div>
+          <div class="game-label" data-title>Music</div><div class="game-full" data-sub>Deezer previews</div>
+        </a>
+        <a class="game-card" href="pdf/" data-tool-card="pdf">
+          <div class="game-icon"><img src="/icons/apps/pdf.svg" alt=""></div>
+          <div class="game-label" data-title>PDF Convert</div><div class="game-full" data-sub>Word/TXT/MD</div>
+        </a>
+        <a class="game-card" href="lyrics/" data-tool-card="lyrics">
+          <div class="game-icon"><img src="/icons/apps/lyrics.svg" alt=""></div>
+          <div class="game-label" data-title>Find Lyrics</div><div class="game-full" data-sub>LRCLIB</div>
+        </a>
+        <a class="game-card" href="cli/" data-tool-card="cli">
+          <div class="game-icon"><img src="/icons/apps/cli.svg" alt=""></div>
+          <div class="game-label" data-title>CLI</div><div class="game-full" data-sub>Commands, register & quotas</div>
+        </a>
+        <a class="game-card" href="address/" data-tool-card="address">
+          <div class="game-icon"><img src="/icons/apps/address.svg" alt=""></div>
+          <div class="game-label" data-title>Address Lookup</div><div class="game-full" data-sub>Rent/sale · postal · phone</div>
+        </a>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var lang = localStorage.getItem("portal_lang") || "en";
+      var copy = {
+        zh:{title:"工具箱",sub:"实用小工具 · 选一个开始",back:"返回大厅",showcase:["作品展示","水印保护 · 分享展示"],syncnote:["文本中转站","跨设备复制粘贴"],music:["音乐","Deezer 试听"],pdf:["PDF 转换","Word/TXT/MD"],lyrics:["找歌词","LRCLIB"],cli:["命令行","命令、注册与配额"],address:["地址查找","租售地址 · 邮编 · 区号"]},
+        en:{title:"Toolbox",sub:"Handy tools · pick one",back:"Back to lobby",showcase:["Portfolio","Watermark · share safely"],syncnote:["Text Relay","Cross-device paste"],music:["Music","Deezer previews"],pdf:["PDF Convert","Word/TXT/MD"],lyrics:["Find Lyrics","LRCLIB"],cli:["CLI","Commands, register & quotas"],address:["Address Lookup","Rent/sale · postal · phone"]},
+        ja:{title:"ツールボックス",sub:"便利ツール · 選んで開始",back:"ロビーへ",showcase:["作品展示","透かし付き展示"],syncnote:["テキスト中継","端末間コピー"],music:["音楽","Deezerプレビュー"],pdf:["PDF変換","Word/TXT/MD"],lyrics:["歌詞検索","LRCLIB"],cli:["CLI","コマンド・登録と割当"],address:["住所検索","賃貸売買・郵便・電話"]}
+      }[lang] || null;
+      if (!copy) return;
+      document.getElementById("hubTitle").textContent=copy.title; document.getElementById("hubSub").textContent=copy.sub; document.getElementById("hubBack").textContent=copy.back;
+      document.querySelectorAll("[data-tool-card]").forEach(function(card){var c=copy[card.dataset.toolCard];if(c){card.querySelector("[data-title]").textContent=c[0];card.querySelector("[data-sub]").textContent=c[1];}});
+    })();
+  </script>
   <script src="/js/edgeBack.js"></script>
-  <script type="module" src="js/hub.js?v=5"></script>
+  <script type="module" src="js/hub.js?v=10"></script>
 </body>
 </html>

@@ -35,7 +35,7 @@ const MAX_FILE_MB = 5;
 const UI = {
   en: {
     title: "Text Relay",
-    back: "Toolbox",
+    back: "Back to lobby",
     loginDesc: "Sign in to use Text Relay.",
     loginBtn: "Sign in / Register",
     slot: (n) => `Relay ${n}`,
@@ -64,6 +64,7 @@ const UI = {
     saving: "Saving…",
     loaded: "Loaded",
     cleared: "Cleared",
+    synced: "Synced",
     copied: "Copied to clipboard",
     storageLeft: (mb) => `${mb} left`,
     errLoad: "Failed to load",
@@ -74,7 +75,7 @@ const UI = {
   },
   zh: {
     title: "文本中转站",
-    back: "返回工具箱",
+    back: "返回大厅",
     loginDesc: "请登录后使用文本中转站。",
     loginBtn: "登录 / 注册",
     slot: (n) => `中转 ${n}`,
@@ -103,6 +104,7 @@ const UI = {
     saving: "保存中…",
     loaded: "已加载",
     cleared: "已清空",
+    synced: "已同步",
     copied: "已复制到剪贴板",
     storageLeft: (mb) => `剩余 ${mb}`,
     errLoad: "加载失败",
@@ -113,7 +115,7 @@ const UI = {
   },
   ja: {
     title: "テキスト中継",
-    back: "ツールボックス",
+    back: "ロビーへ",
     loginDesc: "テキスト中継を使うにはログインしてください。",
     loginBtn: "ログイン / 登録",
     slot: (n) => `中継 ${n}`,
@@ -142,6 +144,7 @@ const UI = {
     saving: "保存中…",
     loaded: "読み込み済み",
     cleared: "削除しました",
+    synced: "同期済み",
     copied: "クリップボードにコピー",
     storageLeft: (mb) => `残り ${mb}`,
     errLoad: "読み込みに失敗",
@@ -159,7 +162,11 @@ const dirtySlots = new Set();
 const baselineStatus = new Map();
 const flashTimers = new Map();
 const flashing = new Set();
+const slotEpoch = new Map(); // bumps on clear — kills in-flight stale saves
 let attachFiles = [];
+let pollTimer = 0;
+let pollInflight = false;
+const POLL_MS = 2000;
 
 const errBox = document.getElementById("errBox");
 const loginPanel = document.getElementById("loginPanel");
@@ -305,13 +312,23 @@ function persistCache(remaining = null) {
   writeLocalCache(uid, cachePayloadFromState(remaining));
 }
 
-function applySlotsToDom(slots = {}) {
+function applySlotsToDom(slots = {}, { respectLocalEdits = false } = {}) {
   slotEls.forEach((el) => {
     const slot = slotNum(el);
     if (isAttachSlot(el)) return;
     const row = slots[slot] || slots[String(slot)] || { content: "", updatedAt: null };
-    if (row.updatedAt != null) slotUpdatedAt.set(slot, row.updatedAt);
     const ta = slotInput(el);
+    if (respectLocalEdits) {
+      if (dirtySlots.has(slot)) return;
+      if (document.activeElement === ta) return;
+      const localAt = slotUpdatedAt.get(slot) ?? "";
+      const remoteAt = row.updatedAt ?? "";
+      const localVal = ta.value || "";
+      const remoteVal = row.content || "";
+      if (localVal === remoteVal && localAt === remoteAt) return;
+    }
+    if (row.updatedAt != null) slotUpdatedAt.set(slot, row.updatedAt);
+    else if (!(row.content || "")) slotUpdatedAt.set(slot, null);
     ta.value = row.content || "";
     dirtySlots.delete(slot);
     setBaseline(el, loadedLabel(row.updatedAt));
@@ -428,7 +445,9 @@ function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
   const subEl = document.getElementById("pageSub");
   if (subEl) subEl.hidden = true;
-  document.getElementById("backLink").textContent = t.back;
+  const back = document.getElementById("backLink");
+  back.textContent = t.back;
+  back.href = "/";
   document.getElementById("loginDesc").textContent = t.loginDesc;
   document.getElementById("loginBtn").textContent = t.loginBtn;
   document.getElementById("loginBtn").href = loginHref("/tools/syncnote/");
@@ -501,39 +520,104 @@ function savedLabel(updatedAt) {
   return updatedAt ? `${t.saved} · ${updatedAt}` : t.saved;
 }
 
-async function loadNotes() {
+function bumpEpoch(slot) {
+  const next = (slotEpoch.get(slot) || 0) + 1;
+  slotEpoch.set(slot, next);
+  return next;
+}
+
+function currentEpoch(slot) {
+  return slotEpoch.get(slot) || 0;
+}
+
+async function fetchNotesPayload() {
+  const uid = currentUserId();
+  if (!uid) return null;
+  const res = await fetch(`/api/portal?action=syncnote_get&user_id=${encodeURIComponent(uid)}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || t.errLoad);
+  return data;
+}
+
+function slotsFromPayload(data) {
+  const bySlot = new Map((data.slots || []).map((s) => [s.slot, s]));
+  const slots = {};
+  let files = attachFiles;
+  slotEls.forEach((el) => {
+    const slot = slotNum(el);
+    const row = bySlot.get(slot) || { content: "", updatedAt: null };
+    if (isAttachSlot(el)) {
+      files = (row.files || []).slice(0, SYNCNOTE_MAX_ATTACH);
+      return;
+    }
+    slots[slot] = { content: row.content || "", updatedAt: row.updatedAt };
+  });
+  return { slots, files };
+}
+
+async function loadNotes({ quiet = false } = {}) {
   const uid = currentUserId();
   if (!uid) return;
   const hadCache = !!readLocalCache(uid);
-  refreshAttachStorage();
+  if (!quiet) refreshAttachStorage();
   try {
-    const res = await fetch(`/api/portal?action=syncnote_get&user_id=${encodeURIComponent(uid)}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || t.errLoad);
-    const bySlot = new Map((data.slots || []).map((s) => [s.slot, s]));
-    const slots = {};
-    slotEls.forEach((el) => {
-      const slot = slotNum(el);
-      const row = bySlot.get(slot) || { content: "", updatedAt: null };
-      if (isAttachSlot(el)) {
-        attachFiles = (row.files || []).slice(0, SYNCNOTE_MAX_ATTACH);
-        return;
+    const data = await fetchNotesPayload();
+    const { slots, files } = slotsFromPayload(data);
+    applySlotsToDom(slots, { respectLocalEdits: quiet });
+    if (!attachBusy) {
+      const prevIds = attachFiles.map((f) => f.id).join(",");
+      const nextIds = files.map((f) => f.id).join(",");
+      if (prevIds !== nextIds) {
+        attachFiles = files;
+        paintAttachGrid();
+        scheduleThumbPrefetch();
       }
-      slots[slot] = { content: row.content || "", updatedAt: row.updatedAt };
-    });
-    applySlotsToDom(slots);
-    paintAttachGrid();
-    paintToolUser();
+    }
+    if (!quiet) paintToolUser();
     const prev = readLocalCache(uid);
     writeLocalCache(uid, {
-      slots,
+      slots: cachePayloadFromState()?.slots || slots,
       files: attachFiles,
       remaining: prev?.remaining ?? null,
     });
-    scheduleThumbPrefetch();
+    if (!quiet) scheduleThumbPrefetch();
     showError("");
   } catch (e) {
-    if (!hadCache) showError(e.message || t.errLoad);
+    if (!quiet && !hadCache) showError(e.message || t.errLoad);
+  }
+}
+
+async function pollNotes() {
+  if (pollInflight || document.hidden || !currentUserId()) return;
+  pollInflight = true;
+  try {
+    await loadNotes({ quiet: true });
+  } finally {
+    pollInflight = false;
+  }
+}
+
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(pollNotes, POLL_MS);
+}
+
+function stopPolling() {
+  clearInterval(pollTimer);
+  pollTimer = 0;
+}
+
+async function forceClearServer(slot) {
+  const uid = currentUserId();
+  if (!uid) return;
+  try {
+    await fetch("/api/portal?action=syncnote_clear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: apiBody({ slot }),
+    });
+  } catch {
+    /* best effort */
   }
 }
 
@@ -541,20 +625,29 @@ async function saveSlot(el, { quiet = false } = {}) {
   const uid = currentUserId();
   if (!uid || isAttachSlot(el)) return;
   const slot = slotNum(el);
+  const epoch = currentEpoch(slot);
+  const content = slotInput(el).value;
   if (!quiet && !flashing.has(slot)) setBaseline(el, t.saving);
   try {
+    if (currentEpoch(slot) !== epoch) return;
     const res = await fetch("/api/portal?action=syncnote_save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: apiBody({ slot, content: slotInput(el).value }),
+      body: apiBody({ slot, content }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    // Cleared while save was in flight — re-assert empty on server (kills deadlock)
+    if (currentEpoch(slot) !== epoch) {
+      if (!slotInput(el).value) await forceClearServer(slot);
+      return;
+    }
     if (!res.ok) throw new Error(data.error || t.errSave);
     dirtySlots.delete(slot);
     if (data.updatedAt) slotUpdatedAt.set(slot, data.updatedAt);
     if (!flashing.has(slot)) setBaseline(el, savedLabel(data.updatedAt));
     persistCache();
   } catch (e) {
+    if (currentEpoch(slot) !== epoch) return;
     showError(e.message || t.errSave);
     if (!flashing.has(slot)) renderBaseline(slot);
   }
@@ -564,7 +657,7 @@ function scheduleSave(el) {
   const slot = slotNum(el);
   dirtySlots.add(slot);
   clearTimeout(saveTimers.get(slot));
-  saveTimers.set(slot, setTimeout(() => saveSlot(el, { quiet: flashing.has(slot) }), 600));
+  saveTimers.set(slot, setTimeout(() => saveSlot(el, { quiet: flashing.has(slot) }), 400));
 }
 
 async function clearSlot(el) {
@@ -572,20 +665,27 @@ async function clearSlot(el) {
   if (!uid || isAttachSlot(el)) return;
   const slot = slotNum(el);
   showError("");
+  clearTimeout(saveTimers.get(slot));
+  saveTimers.delete(slot);
+  bumpEpoch(slot);
+  dirtySlots.delete(slot);
+
+  const ta = slotInput(el);
+  ta.value = "";
+  fitInput(ta);
+  slotUpdatedAt.set(slot, null);
+  flashStatus(el, t.cleared);
+  setBaseline(el, "");
+  persistCache();
+
   try {
     const res = await fetch("/api/portal?action=syncnote_clear", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: apiBody({ slot }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || t.errSave);
-    const ta = slotInput(el);
-    ta.value = "";
-    fitInput(ta);
-    dirtySlots.delete(slot);
-    flashStatus(el, t.cleared);
-    setBaseline(el, "");
     persistCache();
   } catch (e) {
     showError(e.message || t.errSave);
@@ -758,18 +858,34 @@ function boot() {
     setGuestMode(true);
     paintAttachGrid();
     fitAllInputs();
+    stopPolling();
     return;
   }
   setGuestMode(false);
   paintFromCache();
   fitAllInputs();
   setTimeout(() => loadNotes(), 0);
+  startPolling();
 }
 
 previewClose?.addEventListener("click", closePreview);
 attachPreview?.addEventListener("click", (e) => {
   if (e.target === attachPreview) closePreview();
 });
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (currentUserId()) pollNotes();
+});
+
+window.addEventListener("pageshow", () => {
+  if (currentUserId()) {
+    pollNotes();
+    startPolling();
+  }
+});
+
+window.addEventListener("pagehide", stopPolling);
 
 mountLangTabs(document.getElementById("langSlot"), {
   layout: "horizontal",
@@ -821,6 +937,8 @@ window.addEventListener("beforeunload", () => {
     if (slot === ATTACH_SLOT) return;
     const el = slotEls.find((s) => slotNum(s) === slot);
     if (!el) return;
+    // Don't beacon-restore content after a clear
+    if (!slotInput(el).value && currentEpoch(slot) > 0) return;
     navigator.sendBeacon(
       "/api/portal?action=syncnote_save",
       new Blob([apiBody({ slot, content: slotInput(el).value })], { type: "application/json" })

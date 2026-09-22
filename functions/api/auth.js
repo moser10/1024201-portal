@@ -1,5 +1,7 @@
 import { corsHeaders, json, requireDb, generateUniqueName, ensureAppSchema, issueCliToken, verifyCliToken, revokeCliToken } from "./_shared.js";
 import { hashPassword, verifyPassword, randomPassword, randomVerifyCode, randomCliVerifyCode } from "./_crypto.js";
+import { sendSystemMail } from "./_mail.js";
+import { parseUsername, parseNewEmail, parsePasswordPair } from "./authAccount.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -34,15 +36,17 @@ function welcomeEmailHtml(name, verifyCode, today, { cli = false } = {}) {
     : "";
   const pageZh = cli ? "在终端输入此注册码完成注册。" : "请在注册页面输入此验证码完成注册。";
   const pageEn = cli ? "Enter this code in the CLI to finish sign-up." : "Enter this code on the registration page to complete sign-up.";
+  const codeLabelZh = cli ? "注册码" : "邮箱验证码";
+  const codeLabelEn = cli ? "Registration code" : "Email verification code";
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.8;color:#1c1c1e;">
 <p style="margin:0 0 14px;font-weight:600;color:#636366;">中文</p>
 <p style="margin:0 0 12px;">欢迎 ${safeName}：</p>
-<p style="margin:0 0 8px;padding-left:1em;">注册码：<strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong>${caseNote.zh}</p>
+<p style="margin:0 0 8px;padding-left:1em;">${codeLabelZh}：<strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong>${caseNote.zh}</p>
 ${cliHintZh}
 <p style="margin:0 0 20px;padding-left:1em;">${pageZh}</p>
 <p style="margin:0 0 14px;font-weight:600;color:#636366;">English</p>
 <p style="margin:0 0 12px;">Welcome ${safeName},</p>
-<p style="margin:0 0 8px;padding-left:1em;">Registration code: <strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong> ${caseNote.en}</p>
+<p style="margin:0 0 8px;padding-left:1em;">${codeLabelEn}: <strong style="font-size:18px;letter-spacing:2px;">${safeCode}</strong> ${caseNote.en}</p>
 ${cliHintEn}
 <p style="margin:0 0 20px;padding-left:1em;">${pageEn}</p>
 <p style="margin:24px 0 0;"><strong>1024201</strong></p>
@@ -71,6 +75,12 @@ async function completePendingRegistration(db, pending) {
     .bind(pending.email, pending.username, pending.password_hash)
     .run();
   await db.prepare("DELETE FROM pending_registrations WHERE id = ?").bind(pending.id).run();
+  if (pending.invitation_code) {
+    await db
+      .prepare("UPDATE registration_invitations SET used_at = datetime('now') WHERE code = ? AND used_at IS NULL")
+      .bind(pending.invitation_code)
+      .run();
+  }
   const user = await db
     .prepare(
       `SELECT id, email, username, must_change_password, email_verified
@@ -82,21 +92,7 @@ async function completePendingRegistration(db, pending) {
 }
 
 async function sendMail(env, to, subject, html) {
-  if (!env.RESEND_API_KEY) {
-    throw new Error("邮件服务未配置（RESEND_API_KEY）。请在 Cloudflare → Workers → 1024201-portal → Settings → Variables 添加 Secret。");
-  }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: "admin@1024201.com", to, subject, html }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`邮件发送失败 (${res.status})${detail ? `: ${detail.slice(0, 120)}` : ""}`);
-  }
+  return sendSystemMail(env, to, subject, html);
 }
 
 function publicUser(row) {
@@ -138,6 +134,19 @@ async function usernameTaken(db, username) {
   return !!(await db.prepare("SELECT id FROM users WHERE username = ?").bind(username).first());
 }
 
+async function validInvitation(db, code, email) {
+  const cleanCode = String(code || "").trim();
+  if (!cleanCode || !email) return null;
+  return db
+    .prepare(
+      `SELECT code, email, is_special
+       FROM registration_invitations
+       WHERE code = ? AND lower(email) = lower(?) AND used_at IS NULL`
+    )
+    .bind(cleanCode, String(email).trim())
+    .first();
+}
+
 async function verifyUserPassword(user, password) {
   if (user.password_hash && (await verifyPassword(password, user.password_hash))) return true;
   if (user.password_plain && password === user.password_plain) return true;
@@ -157,6 +166,22 @@ export async function onRequest(context) {
 
   try {
     const db = requireDb(env);
+
+    if (request.method === "GET" && action === "me") {
+      const id = Number(url.searchParams.get("user_id") || 0);
+      if (!id) return json({ error: "account_gone" }, 401);
+      try {
+        const row = await db.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+        if (!row) return json({ error: "account_gone" }, 401);
+        return json({ ok: true });
+      } catch {
+        await ensureAppSchema(db);
+        const row = await db.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+        if (!row) return json({ error: "account_gone" }, 401);
+        return json({ ok: true });
+      }
+    }
+
     await ensureAppSchema(db);
 
     if (request.method === "GET" && action === "verify") {
@@ -222,9 +247,15 @@ export async function onRequest(context) {
     }
 
     if (request.method === "POST" && action === "check") {
-      const { username } = await request.json();
+      const { username, email, invite_code } = await request.json();
       const name = username?.trim();
       if (!name) return json({ error: "昵称不能为空" }, 400);
+      if (name.length < 6) {
+        const invitation = await validInvitation(db, invite_code, email);
+        if (!invitation) {
+          return json({ error: "昵称至少需要 6 个字符" }, 400);
+        }
+      }
       if (await usernameTaken(db, name)) {
         const recommend = await generateUniqueName(db, name, "users", "username");
         return json({ available: false, recommend });
@@ -242,13 +273,21 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "register") {
       const body = await request.json();
-      const { email, username, password } = body;
+      const { email, username, password, invite_code } = body;
       const mail = email?.trim();
       const name = username?.trim();
       const pass = password?.trim();
       if (!mail || !name || !pass) return json({ error: "邮箱、昵称和密码不能为空" }, 400);
       if (!isValidEmail(mail)) return json({ error: "邮箱格式不正确" }, 400);
       if (pass.length < 6) return json({ error: "密码至少 6 位" }, 400);
+      const inviteCode = String(invite_code || "").trim();
+      const invitation = inviteCode ? await validInvitation(db, inviteCode, mail) : null;
+      if (inviteCode && !invitation) {
+        return json({ error: "邀请码无效、已使用或与当前邮箱不匹配" }, 400);
+      }
+      if (name.length < 6 && !invitation) {
+        return json({ error: "昵称至少需要 6 个字符" }, 400);
+      }
 
       const inUsers = await db.prepare("SELECT id FROM users WHERE email = ?").bind(mail).first();
 
@@ -267,10 +306,11 @@ export async function onRequest(context) {
       await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(mail).run();
       await db
         .prepare(
-          `INSERT INTO pending_registrations (email, username, password_hash, verify_token, verify_attempts, expires_at, register_channel)
-           VALUES (?, ?, ?, ?, 0, datetime('now', '+48 hours'), ?)`
+          `INSERT INTO pending_registrations
+             (email, username, password_hash, verify_token, verify_attempts, expires_at, register_channel, invitation_code)
+           VALUES (?, ?, ?, ?, 0, datetime('now', '+48 hours'), ?, ?)`
         )
-        .bind(mail, name, passHash, verifyCode, channel)
+        .bind(mail, name, passHash, verifyCode, channel, invitation?.code || null)
         .run();
 
       const today = new Date().toLocaleDateString("zh-CN");
@@ -278,7 +318,7 @@ export async function onRequest(context) {
         await sendMail(
           env,
           mail,
-          cliChannel ? "1024201 · CLI 注册码 / CLI Registration Code" : "1024201 · 注册验证码 / Registration Code",
+          cliChannel ? "1024201 · CLI 注册码 / CLI Registration Code" : "1024201 · 邮箱验证码 / Email Verification Code",
           welcomeEmailHtml(name, verifyCode, today, { cli: cliChannel })
         );
       } catch (err) {
@@ -422,22 +462,129 @@ export async function onRequest(context) {
     }
 
     if (request.method === "POST" && action === "change_password") {
-      const { user_id, password, password2 } = await request.json();
-      if (!password || password !== password2) return json({ error: "两次密码不一致" }, 400);
-      if (password.length < 6) return json({ error: "密码至少 6 位" }, 400);
+      const { user_id, password, password2, current_password } = await request.json();
+      const parsed = parsePasswordPair(password, password2);
+      if (parsed.error === "pass_mismatch") return json({ error: "两次密码不一致" }, 400);
+      if (parsed.error) return json({ error: "密码至少 6 位" }, 400);
+      const row = await db
+        .prepare(
+          "SELECT id, password_hash, password_plain, temp_password, temp_password_expires FROM users WHERE id = ?"
+        )
+        .bind(user_id)
+        .first();
+      if (!row) return json({ error: "login_required" }, 401);
+      if (current_password != null && current_password !== "") {
+        if (!(await verifyUserPassword(row, current_password))) return json({ error: "当前密码错误" }, 401);
+      }
 
-      const passHash = await hashPassword(password);
+      const passHash = await hashPassword(parsed.password);
       await db
         .prepare(
           `UPDATE users SET password_hash = ?, password_plain = ?, temp_password = NULL,
            temp_password_expires = NULL, must_change_password = 0 WHERE id = ?`
         )
-        .bind(passHash, password, user_id)
+        .bind(passHash, parsed.password, user_id)
         .run();
       return json({
         success: true,
         message: "密码已更新。下次登录请使用新密码；本次无需退出，可继续游戏。",
       });
+    }
+
+    if (request.method === "POST" && action === "change_username") {
+      const { user_id, username } = await request.json();
+      const parsed = parseUsername(username);
+      if (parsed.error === "empty_name") return json({ error: "昵称不能为空" }, 400);
+      if (parsed.error) return json({ error: "昵称至少需要 6 个字符" }, 400);
+      const row = await db.prepare("SELECT id, username FROM users WHERE id = ?").bind(user_id).first();
+      if (!row) return json({ error: "login_required" }, 401);
+      if (row.username !== parsed.username) {
+        const taken = await db
+          .prepare("SELECT id FROM users WHERE username = ? AND id != ?")
+          .bind(parsed.username, user_id)
+          .first();
+        if (taken) {
+          const recommend = await generateUniqueName(db, parsed.username, "users", "username");
+          return json({ error: "昵称已被占用", recommend }, 409);
+        }
+        await db.prepare("UPDATE users SET username = ? WHERE id = ?").bind(parsed.username, user_id).run();
+      }
+      const user = await db
+        .prepare("SELECT id, email, username, must_change_password, email_verified FROM users WHERE id = ?")
+        .bind(user_id)
+        .first();
+      return json({ success: true, user: publicUser(user) });
+    }
+
+    if (request.method === "POST" && action === "request_email_change") {
+      const { user_id, email, password } = await request.json();
+      const row = await db
+        .prepare(
+          "SELECT id, email, password_hash, password_plain, temp_password, temp_password_expires FROM users WHERE id = ?"
+        )
+        .bind(user_id)
+        .first();
+      if (!row) return json({ error: "login_required" }, 401);
+      if (!(await verifyUserPassword(row, password))) return json({ error: "当前密码错误" }, 401);
+      const parsed = parseNewEmail(email, row.email);
+      if (parsed.error === "same_email") return json({ error: "新邮箱与当前邮箱相同" }, 400);
+      if (parsed.error) return json({ error: "邮箱格式不正确" }, 400);
+      if (await emailTaken(db, parsed.email)) return json({ error: "该邮箱已被占用" }, 409);
+      const code = randomVerifyCode(4);
+      await db
+        .prepare(
+          `UPDATE users SET email_change_to = ?, email_change_code = ?, email_change_attempts = 0,
+           email_change_expires = datetime('now', '+30 minutes') WHERE id = ?`
+        )
+        .bind(parsed.email, code, user_id)
+        .run();
+      await sendMail(
+        env,
+        parsed.email,
+        "1024201 · 更换邮箱验证码 / Email change code",
+        `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.8;color:#1c1c1e;">
+<p style="margin:0 0 8px;">你的更换邮箱验证码：<strong style="font-size:18px;letter-spacing:2px;">${code}</strong></p>
+<p style="margin:0 0 16px;">Your email-change code: <strong>${code}</strong></p>
+<p style="margin:0;">30 分钟内在设置页输入即可。 / Enter it on Settings within 30 minutes.</p>
+</div>`
+      );
+      return json({ success: true, sent: true, email: parsed.email });
+    }
+
+    if (request.method === "POST" && action === "confirm_email_change") {
+      const { user_id, code } = await request.json();
+      const input = String(code || "").trim();
+      const row = await db
+        .prepare(
+          `SELECT id, email_change_to, email_change_code, email_change_expires, email_change_attempts
+           FROM users WHERE id = ?`
+        )
+        .bind(user_id)
+        .first();
+      if (!row) return json({ error: "login_required" }, 401);
+      if (!row.email_change_to || !row.email_change_code) return json({ error: "请先发送验证码" }, 400);
+      if (row.email_change_expires && new Date(row.email_change_expires) < new Date()) {
+        return json({ error: "验证码已过期" }, 400);
+      }
+      if ((row.email_change_attempts || 0) >= 5) return json({ error: "验证码错误次数过多" }, 403);
+      if (row.email_change_code !== input) {
+        const attempts = (row.email_change_attempts || 0) + 1;
+        await db.prepare("UPDATE users SET email_change_attempts = ? WHERE id = ?").bind(attempts, user_id).run();
+        return json({ error: "验证码错误", attempts_left: 5 - attempts }, 400);
+      }
+      if (await emailTaken(db, row.email_change_to)) return json({ error: "该邮箱已被占用" }, 409);
+      await db
+        .prepare(
+          `UPDATE users SET email = ?, email_verified = 1, email_change_to = NULL, email_change_code = NULL,
+           email_change_expires = NULL, email_change_attempts = 0 WHERE id = ?`
+        )
+        .bind(row.email_change_to, user_id)
+        .run();
+      const user = await db
+        .prepare("SELECT id, email, username, must_change_password, email_verified FROM users WHERE id = ?")
+        .bind(user_id)
+        .first();
+      return json({ success: true, user: publicUser(user) });
     }
 
     if (request.method === "GET" && action === "search") {

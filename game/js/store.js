@@ -21,6 +21,35 @@ export function clearUser() {
   localStorage.removeItem(USER_KEY);
 }
 
+export function forceLogout() {
+  clearUser();
+  clearRoom();
+  const ret = `${location.pathname}${location.search}`;
+  const dest = ret.startsWith("/game/register") ? "/" : ret;
+  location.assign(`/game/register/?return=${encodeURIComponent(dest)}`);
+}
+
+let aliveWatch = 0;
+export function watchAccountAlive() {
+  const user = getUser();
+  if (!user?.id) return;
+  if (aliveWatch) return;
+  const ping = () => {
+    const u = getUser();
+    if (!u?.id) return;
+    fetch(`/api/auth?action=me&user_id=${encodeURIComponent(u.id)}`, { cache: "no-store" })
+      .then((res) => {
+        if (res.status === 401) forceLogout();
+      })
+      .catch(() => {});
+  };
+  ping();
+  aliveWatch = setInterval(ping, 8000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) ping();
+  });
+}
+
 export function getRoom() {
   try {
     return JSON.parse(localStorage.getItem(ROOM_KEY));
@@ -38,8 +67,11 @@ export function clearRoom() {
 }
 
 export function requireAuth(returnPath) {
-  if (getUser()) return true;
-  const ret = returnPath ? `?return=${encodeURIComponent(returnPath)}` : "";
+  if (getUser()) {
+    watchAccountAlive();
+    return true;
+  }
+  const ret = returnPath ? `?return=${encodeURIComponent(returnPath.startsWith("/") ? returnPath : `/${returnPath}`)}` : "";
   window.location.href = `/game/register/${ret}`;
   return false;
 }

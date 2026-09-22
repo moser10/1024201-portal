@@ -1,6 +1,6 @@
 import { mountLangTabs } from "./langTabs.js";
 import { prefersStackedChrome } from "./device.js";
-import { getUser } from "/game/js/store.js";
+import { getUser, watchAccountAlive } from "/game/js/store.js";
 import { mountUserBar } from "/game/js/userBar.js";
 
 const roMap = new WeakMap();
@@ -25,12 +25,16 @@ function watchLayout(container) {
 }
 
 function buildLoginUrl(returnPath) {
-  const ret = returnPath || location.pathname.replace(/^\//, "") + location.search;
+  let ret = returnPath;
+  if (ret == null || ret === "") {
+    ret = location.pathname + location.search;
+  }
+  if (ret === "/" || ret === "/index.html") ret = "/";
+  else if (!String(ret).startsWith("/")) ret = `/${ret}`.replace(/^\/\//, "/");
   return `/game/register/?return=${encodeURIComponent(ret)}`;
 }
 
-const PERSON_SVG =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+const LOGIN_IMG = '<img src="/icons/apps/login.svg" alt="">';
 
 /**
  * Unified language tabs + user control.
@@ -38,14 +42,28 @@ const PERSON_SVG =
  */
 export function mountAccountChrome(container, options = {}) {
   if (!container) return;
-  const { variant = "game", returnPath, onLogout, onLangChange, active, layout } = options;
+  const { variant = "game", returnPath, onLogout, onLangChange, active, layout, account = "lang" } = options;
   const user = getUser();
+  if (user?.id) watchAccountAlive();
 
   const signedIn = !!user;
   container.className = `account-chrome account-chrome--${variant} ${
     signedIn ? "account-chrome--signed" : "account-chrome--guest"
   }`;
   container.replaceChildren();
+
+  if (signedIn && account === "lang") {
+    const langWrap = document.createElement("div");
+    langWrap.className = "account-chrome-lang-wrap";
+    container.appendChild(langWrap);
+    mountLangTabs(langWrap, {
+      active,
+      layout: "horizontal",
+      onChange: onLangChange,
+    });
+    watchLayout(container);
+    return;
+  }
 
   if (!signedIn) {
     const group = document.createElement("div");
@@ -57,7 +75,7 @@ export function mountAccountChrome(container, options = {}) {
     guestBtn.href = buildLoginUrl(returnPath);
     guestBtn.title = "登录 / Sign in";
     guestBtn.setAttribute("aria-label", "Sign in");
-    guestBtn.innerHTML = PERSON_SVG;
+    guestBtn.innerHTML = LOGIN_IMG;
     group.append(langSlot, guestBtn);
     container.appendChild(group);
 

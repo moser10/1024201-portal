@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#050510">
+  <title>对圈 Dua | 1024201</title>
+  <link rel="stylesheet" href="/js/featurePage.css?v=7">
+  <link rel="stylesheet" href="game.css?v=12">
+</head>
+<body>
+  <main class="game-shell">
+    <header class="game-top">
+      <a class="game-back" id="gameBack" href="/game/">Back</a>
+      <div class="game-title">
+        <strong>DUA</strong>
+      </div>
+      <button class="icon-btn" id="pauseBtn" type="button" aria-label="暂停">Ⅱ</button>
+    </header>
+    <button type="button" class="room-call" id="roomCall" hidden></button>
+
+    <div class="hearts" aria-label="双方生命">
+      <div id="redHearts">❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️</div>
+      <div id="yellowHearts">💛💛💛💛💛💛💛💛💛💛</div>
+    </div>
+    <div class="weapon-chip">
+      <img id="weaponArt" alt="">
+      <span id="weaponText">UNARMED</span>
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="gameCanvas" width="900" height="900" draggable="false" aria-label="对圈竞技场"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="overlay-card">
+          <p class="eyebrow" id="overlayEyebrow" hidden>DUA</p>
+          <h1 id="overlayTitle">Dua</h1>
+          <p id="overlayText">先选头像。开局后只瞄准和开火，
+路径由圆内碰撞决定。</p>
+          <div class="avatar-grid" id="avatarGrid" aria-label="选择头像"></div>
+          <button id="startBtn" type="button" disabled>START</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-zone" id="controlZone" aria-label="瞄准摇杆">
+      <p class="aim-hint" id="aimHint">拖动摇杆瞄准，松手开火。没捡到武器开不了火。</p>
+      <div class="stick" id="stick" role="application" aria-label="aim stick">
+        <div class="stick-base"></div>
+        <div class="stick-knob" id="stickKnob"></div>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="game.js?v=23"></script>
+</body>
+</html>

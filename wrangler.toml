@@ -6,6 +6,8 @@ workers_dev = false
 
 # 子功能子域：每上线一个新工具，须同步 (1) worker.js SUBDOMAIN_ROOT (2) 本文件 [[routes]] (3) DNS CNAME → 1024201.com
 # 仅映射子域根路径 / → 站内入口；主站路径结构不变。mail 为独立服务，不走此 Worker。
+# cloud-mail 独立 Worker 邮箱映射："game": "1024201@1024201.com"
+# 不要在 1024201-portal 的 [vars] 中重复声明，否则会绑定到错误的 Worker。
 [[routes]]
 pattern = "1024201.com/*"
 zone_name = "1024201.com"
