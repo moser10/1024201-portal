@@ -103,11 +103,45 @@ export function targetBallCount(current, power, maxBalls) {
   return Math.min(count, cap);
 }
 
-export function targetPaddleWidth(current, power, initialWidth, minWidth, maxWidth) {
+export const PADDLE_START_UNITS = 5;
+export const PADDLE_MIN_UNITS = 1;
+
+export function paddleUnitsFromWidth(width, unitPx) {
+  const unit = Math.max(1e-6, Number(unitPx) || 1);
+  return Math.max(PADDLE_MIN_UNITS, Math.floor((Number(width) + 1e-6) / unit));
+}
+
+export function paddleWidthFromUnits(units, unitPx, maxWidth) {
+  const unit = Math.max(1e-6, Number(unitPx) || 1);
+  const cap = Math.max(unit, Number(maxWidth) || unit);
+  const n = Math.max(PADDLE_MIN_UNITS, Math.floor(Number(units) || 0));
+  return Math.min(cap, n * unit);
+}
+
+export function maxPaddlePixelWidth(unitPx, maxWidth) {
+  const unit = Math.max(1e-6, Number(unitPx) || 1);
+  const cap = Math.max(unit, Number(maxWidth) || unit);
+  return paddleWidthFromUnits(Math.floor((cap + 1e-6) / unit), unit, cap);
+}
+
+export function targetPaddleWidth(current, power, initialWidth, minWidth, maxWidth, unitPx = 1) {
   if (power.kind === "reset") return initialWidth;
   if (power.kind !== "paddle") return current;
-  const next = power.operation === "divide" ? current / power.value : current * power.value;
-  return Math.max(minWidth, Math.min(maxWidth, next));
+  const unit = Math.max(1e-6, Number(unitPx) || 1);
+  const minU = Math.max(PADDLE_MIN_UNITS, Math.floor((Number(minWidth) + 1e-6) / unit));
+  const maxU = Math.max(minU, Math.floor((Number(maxWidth) + 1e-6) / unit));
+  let units = paddleUnitsFromWidth(current, unit);
+  const value = Math.max(1, Math.floor(Number(power.value) || 1));
+  if (power.operation === "add") units += value;
+  else if (power.operation === "subtract") units -= value;
+  else if (power.operation === "multiply") units *= value;
+  else if (power.operation === "divide") units = Math.floor(units / value);
+  units = Math.max(minU, Math.min(maxU, units));
+  return units * unit;
+}
+
+export function formatPaddleUnits(width, unitPx) {
+  return paddleUnitsFromWidth(width, unitPx);
 }
 
 /** Distance from ball center to the paddle rectangle. */
@@ -166,10 +200,4 @@ export function multiplyCloneAngles(extra) {
   if (n === 1) return [0.22];
   const span = 0.7;
   return Array.from({ length: n }, (_, i) => (i / (n - 1) - 0.5) * span);
-}
-
-export function formatPaddleUnits(width, unitPx) {
-  const unit = Math.max(1e-6, Number(unitPx) || 1);
-  const n = Number(width) / unit;
-  return Math.max(0.1, Math.round(n * 10) / 10);
 }

@@ -1,6 +1,6 @@
 import { buildLevelSpec } from "./levels.js?v=28";
 import { buildWallRects, playField, paddleUnitPx } from "./walls.js?v=28";
-import { ballResourceScope, formatPaddleUnits, materializePower, multiplyCloneAngles, pickDivideKeep, pickSubtractNear, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=26";
+import { PADDLE_MIN_UNITS, PADDLE_START_UNITS, ballResourceScope, formatPaddleUnits, materializePower, maxPaddlePixelWidth, multiplyCloneAngles, paddleWidthFromUnits, pickDivideKeep, pickSubtractNear, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=27";
 import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=25";
 import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=26";
 import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=28";
@@ -19,12 +19,10 @@ const pauseBtn = document.getElementById("pauseBtn");
 const W = canvas.width;
 const H = canvas.height;
 const TOTAL_LEVELS = 24;
-const INITIAL_PADDLE = 120;
 const BALL_R = 7;
 const MAX_BALLS = 128;
 const MAX_ITEMS = 48;
 const BRICK_CELL = 64;
-const MIN_PADDLE = INITIAL_PADDLE;
 
 let levelIndex = 0;
 let score = 0;
@@ -83,9 +81,22 @@ const paddleCapTimeEl = document.getElementById("paddleCapTime");
 let nextWelfare = null;
 let levelElapsed = 0;
 let sessionElapsed = 0;
-let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
-let paddleDrag = null;
 let paddleUnit = 24;
+function startPaddleW() {
+  return paddleWidthFromUnits(PADDLE_START_UNITS, paddleUnit, W);
+}
+function minPaddleW() {
+  return paddleWidthFromUnits(PADDLE_MIN_UNITS, paddleUnit, W);
+}
+function maxPaddleW() {
+  return maxPaddlePixelWidth(paddleUnit, W);
+}
+function placePaddle(width) {
+  const w = Math.max(minPaddleW(), Math.min(maxPaddleW(), width));
+  return { x: W / 2 - w / 2, y: H - 58, w, h: 12 };
+}
+let paddle = placePaddle(startPaddleW());
+let paddleDrag = null;
 const keys = { left: false, right: false };
 
 function makeLevel(index) {
@@ -128,8 +139,8 @@ function makeLevel(index) {
   releaseAllBalls();
   releaseAllItems();
   releaseAllParticles();
-  paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 58, w: INITIAL_PADDLE, h: 12 };
-  syncPaddleCap(paddleCap, paddle.w, W);
+  paddle = placePaddle(startPaddleW());
+  syncPaddleCap(paddleCap, paddle.w, maxPaddleW());
   activateBall(cfg.speed, null, true, true);
   targetIconEl.style.background = `hsl(${levelHue} 90% 52%)`;
   lastHudKey = "";
@@ -406,9 +417,9 @@ function registerBrickHit(brick) {
 function applyPower(power) {
   const spec = materializePower(power);
   if (spec.kind === "paddle") {
-    paddle.w = targetPaddleWidth(paddle.w, spec, INITIAL_PADDLE, MIN_PADDLE, W);
+    paddle.w = targetPaddleWidth(paddle.w, spec, startPaddleW(), minPaddleW(), maxPaddleW(), paddleUnit);
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
-    syncPaddleCap(paddleCap, paddle.w, W);
+    syncPaddleCap(paddleCap, paddle.w, maxPaddleW());
     for (const ball of balls) {
       if (!ball.held && circleRectHit(ball, paddle)) {
         ball.y = Math.min(ball.y, paddle.y - ball.r - 0.2);
@@ -418,9 +429,9 @@ function applyPower(power) {
   } else if (spec.kind === "balls") {
     applyBallResource(spec);
   } else if (spec.kind === "reset") {
-    paddle.w = INITIAL_PADDLE;
+    paddle.w = startPaddleW();
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
-    syncPaddleCap(paddleCap, paddle.w, W);
+    syncPaddleCap(paddleCap, paddle.w, maxPaddleW());
     while (balls.length > 1) releaseBallAt(balls.length - 1);
     pinBallSpeed(balls[0]);
   }
@@ -550,7 +561,7 @@ function update(dt) {
   if (keys.right) paddle.x += speed * dt;
   paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
   if (tickPaddleCap(paddleCap, dt)) {
-    paddle.w = INITIAL_PADDLE;
+    paddle.w = startPaddleW();
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
   }
   if (isServing()) {

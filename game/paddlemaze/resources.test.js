@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   POWER_TYPES,
+  PADDLE_MIN_UNITS,
+  PADDLE_START_UNITS,
   RESOURCE_COLORS,
   RESOURCE_LABEL_COLOR,
   ballResourceScope,
@@ -52,7 +54,7 @@ test("increase resources are green or red and decrease resources are blue or pur
 test("eating a color always matches the numeric effect", () => {
   for (const power of POWER_TYPES) {
     const balls = targetBallCount(10, power, 128);
-    const paddle = targetPaddleWidth(240, power, 120, 120, 900);
+    const paddle = targetPaddleWidth(240, power, 120, 24, 900, 24);
     if (power.kind === "balls" && power.buff) assert.ok(balls > 10, power.label);
     if (power.kind === "balls" && !power.buff && power.kind !== "reset") assert.ok(balls < 10, power.label);
     if (power.kind === "paddle" && power.buff) assert.ok(paddle > 240, power.label);
@@ -73,8 +75,8 @@ test("green and red increase, blue and purple decrease", () => {
   const paddleDown = materializePower({ kind: "paddle", operation: "divide", value: 2 });
   assert.equal(paddleUp.color, "#30d158");
   assert.equal(paddleDown.color, "#0a84ff");
-  assert.ok(targetPaddleWidth(240, paddleUp, 120, 120, 900) > 240);
-  assert.ok(targetPaddleWidth(240, paddleDown, 120, 120, 900) < 240);
+  assert.ok(targetPaddleWidth(240, paddleUp, 120, 24, 900, 24) > 240);
+  assert.ok(targetPaddleWidth(240, paddleDown, 120, 24, 900, 24) < 240);
 });
 
 test("labels stay numeric and the chip text color is the UI white", () => {
@@ -176,23 +178,32 @@ test("plus and minus stay at the paddle, times and divide hit every ball", () =>
   assert.equal(multiplyCloneAngles(3).length, 3);
 });
 
-test("HUD paddle units are brick widths, so the default tray is not 1", () => {
+test("HUD paddle units are whole bricks and start at 5", () => {
   const spec = { rows: 26, cols: 32, seed: 1042 };
   const field = playField({ w: 900, h: 1100, paddleY: 1042 }, spec);
   const unit = paddleUnitPx(field, spec);
-  const start = formatPaddleUnits(120, unit);
+  const startW = PADDLE_START_UNITS * unit;
+  const start = formatPaddleUnits(startW, unit);
+  assert.equal(PADDLE_START_UNITS, 5);
+  assert.equal(PADDLE_MIN_UNITS, 1);
+  assert.equal(start, 5);
+  assert.equal(Number.isInteger(start), true);
+  assert.equal(formatPaddleUnits(startW + unit * 0.9, unit), 5);
   assert.ok(unit < 40, `1 unit should be one brick (${unit})`);
-  assert.ok(start >= 3.5, `default paddle should be several bricks, got ${start}`);
-  assert.notEqual(start, 1);
 });
 
-test("paddle changes persist and reductions use the current width", () => {
+test("paddle changes persist and reductions use whole units from 5", () => {
+  const u = 24;
+  const start = 5 * u;
+  const min = 1 * u;
+  const max = 900;
   const divideByTwo = { kind: "paddle", operation: "divide", value: 2 };
   const multiplyByFour = { kind: "paddle", operation: "multiply", value: 4 };
-  assert.equal(targetPaddleWidth(480, divideByTwo, 120, 120, 900), 240);
-  assert.equal(targetPaddleWidth(120, divideByTwo, 120, 120, 900), 120);
-  assert.equal(targetPaddleWidth(300, multiplyByFour, 120, 120, 900), 900);
-  assert.equal(targetPaddleWidth(600, { kind: "reset" }, 120, 120, 900), 120);
+  assert.equal(targetPaddleWidth(10 * u, divideByTwo, start, min, max, u), 5 * u);
+  assert.equal(targetPaddleWidth(start, divideByTwo, start, min, max, u), 2 * u);
+  assert.equal(targetPaddleWidth(start, { kind: "paddle", operation: "divide", value: 4 }, start, min, max, u), min);
+  assert.equal(targetPaddleWidth(5 * u, multiplyByFour, start, min, max, u), 20 * u);
+  assert.equal(targetPaddleWidth(600, { kind: "reset" }, start, min, max, u), start);
 });
 
 test("weighted picker can select the rare reset resource", () => {
