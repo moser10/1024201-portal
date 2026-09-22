@@ -35,7 +35,7 @@ const MAX_FILE_MB = 5;
 const UI = {
   en: {
     title: "Text Relay",
-    back: "Back to portal",
+    back: "Back to lobby",
     loginDesc: "Sign in to use Text Relay.",
     loginBtn: "Sign in / Register",
     slot: (n) => `Relay ${n}`,
@@ -75,7 +75,7 @@ const UI = {
   },
   zh: {
     title: "文本中转站",
-    back: "返回门户",
+    back: "返回大厅",
     loginDesc: "请登录后使用文本中转站。",
     loginBtn: "登录 / 注册",
     slot: (n) => `中转 ${n}`,
@@ -115,7 +115,7 @@ const UI = {
   },
   ja: {
     title: "テキスト中継",
-    back: "ポータルへ",
+    back: "ロビーへ",
     loginDesc: "テキスト中継を使うにはログインしてください。",
     loginBtn: "ログイン / 登録",
     slot: (n) => `中継 ${n}`,

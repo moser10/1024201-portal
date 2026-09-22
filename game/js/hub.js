@@ -1,6 +1,7 @@
 import { getUser } from "./store.js";
 import { mountAccountChrome } from "/js/accountChrome.js";
 import { getPortalLang } from "/js/langTabs.js";
+import { hallBackLabel, setNavBack } from "/js/navBack.js?v=1";
 
 const GAMES = [
   {
@@ -30,16 +31,16 @@ const GAMES = [
 ];
 
 const HUB_I18N = {
-  zh: { title: "游戏中心", back: "返回门户" },
-  en: { title: "Game Center", back: "Back to portal" },
-  ja: { title: "ゲームセンター", back: "ポータルへ" },
+  zh: { title: "游戏中心" },
+  en: { title: "Game Center" },
+  ja: { title: "ゲームセンター" },
 };
 
 const lang = getPortalLang();
 const t = HUB_I18N[lang] || HUB_I18N.zh;
 
 document.getElementById("hubTitle").textContent = t.title;
-document.getElementById("hubBack").textContent = t.back;
+document.getElementById("hubBack").textContent = hallBackLabel(lang);
 
 mountAccountChrome(document.getElementById("hubAccountChrome"), {
   variant: "game",
@@ -61,6 +62,7 @@ grid.querySelectorAll(".game-card").forEach((card) => {
       window.location.href = `/game/register/?return=${encodeURIComponent(href)}`;
       return;
     }
+    setNavBack({ type: href.includes("dua") ? "game" : "hall" });
     window.location.href = href;
   });
 });

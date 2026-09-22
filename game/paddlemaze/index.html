@@ -13,7 +13,7 @@
 <body>
   <main class="game-shell">
     <header class="game-top">
-      <a class="game-back" id="gameBack" href="/">Back to portal</a>
+      <a class="game-back" id="gameBack" href="/">Back to lobby</a>
       <div class="game-title">
         <strong>PADDLE BLOCK MAZE</strong>
         <span id="levelText">LEVEL 01 / 24</span>
@@ -65,7 +65,7 @@
   <script>
     (function () {
       var lang = localStorage.getItem("portal_lang") || "en";
-      var copy = { en: "Back to portal", zh: "返回门户", ja: "ポータルへ" };
+      var copy = { en: "Back to lobby", zh: "返回大厅", ja: "ロビーへ" };
       document.getElementById("gameBack").textContent = copy[lang] || copy.en;
     })();
   </script>

@@ -34,18 +34,26 @@
 .rooms-pin input,
 .rooms-say input {
   width: 100%;
-  min-height: 36px;
+  min-height: 40px;
   border: 1px solid #d8d2c8;
   border-radius: 10px;
   padding: 8px 10px;
   background: #f7f4ef;
   color: #1c1c1e;
+  font-size: 16px;
 }
 
 .rooms-row {
   display: grid;
-  grid-template-columns: 1fr 88px;
+  grid-template-columns: 1fr 120px;
   gap: 8px;
+}
+
+.rooms-game-blurb {
+  margin: 0;
+  font-size: 13px;
+  color: #8e8e93;
+  line-height: 1.4;
 }
 
 .rooms-list {

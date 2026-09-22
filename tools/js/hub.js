@@ -1,5 +1,6 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { mountAccountChrome } from "/js/accountChrome.js";
+import { hallBackLabel } from "/js/navBack.js?v=1";
 
 const MUSIC_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>`;
 
@@ -71,9 +72,9 @@ const TOOLS = [
 ];
 
 const HUB_I18N = {
-  zh: { title: "工具箱", sub: "实用小工具 · 选一个开始", back: "返回门户" },
-  en: { title: "Toolbox", sub: "Handy tools · pick one", back: "Back to portal" },
-  ja: { title: "ツールボックス", sub: "便利ツール · 選んで開始", back: "ポータルへ" },
+  zh: { title: "工具箱", sub: "实用小工具 · 选一个开始" },
+  en: { title: "Toolbox", sub: "Handy tools · pick one" },
+  ja: { title: "ツールボックス", sub: "便利ツール · 選んで開始" },
 };
 
 const app = document.getElementById("app");
@@ -82,7 +83,7 @@ let t = HUB_I18N[lang] || HUB_I18N.en;
 
 function render() {
   t = HUB_I18N[lang] || HUB_I18N.en;
-  document.getElementById("hubBack").textContent = t.back;
+  document.getElementById("hubBack").textContent = hallBackLabel(lang);
   document.getElementById("hubTitle").textContent = t.title;
   document.getElementById("hubSub").textContent = t.sub;
   for (const tool of TOOLS) {

@@ -26,7 +26,7 @@
     <div id="app">
       <div class="hub">
         <div class="hub-top">
-          <a href="/" class="feature-back" id="hubBack">Back to portal</a>
+          <a href="/" class="feature-back" id="hubBack">Back to lobby</a>
           <div id="hubAccountChrome" class="hub-account-slot"></div>
         </div>
         <div class="page-mark-row">
@@ -56,9 +56,9 @@
       (function () {
         var lang = localStorage.getItem("portal_lang") || "en";
         var text = {
-          zh: { title:"游戏中心", back:"返回门户", osn:"一人一句，一句成书", paddlemaze:"挡板方块迷宫", dua:"对圈" },
-          en: { title:"Game Center", back:"Back to portal", osn:"One sentence, one novel", paddlemaze:"Paddle Block Maze", dua:"Dua" },
-          ja: { title:"ゲームセンター", back:"ポータルへ", osn:"一文執筆", paddlemaze:"パドルブロック迷路", dua:"デュエル円" }
+          zh: { title:"游戏中心", back:"返回大厅", osn:"一人一句，一句成书", paddlemaze:"挡板方块迷宫", dua:"对圈" },
+          en: { title:"Game Center", back:"Back to lobby", osn:"One sentence, one novel", paddlemaze:"Paddle Block Maze", dua:"Dua" },
+          ja: { title:"ゲームセンター", back:"ロビーへ", osn:"一文執筆", paddlemaze:"パドルブロック迷路", dua:"デュエル円" }
         }[lang] || null;
         if (!text) return;
         document.getElementById("hubTitle").textContent = text.title;
@@ -68,7 +68,7 @@
         document.querySelector('[data-label="dua"]').textContent = text.dua;
       })();
     </script>
-    <script type="module" src="js/hub.js?v=5"></script>
+    <script type="module" src="js/hub.js?v=6"></script>
     <script src="/pwa.js" defer></script>
 </body>
 </html>

@@ -1,8 +1,12 @@
 export const ROOM_KINDS = Object.freeze(["dua", "chat"]);
+export const ONLINE_GAMES = Object.freeze({
+  dua: Object.freeze({ maxSeats: 3 }),
+});
 export const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const SEAT_TTL_MS = 180_000;
 export const MSG_MAX = 280;
 export const TITLE_MAX = 24;
+export const UNLIMITED_SEATS = 0;
 
 export function makeRoomCode(rng = Math.random) {
   let code = "";
@@ -30,27 +34,30 @@ export function normalizeTitle(title) {
   return name;
 }
 
-export function normalizeSeats(n) {
-  const seats = Number(n);
-  return seats === 2 || seats === 3 ? seats : 3;
+export function seatsForKind(kind) {
+  if (kind === "chat") return UNLIMITED_SEATS;
+  return ONLINE_GAMES[kind]?.maxSeats ?? 3;
+}
+
+export function isUnlimited(maxSeats) {
+  return !Number(maxSeats);
 }
 
 export function parseCreate(body = {}) {
   const kind = normalizeKind(body.kind);
   const title = normalizeTitle(body.title);
   const pin = normalizePin(body.pin);
-  const maxSeats = normalizeSeats(body.max_seats ?? body.maxSeats);
   if (!kind) return { error: "bad_kind" };
   if (!title) return { error: "bad_title" };
   if (pin === null) return { error: "bad_pin" };
-  return { kind, title, pin, maxSeats };
+  return { kind, title, pin, maxSeats: seatsForKind(kind) };
 }
 
 export function canJoin({ room, seats, pin, userId }) {
   if (!room || room.closed_at) return { ok: false, error: "closed" };
   const already = seats.some((s) => Number(s.user_id) === Number(userId));
   if (already) return { ok: true, already: true };
-  if (seats.length >= room.max_seats) return { ok: false, error: "full" };
+  if (!isUnlimited(room.max_seats) && seats.length >= room.max_seats) return { ok: false, error: "full" };
   if (room.pin && String(pin || "") !== String(room.pin)) return { ok: false, error: "pin" };
   return { ok: true };
 }

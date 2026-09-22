@@ -44,6 +44,12 @@ html.feature-page body {
   font-family: inherit;
 }
 
+.feature-page input,
+.feature-page textarea,
+.feature-page select {
+  font-size: 16px;
+}
+
 .feature-shell {
   --gutter-x: 16px;
   height: 100dvh;

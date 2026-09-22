@@ -1,6 +1,7 @@
 import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch, triggerWeapon } from "./duel.js?v=12";
 import { duaCopy } from "./copy.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
+import { applyNavBack } from "/js/navBack.js?v=1";
 import { AIM_REACH, STICK_TRAVEL, STICK_DEADZONE, clampStick, aimFromDir, lerpToward } from "./stick.js?v=2";
 
 const canvas = document.getElementById("gameCanvas");
@@ -83,7 +84,7 @@ function weaponLabel(f) {
 function applyLang() {
   lang = getPortalLang();
   copy = duaCopy(lang);
-  if (gameBack) gameBack.textContent = copy.back;
+  if (gameBack) applyNavBack(gameBack, lang, { follow: true, fallback: "game" });
   if (aimHint) aimHint.textContent = copy.hint;
   stick.classList.toggle("armed", canFire(match.player));
   if (!running || paused || overlayMode !== "hidden") refreshOverlayCopy();

@@ -60,7 +60,7 @@ function renderShell() {
   app.innerHTML = `
   <div class="auth-page">
     <div class="auth-top">
-      <a href="/" class="btn-secondary btn-small" id="authBackLink">返回门户</a>
+      <a href="/" class="btn-secondary btn-small" id="authBackLink">返回大厅</a>
       <div id="accountChrome"></div>
     </div>
   <div class="card">
@@ -118,7 +118,7 @@ function renderShell() {
     returnPath: returnTo.replace(/^\//, "") || "",
   });
   const back = document.getElementById("authBackLink");
-  const backCopy = { en: "Back to portal", zh: "返回门户", ja: "ポータルへ" };
+  const backCopy = { en: "Back to lobby", zh: "返回大厅", ja: "ロビーへ" };
   back.href = "/";
   back.textContent = backCopy[getPortalLang()] || backCopy.en;
 }

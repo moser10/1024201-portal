@@ -5,7 +5,7 @@ import { renderMarkdown, formatBlogDate } from "./md.js";
 const UI = {
   en: {
     back: "Blog",
-    backPortal: "Back to portal",
+    backPortal: "Back to lobby",
     updated: "Updated",
     author: "By",
     like: "Like",
@@ -16,7 +16,7 @@ const UI = {
   },
   zh: {
     back: "博客",
-    backPortal: "返回门户",
+    backPortal: "返回大厅",
     updated: "更新",
     author: "作者",
     like: "点赞",
@@ -27,7 +27,7 @@ const UI = {
   },
   ja: {
     back: "ブログ",
-    backPortal: "ポータルへ",
+    backPortal: "ロビーへ",
     updated: "更新",
     author: "作者",
     like: "いいね",

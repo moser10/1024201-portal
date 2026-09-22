@@ -4,7 +4,7 @@ const COPY = {
   zh: {
     pageTitle: "命令行",
     pageSub: "在终端调用 1024201 工具 · 与网页共用接口与配额",
-    backLink: "返回门户",
+    backLink: "返回大厅",
     statusBadge: "命令行 v1.2 已上线",
     introTitle: "概述",
     intro:
@@ -128,7 +128,7 @@ const COPY = {
   en: {
     pageTitle: "CLI",
     pageSub: "Run 1024201 tools from the terminal · same API & quotas as the web",
-    backLink: "Back to portal",
+    backLink: "Back to lobby",
     statusBadge: "CLI v1.2 is live",
     introTitle: "Overview",
     intro:
@@ -248,7 +248,7 @@ const COPY = {
   ja: {
     pageTitle: "CLI",
     pageSub: "ターミナルから 1024201 ツール · Web と同じ API・割当",
-    backLink: "ポータルへ",
+    backLink: "ロビーへ",
     statusBadge: "CLI v1.2 稼働中",
     introTitle: "概要",
     intro:

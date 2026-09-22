@@ -1,7 +1,8 @@
 import { getPortalLang } from "/js/langTabs.js";
 import { mountAccountChrome } from "/js/accountChrome.js";
 import { getUser, requireAuth } from "/game/js/store.js";
-import { roomsCopy } from "./copy.js?v=1";
+import { applyNavBack, setNavBack } from "/js/navBack.js?v=1";
+import { roomsCopy } from "./copy.js?v=2";
 
 const root = document.getElementById("roomsRoot");
 const backLink = document.getElementById("backLink");
@@ -46,10 +47,14 @@ function errText(code) {
   return String(code || "");
 }
 
+function paintBack() {
+  applyNavBack(backLink, lang, view === "inside" ? "rooms" : "hall");
+}
+
 function applyChrome() {
   lang = getPortalLang();
   copy = roomsCopy(lang);
-  backLink.textContent = copy.back;
+  paintBack();
   pageTitle.textContent = copy.title;
   pageSub.textContent = copy.sub;
   document.title = `${copy.title} | 1024201`;
@@ -73,20 +78,15 @@ function renderLobby(list = null, error = "") {
     </div>
     <form class="rooms-form" id="createForm">
       <label>${esc(copy.name)}</label>
-      <input id="roomTitle" maxlength="24" placeholder="${esc(copy.namePh)}" required>
-      <div class="rooms-row">
-        <div>
-          <label>${esc(copy.seats)}</label>
-          <select id="roomSeats">
-            <option value="2">2</option>
-            <option value="3" selected>3</option>
-          </select>
-        </div>
-        <div>
-          <label>${esc(copy.pin)}</label>
-          <input id="roomPin" inputmode="numeric" maxlength="4" placeholder="${esc(copy.pinPh)}">
-        </div>
-      </div>
+      <input id="roomTitle" maxlength="24" placeholder="${esc(copy.namePh)}" required autocomplete="off">
+      ${kind === "dua" ? `
+      <label>${esc(copy.game)}</label>
+      <select id="roomGame">
+        <option value="dua" selected>${esc(copy.gameDua)}</option>
+      </select>
+      <p class="rooms-game-blurb">${esc(copy.gameBlurb)}</p>` : `<p class="rooms-game-blurb">${esc(copy.unlimited)}</p>`}
+      <label>${esc(copy.pin)}</label>
+      <input id="roomPin" inputmode="numeric" maxlength="4" placeholder="${esc(copy.pinPh)}" autocomplete="off">
       <button class="btn-primary" type="submit">${esc(copy.create)}</button>
     </form>
     <h2 style="font-size:15px;margin:8px 0 0">${esc(copy.list)}</h2>
@@ -105,7 +105,6 @@ function renderLobby(list = null, error = "") {
       const data = await api("create", {
         kind,
         title: document.getElementById("roomTitle").value,
-        max_seats: document.getElementById("roomSeats").value,
         pin: document.getElementById("roomPin").value,
       });
       openInside(data);
@@ -116,6 +115,12 @@ function renderLobby(list = null, error = "") {
   root.querySelectorAll("[data-join]").forEach((btn) => {
     btn.addEventListener("click", () => tryJoin(btn.dataset.join, btn.dataset.pin === "1"));
   });
+  paintBack();
+}
+
+function seatLine(r) {
+  if (!r.max_seats) return `${r.seats} · ${copy.unlimited}`;
+  return `${r.seats}/${r.max_seats}`;
 }
 
 function paintList(rooms) {
@@ -126,7 +131,7 @@ function paintList(rooms) {
       <article class="room-card">
         <div>
           <strong>${esc(r.title)}</strong>
-          <small>${esc(copy.code)} ${esc(r.id)} · ${r.seats}/${r.max_seats}${r.has_pin ? ` · ${esc(copy.locked)}` : ""} · ${esc(copy.host)} @${esc(r.host_name)}</small>
+          <small>${esc(copy.code)} ${esc(r.id)} · ${seatLine(r)}${r.has_pin ? ` · ${esc(copy.locked)}` : ""} · ${esc(copy.host)} @${esc(r.host_name)}</small>
         </div>
         <button type="button" class="btn-primary" data-join="${esc(r.id)}" data-pin="${r.has_pin ? "1" : "0"}">${esc(copy.join)}</button>
       </article>`
@@ -159,6 +164,7 @@ async function tryJoin(id, needPin) {
 
 function openInside(data) {
   current = data;
+  setNavBack({ type: "rooms" });
   history.replaceState(null, "", `/rooms/?r=${encodeURIComponent(data.room.id)}`);
   renderInside(data);
   startPulse();
@@ -170,12 +176,12 @@ function renderInside(data) {
   const seats = data.seats || [];
   const msgs = data.messages || [];
   root.innerHTML = `
-    <p class="rooms-note">${esc(copy.code)} <strong>${esc(room.id)}</strong> · ${seats.length}/${room.max_seats}</p>
+    <p class="rooms-note">${esc(copy.code)} <strong>${esc(room.id)}</strong> · ${seatLine({ seats: seats.length, max_seats: room.max_seats })}</p>
     <div class="seat-list">${seats.map((s) => `<span class="seat-chip">@${esc(s.username)}</span>`).join("")}</div>
-    ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p><div class="rooms-actions"><a class="btn-secondary" href="/game/dua/">${esc(copy.practice)}</a></div>` : ""}
+    ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p><div class="rooms-actions"><a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a></div>` : ""}
     <div class="msg-list">${msgs.map((m) => `<p class="msg-row"><b>@${esc(m.username)}</b> ${esc(m.text)}</p>`).join("")}</div>
     <form class="rooms-say" id="sayForm">
-      <input id="sayText" maxlength="280" placeholder="${esc(copy.chatPh)}" autocomplete="off">
+      <input id="sayText" maxlength="280" placeholder="${esc(copy.chatPh)}" autocomplete="off" enterkeyhint="send">
       <button class="btn-primary" type="submit">${esc(copy.say)}</button>
     </form>
     <div class="rooms-actions">
@@ -201,13 +207,19 @@ function renderInside(data) {
     await api("close", { room_id: room.id }).catch(() => {});
     backToLobby();
   });
+  document.getElementById("practiceDua")?.addEventListener("click", () => {
+    setNavBack({ type: "room", roomId: room.id, roomTitle: room.title });
+  });
+  paintBack();
 }
 
 function backToLobby() {
   stopPulse();
   current = null;
+  setNavBack({ type: "hall" });
   history.replaceState(null, "", "/rooms/");
   loadLobby();
+  paintBack();
 }
 
 function startPulse() {

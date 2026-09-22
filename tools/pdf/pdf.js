@@ -8,7 +8,7 @@ const UI = {
   en: {
     title: "PDF Convert",
     sub: "Word / TXT / MD → PDF (client-side)",
-    back: "Back to portal",
+    back: "Back to lobby",
     pick: "Choose file",
     hint: ".docx .txt .md",
     convert: "Generate PDF",
@@ -39,7 +39,7 @@ const UI = {
   zh: {
     title: "PDF 转换",
     sub: "Word / TXT / MD → PDF（本地转换）",
-    back: "返回门户",
+    back: "返回大厅",
     pick: "选择文件",
     hint: ".docx .txt .md",
     convert: "生成 PDF",
@@ -70,7 +70,7 @@ const UI = {
   ja: {
     title: "PDF変換",
     sub: "Word / TXT / MD → PDF（ローカル）",
-    back: "ポータルへ",
+    back: "ロビーへ",
     pick: "ファイルを選択",
     hint: ".docx .txt .md",
     convert: "PDFを生成",

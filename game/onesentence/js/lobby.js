@@ -15,10 +15,10 @@ export function renderLobby(app, onEnterRoom, game) {
   let todoTimer = null;
   let lobbyDisposed = false;
   const portalBack = {
-    en: "Back to portal",
-    zh: "返回门户",
-    ja: "ポータルへ",
-  }[getPortalLang()] || "Back to portal";
+    en: "Back to lobby",
+    zh: "返回大厅",
+    ja: "ロビーへ",
+  }[getPortalLang()] || "Back to lobby";
 
   app.innerHTML = `
     <div class="card">

@@ -12,7 +12,7 @@ const UI = {
   en: {
     title: "Portfolio",
     sub: "",
-    back: "Back to portal",
+    back: "Back to lobby",
     loginDesc: "Sign in to upload portfolio works.",
     loginBtn: "Sign in / Register",
     lblTitle: "Title",
@@ -40,7 +40,7 @@ const UI = {
   zh: {
     title: "作品展示",
     sub: "",
-    back: "返回门户",
+    back: "返回大厅",
     loginDesc: "请登录后上传作品。",
     loginBtn: "登录 / 注册",
     lblTitle: "作品标题",
@@ -67,7 +67,7 @@ const UI = {
   ja: {
     title: "作品展示",
     sub: "",
-    back: "ポータルへ",
+    back: "ロビーへ",
     loginDesc: "ログインして作品をアップロード。",
     loginBtn: "ログイン / 登録",
     lblTitle: "タイトル",

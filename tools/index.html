@@ -19,7 +19,7 @@
   <div id="app">
     <div class="hub">
       <div class="hub-top">
-        <a href="/" class="feature-back" id="hubBack">Back to portal</a>
+        <a href="/" class="feature-back" id="hubBack">Back to lobby</a>
         <div id="hubAccountChrome" class="hub-account-slot"></div>
       </div>
       <div class="page-mark-row">
@@ -63,9 +63,9 @@
     (function () {
       var lang = localStorage.getItem("portal_lang") || "en";
       var copy = {
-        zh:{title:"工具箱",sub:"实用小工具 · 选一个开始",back:"返回门户",showcase:["作品展示","水印保护 · 分享展示"],syncnote:["文本中转站","跨设备复制粘贴"],music:["音乐","Deezer 试听"],pdf:["PDF 转换","Word/TXT/MD"],lyrics:["找歌词","LRCLIB"],cli:["命令行","命令、注册与配额"],address:["地址查找","租售地址 · 邮编 · 区号"]},
-        en:{title:"Toolbox",sub:"Handy tools · pick one",back:"Back to portal",showcase:["Portfolio","Watermark · share safely"],syncnote:["Text Relay","Cross-device paste"],music:["Music","Deezer previews"],pdf:["PDF Convert","Word/TXT/MD"],lyrics:["Find Lyrics","LRCLIB"],cli:["CLI","Commands, register & quotas"],address:["Address Lookup","Rent/sale · postal · phone"]},
-        ja:{title:"ツールボックス",sub:"便利ツール · 選んで開始",back:"ポータルへ",showcase:["作品展示","透かし付き展示"],syncnote:["テキスト中継","端末間コピー"],music:["音楽","Deezerプレビュー"],pdf:["PDF変換","Word/TXT/MD"],lyrics:["歌詞検索","LRCLIB"],cli:["CLI","コマンド・登録と割当"],address:["住所検索","賃貸売買・郵便・電話"]}
+        zh:{title:"工具箱",sub:"实用小工具 · 选一个开始",back:"返回大厅",showcase:["作品展示","水印保护 · 分享展示"],syncnote:["文本中转站","跨设备复制粘贴"],music:["音乐","Deezer 试听"],pdf:["PDF 转换","Word/TXT/MD"],lyrics:["找歌词","LRCLIB"],cli:["命令行","命令、注册与配额"],address:["地址查找","租售地址 · 邮编 · 区号"]},
+        en:{title:"Toolbox",sub:"Handy tools · pick one",back:"Back to lobby",showcase:["Portfolio","Watermark · share safely"],syncnote:["Text Relay","Cross-device paste"],music:["Music","Deezer previews"],pdf:["PDF Convert","Word/TXT/MD"],lyrics:["Find Lyrics","LRCLIB"],cli:["CLI","Commands, register & quotas"],address:["Address Lookup","Rent/sale · postal · phone"]},
+        ja:{title:"ツールボックス",sub:"便利ツール · 選んで開始",back:"ロビーへ",showcase:["作品展示","透かし付き展示"],syncnote:["テキスト中継","端末間コピー"],music:["音楽","Deezerプレビュー"],pdf:["PDF変換","Word/TXT/MD"],lyrics:["歌詞検索","LRCLIB"],cli:["CLI","コマンド・登録と割当"],address:["住所検索","賃貸売買・郵便・電話"]}
       }[lang] || null;
       if (!copy) return;
       document.getElementById("hubTitle").textContent=copy.title; document.getElementById("hubSub").textContent=copy.sub; document.getElementById("hubBack").textContent=copy.back;
@@ -73,6 +73,6 @@
     })();
   </script>
   <script src="/js/edgeBack.js"></script>
-  <script type="module" src="js/hub.js?v=6"></script>
+  <script type="module" src="js/hub.js?v=7"></script>
 </body>
 </html>

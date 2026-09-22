@@ -10,7 +10,7 @@ const UI = {
   en: {
     title: "Blog",
     sub: "Write and manage your posts.",
-    back: "Back to portal",
+    back: "Back to lobby",
     loginDesc: "Sign in to write and manage your blog.",
     loginBtn: "Sign in / Register",
     newPost: "New post",
@@ -49,7 +49,7 @@ const UI = {
   zh: {
     title: "博客",
     sub: "记录图文，按需隐藏或展现。",
-    back: "返回门户",
+    back: "返回大厅",
     loginDesc: "登录后可写博客、管理内容。",
     loginBtn: "登录 / 注册",
     newPost: "新建博客",
@@ -88,7 +88,7 @@ const UI = {
   ja: {
     title: "ブログ",
     sub: "画像とテキストを記録。非公開／公開を選べます。",
-    back: "ポータルへ",
+    back: "ロビーへ",
     loginDesc: "ログインしてブログを作成・管理。",
     loginBtn: "ログイン / 登録",
     newPost: "新規作成",

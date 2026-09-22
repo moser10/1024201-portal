@@ -3,7 +3,7 @@ import { deferWork } from "../js/toolPageBoot.js";
 
 const UI = {
   en: {
-    back: "Back to portal",
+    back: "Back to lobby",
     err: "Failed to load lyrics",
     loading: "Loading lyrics…",
     translating: "Translating…",
@@ -11,7 +11,7 @@ const UI = {
     noLyrics: "No lyrics available",
   },
   zh: {
-    back: "返回门户",
+    back: "返回大厅",
     err: "歌词加载失败",
     loading: "正在加载歌词…",
     translating: "正在翻译…",
@@ -19,7 +19,7 @@ const UI = {
     noLyrics: "暂无歌词",
   },
   ja: {
-    back: "ポータルへ",
+    back: "ロビーへ",
     err: "歌詞の読み込みに失敗",
     loading: "歌詞を読み込み中…",
     translating: "翻訳中…",
