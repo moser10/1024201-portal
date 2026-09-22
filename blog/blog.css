@@ -5,7 +5,7 @@
   --blog-muted: #8e8e93;
   --blog-line: #e5e5ea;
   --blog-card: #ffffff;
-  --blog-bg: #f2f2f7;
+  --blog-bg: #2B3054;
   --portal-font:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
     "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC",
@@ -370,6 +370,9 @@ html.blog-page body {
 .blog-article {
   max-width: 720px;
   margin: 0 auto;
+  background: #ffffff;
+  color: #1d1d1f;
+  border-radius: 16px;
   padding:
     max(20px, env(safe-area-inset-top))
     max(18px, env(safe-area-inset-right))

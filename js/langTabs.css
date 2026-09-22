@@ -53,6 +53,8 @@
 .lang-tabs-host {
   display: flex;
   flex-shrink: 0;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .top-right {
