@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#0a0a12">
   <title>Paddle | 1024201</title>
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="game.css?v=27">
+  <link rel="stylesheet" href="game.css?v=28">
 </head>
 <body>
   <main class="game-shell">
@@ -24,7 +24,11 @@
     <section class="hud" aria-label="游戏状态">
       <div class="hud-stat"><i class="hud-brick" id="targetIcon" aria-label="目标砖块"></i><strong id="brickCount">0</strong></div>
       <div class="hud-stat"><i class="hud-ball" aria-label="球数"></i><strong id="ballCount">1</strong></div>
-      <div class="hud-stat"><i class="hud-paddle" aria-label="挡板长度"></i><strong id="paddleCapTime" hidden>0:30</strong><strong id="paddleCount">1×</strong></div>
+      <div class="hud-stat" title="挡板长度，1格=一块砖宽">
+        <i class="hud-paddle" aria-label="1单位托盘"></i>
+        <strong id="paddleCount">5</strong>
+        <strong id="paddleCapTime" hidden>0:10</strong>
+      </div>
       <div class="hud-stat" title="本关时间"><strong id="runTime">0:00</strong></div>
       <div class="hud-stat hud-welfare" title="福利倒计时">
         <span id="welfarePreview" class="hud-welfare-preview paddle-up" style="color:#30d158" aria-hidden="true">
@@ -74,6 +78,6 @@
       document.title = brand + " | 1024201";
     })();
   </script>
-  <script type="module" src="game.js?v=33"></script>
+  <script type="module" src="game.js?v=34"></script>
 </body>
 </html>

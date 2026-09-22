@@ -1,10 +1,11 @@
 import { buildLevelSpec } from "./levels.js?v=28";
-import { buildWallRects, playField } from "./walls.js?v=27";
-import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=25";
+import { buildWallRects, playField, paddleUnitPx } from "./walls.js?v=28";
+import { ballResourceScope, formatPaddleUnits, materializePower, multiplyCloneAngles, pickDivideKeep, pickSubtractNear, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=26";
 import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=25";
-import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=25";
+import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=26";
 import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=28";
 import { heldBallPose, launchVelocity } from "./serve.js?v=1";
+import { bounceCircleRect, bounceWorldEdge, resetTrap } from "./bounce.js?v=1";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -32,7 +33,7 @@ let walls = [];
 let balls = [];
 let powers = [];
 const ballPool = Array.from({ length: MAX_BALLS }, () => ({
-  active: false, x: 0, y: 0, vx: 0, vy: 0, r: BALL_R, primary: false,
+  active: false, x: 0, y: 0, vx: 0, vy: 0, r: BALL_R, primary: false, held: false, trapAxis: "", trapHits: 0,
 }));
 const itemPool = Array.from({ length: MAX_ITEMS }, () => ({
   active: false, x: 0, y: 0, w: 72, h: 26, vy: 105,
@@ -81,6 +82,7 @@ let levelElapsed = 0;
 let sessionElapsed = 0;
 let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
 let paddleDrag = null;
+let paddleUnit = 24;
 const keys = { left: false, right: false };
 
 function makeLevel(index) {
@@ -92,6 +94,7 @@ function makeLevel(index) {
   const gap = 2;
   const brickW = (field.w - gap * (fineCols - 1)) / fineCols;
   const brickH = (field.h - gap * (fineRows - 1)) / fineRows;
+  paddleUnit = paddleUnitPx(field, cfg) || brickW;
 
   bricks = [];
   for (let r = 0; r < fineRows; r++) {
@@ -182,6 +185,7 @@ function activateBall(speed = buildLevelSpec(levelIndex).speed, source, primary 
   ball.active = true;
   ball.primary = primary;
   ball.held = !!held;
+  resetTrap(ball);
   ball.r = BALL_R;
   if (ball.held) {
     const pose = heldBallPose(paddle, ball.r);
@@ -288,7 +292,7 @@ function hitNearbyBrick(ball) {
       const bucket = brickBuckets.get(`${x}:${y}`);
       if (!bucket) continue;
       for (const brick of bucket) {
-        if (bounceRect(ball, brick)) return brick;
+        if (bounceCircleRect(ball, brick)) return brick;
       }
     }
   }
@@ -325,29 +329,6 @@ function circleRectHit(ball, rect) {
   const dx = ball.x - nx;
   const dy = ball.y - ny;
   return dx * dx + dy * dy <= ball.r * ball.r;
-}
-
-function bounceRect(ball, rect) {
-  if (!circleRectHit(ball, rect)) return false;
-  const left = Math.abs(ball.x + ball.r - rect.x);
-  const right = Math.abs(rect.x + rect.w - (ball.x - ball.r));
-  const top = Math.abs(ball.y + ball.r - rect.y);
-  const bottom = Math.abs(rect.y + rect.h - (ball.y - ball.r));
-  const m = Math.min(left, right, top, bottom);
-  if (m === left) {
-    ball.x = rect.x - ball.r - 0.1;
-    ball.vx = -Math.abs(ball.vx);
-  } else if (m === right) {
-    ball.x = rect.x + rect.w + ball.r + 0.1;
-    ball.vx = Math.abs(ball.vx);
-  } else if (m === top) {
-    ball.y = rect.y - ball.r - 0.1;
-    ball.vy = -Math.abs(ball.vy);
-  } else {
-    ball.y = rect.y + rect.h + ball.r + 0.1;
-    ball.vy = Math.abs(ball.vy);
-  }
-  return true;
 }
 
 function activatePowerDrop(type, x, y) {
@@ -426,20 +407,7 @@ function applyPower(power) {
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
     syncPaddleCap(paddleCap, paddle.w, W);
   } else if (spec.kind === "balls") {
-    const target = targetBallCount(balls.length, spec, MAX_BALLS);
-    if (spec.buff) {
-      while (balls.length < target) {
-        const paddleSource = {
-          x: paddle.x + paddle.w / 2,
-          y: paddle.y - BALL_R - 1,
-          vx: (Math.random() - 0.5) * 90,
-          vy: -buildLevelSpec(levelIndex).speed,
-        };
-        if (!activateBall(undefined, paddleSource, false)) break;
-      }
-    } else {
-      while (balls.length > target) releaseBallAt(balls.length - 1);
-    }
+    applyBallResource(spec);
   } else if (spec.kind === "reset") {
     paddle.w = INITIAL_PADDLE;
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
@@ -450,21 +418,72 @@ function applyPower(power) {
   updateHud();
 }
 
+function paddleServeSource() {
+  const speed = buildLevelSpec(levelIndex).speed;
+  return {
+    x: paddle.x + paddle.w / 2,
+    y: paddle.y - BALL_R - 1,
+    vx: (Math.random() - 0.5) * 90,
+    vy: -speed,
+  };
+}
+
+function cloneBallFrom(source, extraAngle) {
+  const spawned = activateBall(undefined, source, false, false);
+  if (!spawned) return null;
+  const speed = Math.hypot(source.vx, source.vy) || buildLevelSpec(levelIndex).speed;
+  const angle = Math.atan2(source.vy || -1, source.vx) + extraAngle;
+  spawned.x = source.x;
+  spawned.y = source.y;
+  spawned.held = false;
+  spawned.vx = Math.cos(angle) * speed;
+  spawned.vy = Math.sin(angle) * speed;
+  resetTrap(spawned);
+  return spawned;
+}
+
+function applyBallResource(spec) {
+  const scope = ballResourceScope(spec.operation);
+  if (spec.operation === "add" || (spec.buff && scope === "paddle")) {
+    const target = targetBallCount(balls.length, spec, MAX_BALLS);
+    while (balls.length < target) {
+      if (!activateBall(undefined, paddleServeSource(), false)) break;
+    }
+    return;
+  }
+  if (spec.operation === "multiply") {
+    const extras = Math.max(0, Math.floor(spec.value) - 1);
+    const sources = balls.slice();
+    const angles = multiplyCloneAngles(extras);
+    for (const source of sources) {
+      for (const angle of angles) {
+        if (balls.length >= MAX_BALLS) return;
+        cloneBallFrom(source, angle);
+      }
+    }
+    return;
+  }
+  if (spec.operation === "subtract") {
+    for (const ball of pickSubtractNear(balls, paddle, spec.value)) {
+      const index = balls.indexOf(ball);
+      if (index >= 0) releaseBallAt(index);
+    }
+    return;
+  }
+  if (spec.operation === "divide") {
+    const target = targetBallCount(balls.length, spec, MAX_BALLS);
+    const keep = new Set(pickDivideKeep(balls, target));
+    for (let i = balls.length - 1; i >= 0; i--) {
+      if (balls.length <= target) break;
+      if (!keep.has(balls[i])) releaseBallAt(i);
+    }
+  }
+}
+
 function moveBallStep(ball, dt) {
   ball.x += ball.vx * dt;
   ball.y += ball.vy * dt;
-
-  if (ball.x - ball.r < 0) {
-    ball.x = ball.r;
-    ball.vx = Math.abs(ball.vx);
-  } else if (ball.x + ball.r > W) {
-    ball.x = W - ball.r;
-    ball.vx = -Math.abs(ball.vx);
-  }
-  if (ball.y - ball.r < 0) {
-    ball.y = ball.r;
-    ball.vy = Math.abs(ball.vy);
-  }
+  bounceWorldEdge(ball, W, H);
 
   if (ball.vy > 0 && circleRectHit(ball, paddle)) {
     const hit = ((ball.x - paddle.x) / paddle.w - 0.5) * 1.65;
@@ -472,11 +491,19 @@ function moveBallStep(ball, dt) {
     ball.vx = Math.sin(hit) * mag;
     ball.vy = -Math.abs(Math.cos(hit) * mag);
     ball.y = paddle.y - ball.r - 0.2;
+    resetTrap(ball);
     if (ball.primary) haptic(6);
   }
 
-  for (const wall of walls) {
-    if (bounceRect(ball, wall)) break;
+  for (let pass = 0; pass < 3; pass++) {
+    let hitWall = false;
+    for (const wall of walls) {
+      if (bounceCircleRect(ball, wall)) {
+        hitWall = true;
+        break;
+      }
+    }
+    if (!hitWall) break;
   }
 
   const brick = hitNearbyBrick(ball);
@@ -645,8 +672,7 @@ function updateHud() {
   lastHudKey = key;
   brickCountEl.textContent = bricks.length;
   ballCountEl.textContent = balls.length;
-  paddleCountEl.textContent =
-    `${Math.max(1, Math.round((paddle.w / INITIAL_PADDLE) * 10) / 10)}×`;
+  paddleCountEl.textContent = String(formatPaddleUnits(paddle.w, paddleUnit));
   if (paddleCapTimeEl) {
     paddleCapTimeEl.hidden = !capClock;
     if (capClock) paddleCapTimeEl.textContent = capClock;

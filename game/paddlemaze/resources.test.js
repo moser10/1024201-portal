@@ -4,14 +4,20 @@ import {
   POWER_TYPES,
   RESOURCE_COLORS,
   RESOURCE_LABEL_COLOR,
+  ballResourceScope,
+  formatPaddleUnits,
   isBuffOperation,
   materializePower,
+  multiplyCloneAngles,
+  pickDivideKeep,
   pickPower,
+  pickSubtractNear,
   resourceColor,
   resourceLabel,
   targetBallCount,
   targetPaddleWidth,
 } from "./resources.js";
+import { playField, paddleUnitPx } from "./walls.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -145,7 +151,39 @@ test("red ball buffs never shrink the count even if few bricks remain", () => {
   const js = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "game.js"), "utf8");
   assert.match(js, /spec\.buff/);
   assert.equal(js.includes("bricks.length"), true);
-  assert.match(js, /targetBallCount\(balls\.length, spec, MAX_BALLS\)/);
+  assert.match(js, /applyBallResource/);
+  assert.match(js, /cloneBallFrom/);
+  assert.match(js, /pickSubtractNear/);
+});
+
+test("plus and minus stay at the paddle, times and divide hit every ball", () => {
+  assert.equal(ballResourceScope("add"), "paddle");
+  assert.equal(ballResourceScope("subtract"), "paddle");
+  assert.equal(ballResourceScope("multiply"), "all");
+  assert.equal(ballResourceScope("divide"), "all");
+  const paddle = { x: 400, y: 1000, w: 120, h: 12 };
+  const near = { x: 460, y: 990, held: false };
+  const far = { x: 200, y: 80, held: false };
+  const extra = { x: 430, y: 980, held: false };
+  const balls = [far, near, extra];
+  const cut = pickSubtractNear(balls, paddle, 5);
+  assert.equal(cut.includes(far), false);
+  assert.equal(cut.includes(near), true);
+  assert.equal(cut.length, 2);
+  const keep = pickDivideKeep(balls, 2);
+  assert.equal(keep.length, 2);
+  assert.equal(multiplyCloneAngles(1).length, 1);
+  assert.equal(multiplyCloneAngles(3).length, 3);
+});
+
+test("HUD paddle units are brick widths, so the default tray is not 1", () => {
+  const spec = { rows: 26, cols: 32, seed: 1042 };
+  const field = playField({ w: 900, h: 1100, paddleY: 1042 }, spec);
+  const unit = paddleUnitPx(field, spec);
+  const start = formatPaddleUnits(120, unit);
+  assert.ok(unit < 40, `1 unit should be one brick (${unit})`);
+  assert.ok(start >= 3.5, `default paddle should be several bricks, got ${start}`);
+  assert.notEqual(start, 1);
 });
 
 test("paddle changes persist and reductions use the current width", () => {

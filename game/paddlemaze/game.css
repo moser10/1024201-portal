@@ -146,6 +146,14 @@ body {
   flex: 0 0 auto;
 }
 
+.hud-paddle {
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  background: #30d158;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .28);
+}
+
 #paddleCapTime {
   color: #30d158;
   font-size: clamp(9px, 2.3vw, 12px);

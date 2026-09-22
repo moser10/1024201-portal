@@ -9,7 +9,7 @@ import {
   tickPaddleCap,
 } from "./paddleCap.js";
 
-test("only a maxed paddle starts a 30s hold", () => {
+test("only a maxed paddle starts a 10s hold", () => {
   assert.equal(isPaddleAtMax(240, 900), false);
   assert.equal(isPaddleAtMax(900, 900), true);
   const state = createPaddleCapState();
@@ -19,13 +19,13 @@ test("only a maxed paddle starts a 30s hold", () => {
   assert.equal(state.remaining, PADDLE_MAX_HOLD_SECONDS);
 });
 
-test("another max pickup refreshes the 30s clock", () => {
+test("another max pickup refreshes the 10s clock", () => {
   const state = createPaddleCapState();
   syncPaddleCap(state, 900, 900);
-  tickPaddleCap(state, 12);
-  assert.equal(state.remaining, 18);
+  tickPaddleCap(state, 4);
+  assert.equal(state.remaining, 6);
   syncPaddleCap(state, 900, 900);
-  assert.equal(state.remaining, 30);
+  assert.equal(state.remaining, 10);
 });
 
 test("leaving max or yellow reset cancels the clock", () => {
@@ -36,10 +36,10 @@ test("leaving max or yellow reset cancels the clock", () => {
   assert.equal(paddleCapClock(state), "");
 });
 
-test("expiry after 30s of unpaused time", () => {
+test("expiry after 10s of unpaused time", () => {
   const state = createPaddleCapState();
   syncPaddleCap(state, 900, 900);
-  assert.equal(tickPaddleCap(state, 29.5), false);
+  assert.equal(tickPaddleCap(state, 9.5), false);
   assert.equal(paddleCapClock(state), "0:01");
   assert.equal(tickPaddleCap(state, 0.6), true);
   assert.equal(state.remaining, 0);

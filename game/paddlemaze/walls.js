@@ -53,6 +53,10 @@ export function cellMetrics(field, spec) {
   return { gap, brickW, brickH };
 }
 
+export function paddleUnitPx(field, spec) {
+  return cellMetrics(field, spec).brickW;
+}
+
 /**
  * Steel cells sit in the same grid as bricks (ptmp: gray cutouts in a dense fill).
  */

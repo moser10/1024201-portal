@@ -1,4 +1,4 @@
-export const PADDLE_MAX_HOLD_SECONDS = 30;
+export const PADDLE_MAX_HOLD_SECONDS = 10;
 
 export function createPaddleCapState(hold = PADDLE_MAX_HOLD_SECONDS) {
   return { remaining: 0, hold };
@@ -8,7 +8,7 @@ export function isPaddleAtMax(width, maxWidth, epsilon = 0.51) {
   return Number(width) >= Number(maxWidth) - epsilon;
 }
 
-/** Call after width changes. At max, (re)start 30s; leaving max clears the clock. */
+/** Call after width changes. At max, (re)start the hold; leaving max clears the clock. */
 export function syncPaddleCap(state, width, maxWidth) {
   if (isPaddleAtMax(width, maxWidth)) {
     state.remaining = state.hold;

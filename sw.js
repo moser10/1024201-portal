@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v139";
+const CACHE = "1042-pwa-v140";
 const SHELL = [
   "/",
   "/index.html",
@@ -51,6 +51,7 @@ const SHELL = [
   "/game/paddlemaze/",
   "/game/paddlemaze/index.html",
   "/game/paddlemaze/game.css?v=27",
+  "/game/paddlemaze/game.css?v=28",
   "/game/paddlemaze/game.js?v=27",
   "/game/paddlemaze/game.js?v=28",
   "/game/paddlemaze/game.js?v=29",
@@ -58,6 +59,7 @@ const SHELL = [
   "/game/paddlemaze/game.js?v=31",
   "/game/paddlemaze/game.js?v=32",
   "/game/paddlemaze/game.js?v=33",
+  "/game/paddlemaze/game.js?v=34",
   "/game/paddlemaze/serve.js?v=1",
   "/game/paddlemaze/levels.js?v=25",
   "/game/paddlemaze/levels.js?v=26",
@@ -66,8 +68,12 @@ const SHELL = [
   "/game/paddlemaze/handMaps.js",
   "/game/paddlemaze/maps-preview.txt",
   "/game/paddlemaze/walls.js?v=27",
+  "/game/paddlemaze/walls.js?v=28",
   "/game/paddlemaze/paddleCap.js?v=25",
+  "/game/paddlemaze/paddleCap.js?v=26",
   "/game/paddlemaze/resources.js?v=25",
+  "/game/paddlemaze/resources.js?v=26",
+  "/game/paddlemaze/bounce.js?v=1",
   "/game/paddlemaze/welfare.js?v=25",
   "/game/paddlemaze/stallRelief.js?v=27",
   "/game/paddlemaze/stallRelief.js?v=28",
