@@ -15,6 +15,7 @@ test("祝好 counts as a closing so 此致敬礼 is not added", () => {
   const html = wrapSystemMail("<p>账号已注销。</p><p>感谢陪伴，祝好。</p>");
   assert.match(html, /请勿回复/);
   assert.equal(html.includes(MAIL_CLOSE_LINE), false);
+  assert.match(html, /请勿回复。[\s\S]*祝好/);
 });
 
 test("account closed mail names the user", () => {

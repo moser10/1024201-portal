@@ -220,7 +220,6 @@ async function deleteUserCompletely(db, userId, env) {
   if (account.email) {
     await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(account.email).run();
   }
-  await db.prepare("DELETE FROM users WHERE id = ?").bind(uid).run();
   try {
     await db.prepare("DELETE FROM open_room_seats WHERE user_id = ?").bind(uid).run();
   } catch {
@@ -236,9 +235,10 @@ async function deleteUserCompletely(db, userId, env) {
         accountClosedMailHtml(account.username || account.email)
       );
     } catch {
-      /* account is already gone */
+      /* still close the account */
     }
   }
+  await db.prepare("DELETE FROM users WHERE id = ?").bind(uid).run();
 }
 
 function gameLabel(gameId, title) {

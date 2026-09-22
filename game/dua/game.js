@@ -514,6 +514,13 @@ roomCall?.addEventListener("click", () => {
   const spec = roomNav();
   const user = getUser();
   if (spec?.roomId && user?.id) {
+    try {
+      const all = JSON.parse(sessionStorage.getItem("portal_open_room_practice") || "{}");
+      all[String(user.id)] = 0;
+      sessionStorage.setItem("portal_open_room_practice", JSON.stringify(all));
+    } catch {
+      /* ignore */
+    }
     fetch("/api/openroom?action=presence", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -35,9 +35,11 @@ test("rooms tile labels stay distinct in the three portal languages", () => {
 
 test("room chat syncs faster than the old 8s heartbeat and uses practice 0/1", () => {
   const js = readFileSync(new URL("./rooms.js", import.meta.url), "utf8");
-  assert.match(js, /setInterval\(tick, 700\)/);
-  assert.match(js, /practice: 1/);
+  assert.match(js, /setInterval\(tick, 400\)/);
+  assert.match(js, /setPracticeFlag\(uid, 1\)/);
   assert.match(js, /practice: 0/);
   assert.match(js, /action === "sync"/);
   assert.match(js, /is-away/);
+  assert.match(js, /portal_open_room_practice/);
 });
+

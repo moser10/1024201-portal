@@ -44,7 +44,10 @@ export function watchAccountAlive() {
       .catch(() => {});
   };
   ping();
-  aliveWatch = setInterval(ping, 15000);
+  aliveWatch = setInterval(ping, 8000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) ping();
+  });
 }
 
 export function getRoom() {

@@ -26,6 +26,35 @@ const inflightList = { dua: null, chat: null };
 let listEpoch = 0;
 const localPractice = new Map();
 const ROOM_DOC = "portal_open_room_doc:";
+const PRACTICE_KEY = "portal_open_room_practice";
+
+function readPracticeMap() {
+  try {
+    return JSON.parse(sessionStorage.getItem(PRACTICE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function setPracticeFlag(userId, flag) {
+  const id = Number(userId);
+  if (!id) return;
+  localPractice.set(id, flag ? 1 : 0);
+  try {
+    const all = readPracticeMap();
+    all[String(id)] = flag ? 1 : 0;
+    sessionStorage.setItem(PRACTICE_KEY, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
+}
+
+function hydratePractice() {
+  const all = readPracticeMap();
+  for (const [k, v] of Object.entries(all)) localPractice.set(Number(k), Number(v) === 1 ? 1 : 0);
+}
+
+hydratePractice();
 
 function esc(s) {
   return String(s ?? "")
@@ -309,33 +338,53 @@ async function loadLobby(error = "") {
 }
 
 async function tryJoin(id, needPin) {
-  let pin = "";
-  if (needPin) {
-    pin = window.prompt(copy.needPin, "") || "";
-  }
   const cached = readRoomDoc(id);
   const stub = (readCachedList(kind) || []).find((r) => String(r.id) === String(id));
-  if (cached?.room) openInside(cached, { wait: true });
+  if (cached?.room?.member) openInside(cached);
+  else if (cached?.room) openInside(cached, { wait: true });
   else if (stub) {
     openInside({ room: { ...stub, member: true, called: false }, seats: [], messages: [] }, { wait: true });
   }
   try {
-    const data = await api("join", { room_id: id, pin });
+    let data = null;
+    if (cached?.room?.member) {
+      data = await api("get", { room_id: id });
+      if (!data?.room?.member) data = null;
+    }
+    if (!data) {
+      let pin = "";
+      if (needPin) pin = window.prompt(copy.needPin, "") || "";
+      data = await api("join", { room_id: id, pin });
+    }
     writeRoomDoc(data);
     openInside(data);
   } catch (err) {
+    stopPulse();
     loadLobby(err.code);
   }
 }
 
+function postPresence(roomId, practice) {
+  const user = getUser();
+  fetch("/api/openroom?action=presence", {
+    method: "POST",
+    cache: "no-store",
+    keepalive: true,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ room_id: roomId, user_id: user?.id, practice }),
+  }).catch(() => {});
+}
+
 function openInside(data, { wait = false } = {}) {
+  const uid = Number(getUser()?.id);
+  if (uid) setPracticeFlag(uid, 0);
   current = data;
   writeRoomDoc(data);
   setNavBack({ type: "rooms" });
   history.replaceState(null, "", "/rooms/");
   renderInside(data);
   if (!wait) {
-    api("presence", { room_id: data.room.id, practice: 0 }).catch(() => {});
+    postPresence(data.room.id, 0);
     startPulse();
   }
 }
@@ -405,7 +454,8 @@ function patchInside(data) {
   }
   const seats = mergeSeats(data.seats || current?.seats || []);
   const called = roomIsCalled({ room: data.room, seats });
-  current = { ...data, seats, room: { ...data.room, called } };
+  const messages = Array.isArray(data.messages) ? data.messages : current?.messages;
+  current = { ...data, seats, messages, room: { ...data.room, called } };
   writeRoomDoc(current);
   const titleEl = root.querySelector(".rooms-title");
   if (titleEl) titleEl.textContent = data.room.title;
@@ -489,6 +539,12 @@ function renderInside(data) {
   });
   document.getElementById("callBtn")?.addEventListener("click", async () => {
     try {
+      if (current) {
+        patchInside({
+          ...current,
+          room: { ...current.room, called_at: current.room.called_at || "now", called: true },
+        });
+      }
       current = await api("call", { room_id: room.id });
       patchInside(current);
     } catch (err) {
@@ -502,9 +558,11 @@ function goDua(room, mode = "practice") {
   stopPulse();
   const uid = Number(getUser()?.id);
   if (mode === "practice" && uid) {
-    localPractice.set(uid, 1);
+    setPracticeFlag(uid, 1);
     if (current) patchInside(current);
-    api("presence", { room_id: room.id, practice: 1 }).catch(() => {});
+    postPresence(room.id, 1);
+  } else if (uid) {
+    setPracticeFlag(uid, 0);
   }
   setNavBack({ type: "room", roomId: room.id, roomTitle: room.title, mode });
   location.assign("/game/dua/");
@@ -593,7 +651,7 @@ function startPulse() {
     }
   };
   tick();
-  pulse = setInterval(tick, 700);
+  pulse = setInterval(tick, 400);
   beat = setInterval(async () => {
     if (!current?.room?.id) return;
     try {

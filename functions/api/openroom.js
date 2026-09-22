@@ -60,21 +60,34 @@ async function loadRoom(db, roomId) {
   return db.prepare("SELECT * FROM open_rooms WHERE id = ?").bind(String(roomId || "").toUpperCase()).first();
 }
 
+function missingRoomsSchema(err) {
+  return /no such table|no such column/i.test(String(err?.message || err));
+}
+
 async function sit(db, roomId, user, { practice } = {}) {
+  const flag = practice === 1 ? 1 : practice === 0 ? 0 : null;
+  if (flag == null) {
+    await db
+      .prepare(
+        `INSERT INTO open_room_seats (room_id, user_id, username, last_seen, ready, practice)
+         VALUES (?, ?, ?, datetime('now'), 0, 0)
+         ON CONFLICT(room_id, user_id) DO UPDATE SET username = excluded.username, last_seen = datetime('now')`
+      )
+      .bind(roomId, user.id, user.username)
+      .run();
+    return;
+  }
   await db
     .prepare(
       `INSERT INTO open_room_seats (room_id, user_id, username, last_seen, ready, practice)
-       VALUES (?, ?, ?, datetime('now'), 0, 0)
-       ON CONFLICT(room_id, user_id) DO UPDATE SET username = excluded.username, last_seen = datetime('now')`
+       VALUES (?, ?, ?, datetime('now'), 0, ?)
+       ON CONFLICT(room_id, user_id) DO UPDATE SET
+         username = excluded.username,
+         last_seen = datetime('now'),
+         practice = excluded.practice`
     )
-    .bind(roomId, user.id, user.username)
+    .bind(roomId, user.id, user.username, flag)
     .run();
-  if (practice === 0 || practice === 1) {
-    await db
-      .prepare("UPDATE open_room_seats SET practice = ?, last_seen = datetime('now') WHERE room_id = ? AND user_id = ?")
-      .bind(practice, roomId, user.id)
-      .run();
-  }
 }
 
 async function maybeClearCall(db, room, seats) {
@@ -93,13 +106,13 @@ async function uniqueCode(db) {
   return `${makeRoomCode()}${makeRoomCode()}`.slice(0, 4);
 }
 
-async function roomPayload(db, room, userId, { prune = true, since = 0 } = {}) {
+async function roomPayload(db, room, userId, { prune = true, since = 0, chat = true } = {}) {
   if (prune) await pruneSeats(db, room.id);
   const seats = await loadSeats(db, room.id);
   room = await maybeClearCall(db, room, seats);
   const member = seats.some((s) => Number(s.user_id) === Number(userId));
   let messages = [];
-  if (member) {
+  if (chat && member) {
     const after = Number(since) || 0;
     const { results } = after
       ? await db
@@ -116,7 +129,7 @@ async function roomPayload(db, room, userId, { prune = true, since = 0 } = {}) {
           .all();
     messages = after ? results || [] : (results || []).reverse();
   }
-  return {
+  const out = {
     room: {
       ...publicRoom(room, seats.length, Date.now(), seats),
       host: Number(room.host_id) === Number(userId),
@@ -128,8 +141,9 @@ async function roomPayload(db, room, userId, { prune = true, since = 0 } = {}) {
       ready: Boolean(Number(s.ready)),
       practice: Number(s.practice) === 1 ? 1 : 0,
     })),
-    messages,
   };
+  if (chat) out.messages = messages;
+  return out;
 }
 
 async function readBodyUser(request, url) {
@@ -153,21 +167,35 @@ export async function onRequest(context) {
       const kind = String(url.searchParams.get("kind") || "").toLowerCase();
       try {
         return liveJson({ rooms: await listOpenRooms(db, kind) });
-      } catch {
+      } catch (err) {
+        if (!missingRoomsSchema(err)) throw err;
         await ensureOpenRoomSchema(db);
         return liveJson({ rooms: await listOpenRooms(db, kind) });
       }
     }
 
-    await ensureOpenRoomSchema(db);
-
     const body = await readBodyUser(request, url);
+    if (action === "create") await ensureOpenRoomSchema(db);
+
     const user = await requireUser(db, body.user_id);
     if (!user) return gone();
 
     const hotGet = request.method === "GET" && (action === "get" || action === "sync");
     if (request.method !== "POST" && !hotGet) return json({ error: "method" }, 405);
 
+    try {
+      return await handleRoomAction({ db, action, body, user, request, url });
+    } catch (err) {
+      if (!missingRoomsSchema(err)) throw err;
+      await ensureOpenRoomSchema(db);
+      return await handleRoomAction({ db, action, body, user, request, url });
+    }
+  } catch (err) {
+    return json({ error: String(err.message || err) }, 500);
+  }
+}
+
+async function handleRoomAction({ db, action, body, user, url }) {
     if (action === "create") {
       const parsed = parseCreate(body);
       if (parsed.error) return json({ error: parsed.error }, 400);
@@ -188,10 +216,14 @@ export async function onRequest(context) {
     if (!room || room.closed_at) return json({ error: "closed" }, 404);
 
     if (action === "join") {
-      await pruneSeats(db, room.id);
-      const seats = await loadSeats(db, room.id);
-      const gate = canJoin({ room, seats, pin: body.pin, userId: user.id });
-      if (!gate.ok) return json({ error: gate.error }, gate.error === "pin" ? 403 : 409);
+      let seats = await loadSeats(db, room.id);
+      const already = seats.some((s) => Number(s.user_id) === Number(user.id));
+      if (!already) {
+        await pruneSeats(db, room.id);
+        seats = await loadSeats(db, room.id);
+        const gate = canJoin({ room, seats, pin: body.pin, userId: user.id });
+        if (!gate.ok) return json({ error: gate.error }, gate.error === "pin" ? 403 : 409);
+      }
       await sit(db, room.id, user, { practice: 0 });
       return liveJson(await roomPayload(db, room, user.id, { prune: false }));
     }
@@ -228,7 +260,7 @@ export async function onRequest(context) {
       if (!seated) return json({ error: "member" }, 403);
       const practice = body.practice === 1 || body.practice === true || body.practice === "1" ? 1 : 0;
       await sit(db, room.id, user, { practice });
-      return liveJson(await roomPayload(db, await loadRoom(db, room.id), user.id, { prune: false }));
+      return liveJson(await roomPayload(db, await loadRoom(db, room.id), user.id, { prune: false, chat: false }));
     }
 
     if (action === "call") {
@@ -237,7 +269,7 @@ export async function onRequest(context) {
       const seated = (await loadSeats(db, room.id)).some((s) => Number(s.user_id) === Number(user.id));
       if (!seated) return json({ error: "member" }, 403);
       await db.prepare("UPDATE open_rooms SET called_at = datetime('now') WHERE id = ?").bind(room.id).run();
-      return liveJson(await roomPayload(db, await loadRoom(db, room.id), user.id, { prune: false }));
+      return liveJson(await roomPayload(db, await loadRoom(db, room.id), user.id, { prune: false, chat: false }));
     }
 
     if (action === "start") {
@@ -257,7 +289,7 @@ export async function onRequest(context) {
       const practice = body.practice === 1 || body.practice === true || body.practice === "1" ? 1 : 0;
       await sit(db, room.id, user, { practice });
       const fresh = await loadRoom(db, room.id);
-      return liveJson(await roomPayload(db, fresh, user.id, { prune: practice === 0 }));
+      return liveJson(await roomPayload(db, fresh, user.id, { prune: practice === 0, chat: false }));
     }
 
     if (action === "say") {
@@ -274,7 +306,4 @@ export async function onRequest(context) {
     }
 
     return json({ error: "action" }, 400);
-  } catch (err) {
-    return json({ error: String(err.message || err) }, 500);
-  }
 }

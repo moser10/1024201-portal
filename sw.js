@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v146";
+const CACHE = "1042-pwa-v147";
 const SHELL = [
   "/",
   "/index.html",
@@ -100,6 +100,7 @@ const SHELL = [
   "/game/dua/game.js?v=20",
   "/game/dua/game.js?v=21",
   "/game/dua/game.js?v=22",
+  "/game/dua/game.js?v=23",
   "/game/dua/duel.js?v=12",
   "/game/dua/duel.js?v=13",
   "/game/dua/duel.js?v=14",
@@ -133,6 +134,7 @@ const SHELL = [
   "/rooms/rooms.css?v=10",
   "/rooms/rooms.js?v=14",
   "/rooms/rooms.js?v=15",
+  "/rooms/rooms.js?v=16",
   "/rooms/copy.js?v=8",
   "/rooms/copy.js?v=9",
   "/icons/apps/rooms.svg",

@@ -4,14 +4,30 @@ export const MAIL_AUTO_LINE = "这是1024201自动发送的邮件，请勿回复
 export const MAIL_CLOSE_LINE = "此致敬礼";
 
 const CLOSE_RE = /此致敬礼|祝好|顺祝|Best regards|Sincerely|Yours truly/i;
+const CLOSE_P_RE = /<p\b[^>]*>[\s\S]*?(?:此致敬礼|祝好|顺祝|Best regards|Sincerely|Yours truly)[\s\S]*?<\/p>/gi;
+
+function lastCloseParagraph(html) {
+  let last = null;
+  const re = new RegExp(CLOSE_P_RE.source, CLOSE_P_RE.flags);
+  let match;
+  while ((match = re.exec(html))) last = match;
+  return last;
+}
 
 export function wrapSystemMail(html) {
   let out = String(html || "");
+  const autoBlock = `<p style="margin:16px 0 8px;color:#636366;">${MAIL_AUTO_LINE}</p>`;
+  const closeBlock = `<p style="margin:0 0 8px;">${MAIL_CLOSE_LINE}</p>`;
   if (!out.includes("请勿回复")) {
-    out += `<p style="margin:16px 0 8px;color:#636366;">${MAIL_AUTO_LINE}</p>`;
-  }
-  if (!CLOSE_RE.test(out)) {
-    out += `<p style="margin:0 0 8px;">${MAIL_CLOSE_LINE}</p>`;
+    const last = lastCloseParagraph(out);
+    if (last) {
+      out = out.slice(0, last.index) + autoBlock + out.slice(last.index);
+    } else {
+      out += autoBlock;
+      if (!CLOSE_RE.test(out)) out += closeBlock;
+    }
+  } else if (!CLOSE_RE.test(out)) {
+    out += closeBlock;
   }
   return out;
 }

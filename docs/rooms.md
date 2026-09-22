@@ -28,8 +28,9 @@
 
 聊天不是独立 IM，也不是 WebSocket：Worker 读 D1。Jev 此前选 **ready_start、先不要 Durable Objects**。这一刀仍不接 DO/WS，改成轻量方案：
 
-- 进房后 `GET sync` 约 700ms 拉座位和增量消息（不再 8 秒 heartbeat 才刷新聊天）
+- 进房后 `GET sync` 约 400ms 拉座位和增量消息（不再 8 秒 heartbeat 才刷新聊天）
 - 发送先画在本地
 - 练习 / 在线是座位上的 `practice` 0/1，点击立刻改颜色，后台再写库；屋里没人练习时呼叫提示消失
+- 热路径（list / get / sync / join / say）不跑 schema 迁移
 
 对圈房间准备 + 房主开始。点开始后进对圈页，物理暂时仍是本机 vs CPU。权威同步和 WebSocket 下一刀。
