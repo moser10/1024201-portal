@@ -36,6 +36,15 @@ export function circleRectNormal(cx, cy, r, rect) {
   return { nx: dx / dist, ny: dy / dist, depth: r - dist };
 }
 
+/** Keep heading; never add energy above cruise speed. */
+export function clampSpeed(vx, vy, speed) {
+  const cap = Math.max(1, Number(speed) || 1);
+  const current = Math.hypot(vx, vy);
+  if (current < 1e-9) return { vx: 0, vy: -cap };
+  if (current <= cap + 1e-6) return { vx, vy };
+  return { vx: (vx / current) * cap, vy: (vy / current) * cap };
+}
+
 export function reflectAndEscape(vx, vy, nx, ny, trapHits = 0) {
   const speed = Math.hypot(vx, vy) || 1;
   let dot = vx * nx + vy * ny;
@@ -61,7 +70,7 @@ export function reflectAndEscape(vx, vy, nx, ny, trapHits = 0) {
     vx += nx * (minLeave - dot);
     vy += ny * (minLeave - dot);
   }
-  return { vx, vy };
+  return clampSpeed(vx, vy, speed);
 }
 
 export function noteTrapAxis(ball, nx, ny) {
@@ -74,46 +83,43 @@ export function noteTrapAxis(ball, nx, ny) {
   return axis;
 }
 
-export function bounceCircleRect(ball, rect) {
+function applyBounceVel(ball, nx, ny, cruise) {
+  const escaped = reflectAndEscape(ball.vx, ball.vy, nx, ny, ball.trapHits);
+  const cap = cruise || Math.hypot(ball.vx, ball.vy) || 1;
+  const pinned = clampSpeed(escaped.vx, escaped.vy, cap);
+  ball.vx = pinned.vx;
+  ball.vy = pinned.vy;
+  if (ball.trapHits >= PINGPONG_LIMIT) ball.trapHits = 0;
+}
+
+export function bounceCircleRect(ball, rect, cruise) {
   const hit = circleRectNormal(ball.x, ball.y, ball.r, rect);
   if (!hit) return false;
   noteTrapAxis(ball, hit.nx, hit.ny);
-  const escaped = reflectAndEscape(ball.vx, ball.vy, hit.nx, hit.ny, ball.trapHits);
-  ball.vx = escaped.vx;
-  ball.vy = escaped.vy;
+  applyBounceVel(ball, hit.nx, hit.ny, cruise);
   const push = Math.max(0.12, hit.depth + 0.12);
   ball.x += hit.nx * push;
   ball.y += hit.ny * push;
-  if (ball.trapHits >= PINGPONG_LIMIT) ball.trapHits = 0;
   return true;
 }
 
-export function bounceWorldEdge(ball, width, height) {
+export function bounceWorldEdge(ball, width, height, cruise) {
   let hit = false;
   if (ball.x - ball.r < 0) {
     ball.x = ball.r;
     noteTrapAxis(ball, 1, 0);
-    const v = reflectAndEscape(ball.vx, ball.vy, 1, 0, ball.trapHits);
-    ball.vx = v.vx;
-    ball.vy = v.vy;
-    if (ball.trapHits >= PINGPONG_LIMIT) ball.trapHits = 0;
+    applyBounceVel(ball, 1, 0, cruise);
     hit = true;
   } else if (ball.x + ball.r > width) {
     ball.x = width - ball.r;
     noteTrapAxis(ball, -1, 0);
-    const v = reflectAndEscape(ball.vx, ball.vy, -1, 0, ball.trapHits);
-    ball.vx = v.vx;
-    ball.vy = v.vy;
-    if (ball.trapHits >= PINGPONG_LIMIT) ball.trapHits = 0;
+    applyBounceVel(ball, -1, 0, cruise);
     hit = true;
   }
   if (ball.y - ball.r < 0) {
     ball.y = ball.r;
     noteTrapAxis(ball, 0, 1);
-    const v = reflectAndEscape(ball.vx, ball.vy, 0, 1, ball.trapHits);
-    ball.vx = v.vx;
-    ball.vy = v.vy;
-    if (ball.trapHits >= PINGPONG_LIMIT) ball.trapHits = 0;
+    applyBounceVel(ball, 0, 1, cruise);
     hit = true;
   }
   return hit;

@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  MIN_LEAVE,
   PINGPONG_LIMIT,
   bounceCircleRect,
   bounceWorldEdge,
+  clampSpeed,
   reflectAndEscape,
   resetTrap,
 } from "./bounce.js";
@@ -12,8 +12,23 @@ import {
 test("grazing a wall leaves with a real normal speed instead of sliding", () => {
   const incoming = Math.hypot(2, 400);
   const v = reflectAndEscape(2, 400, 1, 0, 0);
-  assert.ok(v.vx >= incoming * MIN_LEAVE - 1e-6);
+  assert.ok(v.vx > 80);
   assert.ok(Math.abs(v.vy) > 200);
+  assert.ok(Math.hypot(v.vx, v.vy) <= incoming + 1e-6);
+});
+
+test("bounces never add energy", () => {
+  const incoming = Math.hypot(180, 12);
+  let vx = 180;
+  let vy = 12;
+  for (let i = 0; i < 30; i++) {
+    const v = reflectAndEscape(vx, vy, i % 2 ? 1 : -1, 0, i + 1);
+    vx = v.vx;
+    vy = v.vy;
+  }
+  assert.ok(Math.hypot(vx, vy) <= incoming + 1e-6);
+  const capped = clampSpeed(900, 200, 320);
+  assert.ok(Math.hypot(capped.vx, capped.vy) <= 320 + 1e-6);
 });
 
 test("three left-right bounces force a new heading", () => {
@@ -30,11 +45,12 @@ test("a ball in a one-cell gap cannot stay in a horizontal loop", () => {
   for (let i = 0; i < 40; i++) {
     ball.x += ball.vx * 0.016;
     ball.y += ball.vy * 0.016;
-    bounceCircleRect(ball, left);
-    bounceCircleRect(ball, right);
+    bounceCircleRect(ball, left, 220);
+    bounceCircleRect(ball, right, 220);
     if (Math.abs(ball.vy) > 40) flippedY = true;
   }
   assert.equal(flippedY, true);
+  assert.ok(Math.hypot(ball.vx, ball.vy) <= 220 + 1e-6);
 });
 
 test("world-edge ping-pong also breaks after a few hits", () => {

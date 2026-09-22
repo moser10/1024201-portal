@@ -5,7 +5,7 @@ import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare,
 import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=26";
 import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=28";
 import { heldBallPose, launchVelocity } from "./serve.js?v=1";
-import { bounceCircleRect, bounceWorldEdge, resetTrap } from "./bounce.js?v=1";
+import { bounceCircleRect, bounceWorldEdge, clampSpeed, resetTrap } from "./bounce.js?v=2";
 import { paddleCopy } from "./copy.js?v=1";
 
 const canvas = document.getElementById("gameCanvas");
@@ -295,7 +295,7 @@ function hitNearbyBrick(ball) {
       const bucket = brickBuckets.get(`${x}:${y}`);
       if (!bucket) continue;
       for (const brick of bucket) {
-        if (bounceCircleRect(ball, brick)) return brick;
+        if (bounceCircleRect(ball, brick, cruiseSpeed())) return brick;
       }
     }
   }
@@ -409,6 +409,12 @@ function applyPower(power) {
     paddle.w = targetPaddleWidth(paddle.w, spec, INITIAL_PADDLE, MIN_PADDLE, W);
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
     syncPaddleCap(paddleCap, paddle.w, W);
+    for (const ball of balls) {
+      if (!ball.held && circleRectHit(ball, paddle)) {
+        ball.y = Math.min(ball.y, paddle.y - ball.r - 0.2);
+      }
+      pinBallSpeed(ball);
+    }
   } else if (spec.kind === "balls") {
     applyBallResource(spec);
   } else if (spec.kind === "reset") {
@@ -416,25 +422,38 @@ function applyPower(power) {
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
     syncPaddleCap(paddleCap, paddle.w, W);
     while (balls.length > 1) releaseBallAt(balls.length - 1);
+    pinBallSpeed(balls[0]);
   }
   haptic(16);
   updateHud();
 }
 
+function cruiseSpeed() {
+  return buildLevelSpec(levelIndex).speed;
+}
+
+function pinBallSpeed(ball) {
+  if (!ball || ball.held) return;
+  const v = clampSpeed(ball.vx, ball.vy, cruiseSpeed());
+  ball.vx = v.vx;
+  ball.vy = v.vy;
+}
+
 function paddleServeSource() {
-  const speed = buildLevelSpec(levelIndex).speed;
+  const speed = cruiseSpeed();
+  const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.4;
   return {
     x: paddle.x + paddle.w / 2,
     y: paddle.y - BALL_R - 1,
-    vx: (Math.random() - 0.5) * 90,
-    vy: -speed,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
   };
 }
 
 function cloneBallFrom(source, extraAngle) {
   const spawned = activateBall(undefined, source, false, false);
   if (!spawned) return null;
-  const speed = Math.hypot(source.vx, source.vy) || buildLevelSpec(levelIndex).speed;
+  const speed = cruiseSpeed();
   const angle = Math.atan2(source.vy || -1, source.vx) + extraAngle;
   spawned.x = source.x;
   spawned.y = source.y;
@@ -442,6 +461,7 @@ function cloneBallFrom(source, extraAngle) {
   spawned.vx = Math.cos(angle) * speed;
   spawned.vy = Math.sin(angle) * speed;
   resetTrap(spawned);
+  pinBallSpeed(spawned);
   return spawned;
 }
 
@@ -486,22 +506,24 @@ function applyBallResource(spec) {
 function moveBallStep(ball, dt) {
   ball.x += ball.vx * dt;
   ball.y += ball.vy * dt;
-  bounceWorldEdge(ball, W, H);
+  const cruise = cruiseSpeed();
+  bounceWorldEdge(ball, W, H, cruise);
 
   if (ball.vy > 0 && circleRectHit(ball, paddle)) {
     const hit = ((ball.x - paddle.x) / paddle.w - 0.5) * 1.65;
-    const mag = Math.hypot(ball.vx, ball.vy);
+    const mag = cruise;
     ball.vx = Math.sin(hit) * mag;
     ball.vy = -Math.abs(Math.cos(hit) * mag);
     ball.y = paddle.y - ball.r - 0.2;
     resetTrap(ball);
+    pinBallSpeed(ball);
     if (ball.primary) haptic(6);
   }
 
   for (let pass = 0; pass < 3; pass++) {
     let hitWall = false;
     for (const wall of walls) {
-      if (bounceCircleRect(ball, wall)) {
+      if (bounceCircleRect(ball, wall, cruise)) {
         hitWall = true;
         break;
       }
@@ -519,6 +541,7 @@ function moveBallStep(ball, dt) {
       spawnParticles(brick);
     }
   }
+  pinBallSpeed(ball);
 }
 
 function update(dt) {
