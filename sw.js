@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v129";
+const CACHE = "1042-pwa-v130";
 const SHELL = [
   "/",
   "/index.html",
@@ -82,6 +82,7 @@ const SHELL = [
   "/rooms/rooms.css?v=5",
   "/rooms/rooms.css?v=6",
   "/rooms/rooms.css?v=7",
+  "/rooms/rooms.css?v=8",
   "/rooms/rooms.js?v=4",
   "/rooms/rooms.js?v=5",
   "/rooms/rooms.js?v=6",
@@ -89,10 +90,12 @@ const SHELL = [
   "/rooms/rooms.js?v=8",
   "/rooms/rooms.js?v=9",
   "/rooms/rooms.js?v=10",
+  "/rooms/rooms.js?v=11",
   "/rooms/copy.js?v=3",
   "/rooms/copy.js?v=4",
   "/rooms/copy.js?v=5",
   "/rooms/copy.js?v=6",
+  "/rooms/copy.js?v=7",
   "/icons/apps/rooms.svg",
   "/account/",
   "/account/index.html",

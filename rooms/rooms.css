@@ -1,4 +1,5 @@
 .rooms-card { gap: 10px; }
+.rooms-card .feature-card-head h1 { margin-bottom: 0; }
 
 .rooms-tabs {
   display: flex;
@@ -95,6 +96,11 @@
   flex-direction: column;
   gap: 8px;
   margin: 12px 0;
+  min-height: 72px;
+}
+
+.rooms-err-slot:empty {
+  display: none;
 }
 
 .room-card {

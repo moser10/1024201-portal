@@ -2,13 +2,13 @@ import { getPortalLang } from "/js/langTabs.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getUser, requireAuth } from "/game/js/store.js";
 import { applyNavBack, setNavBack, roomReturnId } from "/js/navBack.js?v=4";
-import { roomsCopy } from "./copy.js?v=6";
+import { roomsCopy } from "./copy.js?v=7";
 import { showPortalModal, hidePortalModal } from "/js/portalModal.js?v=1";
 
 const root = document.getElementById("roomsRoot");
 const backLink = document.getElementById("backLink");
 const pageTitle = document.getElementById("pageTitle");
-const pageSub = document.getElementById("pageSub");
+const LOBBY_CACHE = "portal_open_room_list";
 
 let lang = getPortalLang();
 let copy = roomsCopy(lang);
@@ -17,6 +17,8 @@ let view = "lobby";
 let current = null;
 let pulse = 0;
 let askingClose = false;
+const lastList = { dua: null, chat: null };
+let listPaintKey = "";
 
 function esc(s) {
   return String(s ?? "")
@@ -64,7 +66,6 @@ function applyChrome() {
   copy = roomsCopy(lang);
   paintBack();
   pageTitle.textContent = copy.title;
-  pageSub.textContent = copy.sub;
   document.title = `${copy.title} | 1024201`;
   paintCloseAsk();
   mountAccountChrome(document.getElementById("accountSlot"), {
@@ -72,14 +73,77 @@ function applyChrome() {
     returnPath: "rooms/",
     onLangChange: () => {
       applyChrome();
-      if (view === "lobby") renderLobby();
+      if (view === "lobby") renderLobby(readCachedList(kind));
       else if (current) renderInside(current);
     },
   });
 }
 
+function readCachedList(k) {
+  if (Array.isArray(lastList[k])) return lastList[k];
+  try {
+    const all = JSON.parse(sessionStorage.getItem(LOBBY_CACHE) || "{}");
+    if (Array.isArray(all[k])) {
+      lastList[k] = all[k];
+      return all[k];
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function writeCachedList(k, rooms) {
+  lastList[k] = rooms;
+  try {
+    const all = JSON.parse(sessionStorage.getItem(LOBBY_CACHE) || "{}");
+    all[k] = rooms;
+    sessionStorage.setItem(LOBBY_CACHE, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
+}
+
+function listKey(rooms, error = "") {
+  return JSON.stringify({
+    kind,
+    error,
+    rooms: (rooms || []).map((r) => [r.id, r.title, r.seats, r.max_seats, r.has_pin, r.host_name]),
+  });
+}
+
+function lobbyIsPainted() {
+  return view === "lobby" && root.querySelector("#createForm") && root.dataset.kind === kind;
+}
+
+function bindLobbyJoins() {
+  root.querySelectorAll("[data-join]").forEach((btn) => {
+    btn.addEventListener("click", () => tryJoin(btn.dataset.join, btn.dataset.pin === "1"));
+  });
+}
+
+function fillRoomList(list, error = "") {
+  const errSlot = root.querySelector(".rooms-err-slot");
+  if (errSlot) errSlot.innerHTML = error ? `<p class="rooms-err">${esc(errText(error))}</p>` : "";
+  const box = document.getElementById("roomList");
+  if (!box || !list) return;
+  const key = listKey(list, error);
+  if (key === listPaintKey && box.innerHTML) return;
+  listPaintKey = key;
+  box.innerHTML = paintList(list);
+  bindLobbyJoins();
+}
+
+function prefetchLobby() {
+  api("list")
+    .then((data) => writeCachedList(kind, data.rooms || []))
+    .catch(() => {});
+}
+
 function renderLobby(list = null, error = "") {
   view = "lobby";
+  const rooms = list ?? readCachedList(kind);
+  listPaintKey = rooms ? listKey(rooms, error) : "";
   root.innerHTML = `
     <div class="rooms-tabs">
       <button type="button" class="btn-secondary ${kind === "dua" ? "active" : ""}" data-kind="dua">${esc(copy.tabGame)}</button>
@@ -97,9 +161,10 @@ function renderLobby(list = null, error = "") {
       <button class="btn-primary" type="submit">${esc(copy.create)}</button>
     </form>
     <h2 style="font-size:15px;margin:8px 0 0">${esc(copy.list)}</h2>
-    ${error ? `<p class="rooms-err">${esc(errText(error))}</p>` : ""}
-    <div class="rooms-list" id="roomList">${list ? paintList(list) : ""}</div>
+    <div class="rooms-err-slot">${error ? `<p class="rooms-err">${esc(errText(error))}</p>` : ""}</div>
+    <div class="rooms-list" id="roomList">${rooms ? paintList(rooms) : ""}</div>
   `;
+  root.dataset.kind = kind;
   root.querySelectorAll("[data-kind]").forEach((btn) => {
     btn.addEventListener("click", () => {
       kind = btn.dataset.kind;
@@ -119,9 +184,7 @@ function renderLobby(list = null, error = "") {
       loadLobby(err.code);
     }
   });
-  root.querySelectorAll("[data-join]").forEach((btn) => {
-    btn.addEventListener("click", () => tryJoin(btn.dataset.join, btn.dataset.pin === "1"));
-  });
+  bindLobbyJoins();
   document.getElementById("gamePick")?.addEventListener("click", () => {
     showPortalModal(document.getElementById("gameAsk"));
   });
@@ -150,12 +213,26 @@ function paintList(rooms) {
 }
 
 async function loadLobby(error = "") {
-  renderLobby(null, error);
+  const cached = readCachedList(kind);
+  if (lobbyIsPainted()) {
+    if (cached) fillRoomList(cached, error);
+    paintBack();
+  } else {
+    renderLobby(cached, error);
+  }
   try {
     const data = await api("list");
-    renderLobby(data.rooms || [], error);
+    const rooms = data.rooms || [];
+    writeCachedList(kind, rooms);
+    if (view !== "lobby") return;
+    if (lobbyIsPainted()) fillRoomList(rooms, error);
+    else renderLobby(rooms, error);
   } catch (err) {
-    renderLobby([], err.code || "fail");
+    if (view !== "lobby") return;
+    const code = err.code || "fail";
+    const fallback = readCachedList(kind);
+    if (lobbyIsPainted()) fillRoomList(fallback || [], code);
+    else renderLobby(fallback || [], code);
   }
 }
 
@@ -177,6 +254,7 @@ function openInside(data) {
   setNavBack({ type: "rooms" });
   history.replaceState(null, "", "/rooms/");
   renderInside(data);
+  prefetchLobby();
   startPulse();
 }
 
@@ -189,13 +267,11 @@ function renderInside(data) {
     <div class="rooms-inside">
     <p class="rooms-note"><strong>${esc(room.title)}</strong> · ${seatLine({ seats: seats.length, max_seats: room.max_seats })}</p>
     <div class="seat-list">${seats.map((s) => `<span class="seat-chip">@${esc(s.username)}${s.ready ? " ✓" : ""}</span>`).join("")}</div>
-    ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p>
-    ${room.called ? `<p class="rooms-note rooms-call-note">${esc(copy.callNote)}</p>` : ""}
+    ${room.kind === "dua" ? `${room.called ? `<p class="rooms-note rooms-call-note">${esc(copy.callNote)}</p>` : ""}
     <div class="rooms-practice rooms-actions">
       <button type="button" class="btn-secondary" id="readyBtn">${esc(seats.some((s) => Number(s.user_id) === Number(getUser()?.id) && s.ready) ? copy.unready : copy.ready)}</button>
-      ${room.host ? `<button type="button" class="btn-primary" id="startBtn">${esc(copy.startMatch)}</button>` : ""}
-      <a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a>
       <a class="btn-primary" id="enterDua" href="/game/dua/">${esc(copy.enterDua)}</a>
+      <a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a>
       <button type="button" class="btn-secondary" id="callBtn">${esc(room.called ? copy.called : copy.call)}</button>
     </div>` : ""}
     <div class="msg-list">${msgs.map((m) => `<p class="msg-row"><b>@${esc(m.username)}</b> ${esc(m.text)}</p>`).join("")}</div>
@@ -232,15 +308,6 @@ function renderInside(data) {
     try {
       current = await api("ready", { room_id: room.id, ready: !mine });
       renderInside(current);
-    } catch (err) {
-      if (err.code === "closed") showRoomsLobby();
-    }
-  });
-  document.getElementById("startBtn")?.addEventListener("click", async () => {
-    try {
-      current = await api("start", { room_id: room.id });
-      goDua(room, "online");
-      location.href = "/game/dua/";
     } catch (err) {
       if (err.code === "closed") showRoomsLobby();
     }
