@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v116";
+const CACHE = "1042-pwa-v117";
 const SHELL = [
   "/",
   "/index.html",
@@ -12,12 +12,12 @@ const SHELL = [
   "/js/accountChrome.css?v=2",
   "/js/device.js",
   "/js/featurePage.css",
-  "/js/featurePage.css?v=6",
+  "/js/featurePage.css?v=7",
   "/js/geoDisplay.js?v=3",
   "/game/css/userBar.css?v=11",
   "/game/",
   "/game/index.html",
-  "/game/css/hub.css?v=12",
+  "/game/css/hub.css?v=13",
   "/game/js/hub.js?v=5",
   "/tools/",
   "/tools/index.html",
@@ -25,7 +25,7 @@ const SHELL = [
   "/tools/js/hub.js?v=6",
   "/game/register/",
   "/game/register/index.html",
-  "/game/register/auth.css?v=6",
+  "/game/register/auth.css?v=7",
   "/game/register/auth.js?v=15",
   "/game/paddlemaze/",
   "/game/paddlemaze/index.html",
@@ -48,7 +48,7 @@ const SHELL = [
   "/fx/fx.css?v=3",
   "/blog/",
   "/blog/index.html",
-  "/blog/blog.css?v=8",
+  "/blog/blog.css?v=9",
   "/blog/blog-app.js?v=3",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

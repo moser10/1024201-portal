@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="format-detection" content="telephone=no">
-    <meta name="theme-color" content="#2B3054">
+    <meta name="theme-color" content="#f2f2f7">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="1042">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/svg+xml" href="/icons/apps/logo.svg">
@@ -16,12 +16,12 @@
     <title>1024201 | Portal</title>
     <style>
         @view-transition { navigation: auto; }
-        html { background: #2B3054; }
+        html { background: #f2f2f7; }
         :root {
-            --ios-bg: #2B3054;
+            --ios-bg: #f2f2f7;
             --ios-card: #ffffff;
-            --ios-text: #E8D4B8;
-            --ios-text-secondary: #C9B392;
+            --ios-text: #000000;
+            --ios-text-secondary: #8e8e93;
             --ios-blue: #E07A3D;
         }
 
@@ -35,10 +35,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding-top: 20px;
-            padding-bottom: 20px;
-            padding-left: max(20px, env(safe-area-inset-left), env(safe-area-inset-right));
-            padding-right: max(20px, env(safe-area-inset-left), env(safe-area-inset-right));
+            padding: 20px;
             overflow-x: hidden;
             position: relative;
         }
@@ -239,8 +236,8 @@
             font-size: clamp(30px, 8vw, 40px);
             font-weight: 700;
             letter-spacing: -0.045em;
-            color: #E8D4B8;
-            -webkit-text-fill-color: #E8D4B8;
+            color: #2B3054;
+            -webkit-text-fill-color: #2B3054;
             line-height: 1;
         }
 
@@ -302,7 +299,7 @@
 
         @media (max-width: 768px) {
             body {
-                padding: max(36px, calc(env(safe-area-inset-top) + 24px)) max(14px, env(safe-area-inset-left), env(safe-area-inset-right)) 20px;
+                padding: max(36px, calc(env(safe-area-inset-top) + 24px)) 16px 20px;
             }
 
             header {
@@ -352,8 +349,8 @@
 
             .portal-brand {
                 font-size: clamp(26px, 7.5vw, 32px);
-                color: #E8D4B8;
-                -webkit-text-fill-color: #E8D4B8;
+                color: #2B3054;
+                -webkit-text-fill-color: #2B3054;
             }
 
             .app-grid {
@@ -738,7 +735,7 @@
             const groups = [
                 {
                     link: 'appBlogLink',
-                    urls: ['/blog/', '/blog/blog.css?v=8', '/blog/blog-app.js?v=3', '/js/featurePage.css?v=6']
+                    urls: ['/blog/', '/blog/blog.css?v=9', '/blog/blog-app.js?v=3', '/js/featurePage.css?v=7']
                 },
                 {
                     link: 'appGameLink',
