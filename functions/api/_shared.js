@@ -145,6 +145,8 @@ async function ensureAppSchemaInner(db) {
   await ensureSyncNoteSchema(db);
   await ensureCliTokenSchema(db);
   await ensureAddressSchema(db);
+  const { ensureOpenRoomSchema } = await import("./openroomSchema.js");
+  await ensureOpenRoomSchema(db);
 }
 
 /** Once per Worker isolate — do not re-run migrations on every API hit. */

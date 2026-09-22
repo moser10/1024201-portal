@@ -465,12 +465,12 @@
                     </div>
                     <div class="app-label" id="app-blog">Blog</div>
                 </a>
-                <div class="app-item" aria-hidden="false">
-                    <div class="app-icon icon-logo">
-                        <img src="/icons/apps/logo.svg" alt="">
+                <a href="/rooms/" class="app-item" id="appRoomsLink">
+                    <div class="app-icon icon-rooms">
+                        <img src="/icons/apps/rooms.svg" alt="">
                     </div>
-                    <div class="app-label" id="app-logo">1024201</div>
-                </div>
+                    <div class="app-label" id="app-rooms">Rooms</div>
+                </a>
             </div>
         </div>
     </main>
@@ -484,21 +484,21 @@
         const i18n = {
             en: {
                 us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
-                mail: 'Mail', game: 'Game Center', fx: 'Rates', tools: 'Toolbox', blog: 'Blog',
+                mail: 'Mail', game: 'Game Center', fx: 'Rates', tools: 'Toolbox', blog: 'Blog', rooms: 'Rooms',
                 locTitle: 'IP', locating: 'Locating…', locUnavailable: 'Location unavailable',
                 netResidential: 'Home', netDatacenter: 'DC', netMobile: 'Mobile',
                 purity: 'Purity', proxy: 'VPN', visits: 'Visits', speed: 'Speed'
             },
             ja: {
                 us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
-                mail: 'メール', game: 'ゲームセンター', fx: '為替', tools: 'ツールボックス', blog: 'ブログ',
+                mail: 'メール', game: 'ゲームセンター', fx: '為替', tools: 'ツールボックス', blog: 'ブログ', rooms: 'ルーム',
                 locTitle: 'IP', locating: '取得中…', locUnavailable: '位置を取得できません',
                 netResidential: '回線', netDatacenter: 'DC', netMobile: '携帯',
                 purity: '純度', proxy: 'VPN', visits: '訪問', speed: '速度'
             },
             zh: {
                 us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
-                mail: '邮箱', game: '游戏中心', fx: '汇率', tools: '工具箱', blog: '博客',
+                mail: '邮箱', game: '游戏中心', fx: '汇率', tools: '工具箱', blog: '博客', rooms: '开房',
                 locTitle: 'IP', locating: '定位中…', locUnavailable: '无法获取位置',
                 netResidential: '家庭宽带', netDatacenter: '机房', netMobile: '移动',
                 purity: '纯净度', proxy: '代理', visits: '访问', speed: '网速'
@@ -524,6 +524,8 @@
             document.getElementById('app-fx').innerText = t.fx;
             document.getElementById('app-tools').innerText = t.tools;
             document.getElementById('app-blog').innerText = t.blog;
+            const roomsLabel = document.getElementById('app-rooms');
+            if (roomsLabel) roomsLabel.innerText = t.rooms;
             document.getElementById('locTitle').innerText = t.locTitle;
             const visitLabel = document.getElementById('visitLabel');
             if (visitLabel) visitLabel.textContent = t.visits;
@@ -744,6 +746,10 @@
                 {
                     link: 'appToolsLink',
                     urls: ['/tools/', '/game/css/hub.css?v=10', '/tools/css/icons.css', '/tools/js/hub.js?v=6', '/js/accountChrome.js?v=2', '/js/langTabs.js']
+                },
+                {
+                    link: 'appRoomsLink',
+                    urls: ['/rooms/', '/rooms/rooms.css?v=1', '/rooms/rooms.js?v=1', '/js/featurePage.css?v=7', '/icons/apps/rooms.svg']
                 }
             ];
             function prefetch(url) {
