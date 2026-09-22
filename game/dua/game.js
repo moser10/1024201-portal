@@ -1,4 +1,4 @@
-import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=10";
+import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=11";
 import { duaCopy } from "./copy.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
 
@@ -24,7 +24,7 @@ const gameBack = document.getElementById("gameBack");
 const W = canvas.width;
 const H = canvas.height;
 const EMOJI_FONT = `${AVATAR_PX}px ${EMOJI_STACK}`;
-const GUN_FONT = `${WEAPON_ICON_PX}px ${EMOJI_STACK}`;
+const GUN_FONT = `${PICKUP_PX}px ${EMOJI_STACK}`;
 const pickupImgs = {};
 function loadArt(kind) {
   const spec = artPaths(kind);
@@ -186,11 +186,10 @@ function pickupGlyph(kind) {
   return WEAPONS[kind]?.emoji || "•";
 }
 
-function drawPickupArt(x, y, kind) {
+function drawPickupArt(x, y, kind, size = PICKUP_PX) {
   const img = pickupImage(kind);
   if (!img) return false;
-  const s = WEAPON_ICON_PX;
-  ctx.drawImage(img, x - s / 2, y - s / 2, s, s);
+  ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
   return true;
 }
 
@@ -233,8 +232,8 @@ function drawFighter(f) {
     const ang = f.id === "player"
       ? Math.atan2(aimY - f.y, aimX - f.x)
       : Math.atan2(match.player.y - f.y, match.player.x - f.x);
-    drawPickupArt(f.x + Math.cos(ang) * (f.r + 10), f.y + Math.sin(ang) * (f.r + 10), f.weapon)
-      || drawEmoji(f.x + Math.cos(ang) * (f.r + 8), f.y + Math.sin(ang) * (f.r + 8), pickupGlyph(f.weapon), GUN_FONT);
+    drawPickupArt(f.x + Math.cos(ang) * (f.r + 10), f.y + Math.sin(ang) * (f.r + 10), f.weapon, WEAPON_ICON_PX)
+      || drawEmoji(f.x + Math.cos(ang) * (f.r + 8), f.y + Math.sin(ang) * (f.r + 8), pickupGlyph(f.weapon), `${WEAPON_ICON_PX}px ${EMOJI_STACK}`);
   }
 }
 

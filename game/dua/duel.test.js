@@ -6,13 +6,13 @@ import { fileURLToPath } from "node:url";
 import {
   AVATARS,
   WEAPON_ICON_PX,
+  PICKUP_PX,
   AVATAR_PX,
   WEAPONS,
+  PICKUP_ICONS,
   BOOST_MUL,
   START_SPEED,
   MIN_INWARD_RATIO,
-  SEPARATE_MUL,
-  PICKUP_ICONS,
   applyBoost,
   integrateFighter,
   armWeapon,
@@ -40,6 +40,8 @@ test("avatar picker only returns catalog faces and never the used one", () => {
 
 test("weapon icons are 80 percent of the avatar size", () => {
   assert.equal(WEAPON_ICON_PX, Math.round(AVATAR_PX * 0.8));
+  assert.equal(PICKUP_PX, 135);
+  assert.ok(AVATAR_PX >= Math.round(28 * 1.3) * 2 - 1);
   assert.match(WEAPONS.pistol.svg, /\/icons\/weapon\/glock\.svg$/);
   assert.match(WEAPONS.pistol.icon, /\/icons\/weapon\/pistol\.png$/);
   assert.match(WEAPONS.shotgun.svg, /\/icons\/weapon\/sg\.svg$/);
@@ -104,21 +106,22 @@ test("fighters bounce apart and shots knock the target back", () => {
   match.foe.y = 500;
   match.player.vx = 80;
   match.foe.vx = -20;
+  match.player.boostT = 3;
+  applyBoost(match.foe);
   const ox = match.player.x;
-  const oy = match.player.y;
   bounceFighters(match.player, match.foe, () => 0, match.arena);
-  assert.ok(Math.hypot(match.player.x - ox, match.player.y - oy) > 40);
+  assert.equal(match.player.boostT, 0);
+  assert.equal(match.foe.boostT, 0);
   assert.ok(match.player.x < match.foe.x);
   assert.ok(match.player.vx < 0);
   assert.ok(match.foe.vx > 0);
-  assert.ok(match.player.vy < 0);
-  assert.ok(match.foe.vy < 0);
+  assert.ok(Math.hypot(match.player.x - ox, 0) < 80);
   const gap = Math.hypot(match.foe.x - match.player.x, match.foe.y - match.player.y);
-  assert.ok(gap > match.player.r + match.foe.r + 20);
+  assert.ok(gap >= match.player.r + match.foe.r - 0.5);
   const vx1 = match.player.vx;
   bounceFighters(match.player, match.foe, () => 0, match.arena);
   assert.equal(match.player.vx, vx1);
-  assert.ok(Math.abs(Math.hypot(match.player.vx, match.player.vy) - START_SPEED * SEPARATE_MUL) < 0.5);
+  assert.ok(Math.abs(Math.hypot(match.player.vx, match.player.vy) - START_SPEED) < 0.5);
 
   match.shots.push({
     owner: "player", kind: "pistol", x: match.foe.x, y: match.foe.y,

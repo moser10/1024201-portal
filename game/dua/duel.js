@@ -1,8 +1,9 @@
 export const MAX_HEARTS = 10;
 export const ARENA_R = 420;
-export const FIGHTER_R = 28;
+export const FIGHTER_R = Math.round(28 * 1.3);
 export const AVATAR_PX = FIGHTER_R * 2;
 export const WEAPON_ICON_PX = Math.round(AVATAR_PX * 0.8);
+export const PICKUP_PX = 135;
 export const START_SPEED = 262;
 export const BOOST_MUL = 1.85;
 export const BOOST_TIME = 5.2;
@@ -12,11 +13,8 @@ export const MIN_INWARD_RATIO = 0.97;
 export const RIM_TUCK = 52;
 export const TANGENT_KEEP = 0.12;
 export const RECOIL_TIME = 0.2;
-export const SEPARATE_MUL = 2.05;
-export const SEPARATE_GAP = 88;
-export const SEPARATE_TIME = 0.48;
-export const FLY_DEG_NEAR = Object.freeze([30, 80]);
-export const FLY_DEG_FAR = Object.freeze([115, 170]);
+export const SEPARATE_TIME = 0.38;
+export const AVOID_BLEND = 0.42;
 export const WEAPON_DIR = "/icons/weapon";
 export const EMOJI_STACK = '"Noto Color Emoji","Noto Emoji","Segoe UI Emoji","Apple Color Emoji","Android Emoji","Twemoji Mozilla",sans-serif';
 
@@ -147,7 +145,7 @@ export function peelOffWall(f, nx, ny) {
   restoreCruise(f);
 }
 
-export function bounceArena(f, arena, rimHits = null) {
+export function bounceArena(f, arena, rimHits = null, other = null) {
   const dx = f.x - arena.x;
   const dy = f.y - arena.y;
   const dist = Math.hypot(dx, dy) || 0.0001;
@@ -180,6 +178,7 @@ export function bounceArena(f, arena, rimHits = null) {
     }
     rimHits[key] = seen + 1;
   }
+  if (other) avoidFighter(f, other);
   f.recoilVx = 0;
   f.recoilVy = 0;
   f.recoilT = 0;
@@ -201,12 +200,21 @@ export function tickBoost(fighter, dt) {
   }
 }
 
-export function headingUp(rad) {
-  return { x: Math.cos(rad), y: -Math.sin(rad) };
+export function clearBoost(fighter) {
+  if (fighter.boostT > 0) fighter.boostT = 0;
 }
 
-function mixDeg(range, t) {
-  return (range[0] + (range[1] - range[0]) * t) * Math.PI / 180;
+export function avoidFighter(f, other) {
+  if (!other) return f;
+  const dx = other.x - f.x;
+  const dy = other.y - f.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const closing = (f.vx * dx + f.vy * dy) / dist;
+  if (closing <= 30) return f;
+  f.vx -= (dx / dist) * cruiseSpeed(f) * AVOID_BLEND;
+  f.vy -= (dy / dist) * cruiseSpeed(f) * AVOID_BLEND;
+  restoreCruise(f);
+  return f;
 }
 
 function clampInArena(f, arena) {
@@ -227,37 +235,45 @@ export function bounceFighters(a, b, rng = Math.random, arena = null) {
   const dist = Math.hypot(dx, dy) || 0.0001;
   const min = a.r + b.r;
   const cooling = (a.separateT || 0) > 0 || (b.separateT || 0) > 0;
-  if (dist >= min + (cooling ? 12 : 0)) return false;
-  if (cooling) {
-    const push = (min + 24 - dist) * 0.5;
-    const nx = dx / dist;
-    const ny = dy / dist;
-    a.x -= nx * push;
-    a.y -= ny * push;
-    b.x += nx * push;
-    b.y += ny * push;
-    clampInArena(a, arena);
-    clampInArena(b, arena);
-    return false;
-  }
-  const base = Math.atan2(-dy, dx);
-  const angA = base + mixDeg(FLY_DEG_FAR, rng());
-  const angB = base + mixDeg(FLY_DEG_NEAR, rng());
-  const dirA = headingUp(angA);
-  const dirB = headingUp(angB);
-  const mx = (a.x + b.x) / 2;
-  const my = (a.y + b.y) / 2;
-  const leap = min + SEPARATE_GAP;
-  a.x = mx + dirA.x * leap;
-  a.y = my + dirA.y * leap;
-  b.x = mx + dirB.x * leap;
-  b.y = my + dirB.y * leap;
-  const sa = cruiseSpeed(a) * SEPARATE_MUL;
-  const sb = cruiseSpeed(b) * SEPARATE_MUL;
-  a.vx = dirA.x * sa;
-  a.vy = dirA.y * sa;
-  b.vx = dirB.x * sb;
-  b.vy = dirB.y * sb;
+  if (dist >= min) return false;
+  const nx = dx / dist;
+  const ny = dy / dist;
+  const overlap = min - dist + 8;
+  a.x -= nx * overlap * 0.5;
+  a.y -= ny * overlap * 0.5;
+  b.x += nx * overlap * 0.5;
+  b.y += ny * overlap * 0.5;
+  clampInArena(a, arena);
+  clampInArena(b, arena);
+  if (cooling) return false;
+
+  clearBoost(a);
+  clearBoost(b);
+
+  const va = a.vx * nx + a.vy * ny;
+  const vb = b.vx * nx + b.vy * ny;
+  const tax = a.vx - va * nx;
+  const tay = a.vy - va * ny;
+  const tbx = b.vx - vb * nx;
+  const tby = b.vy - vb * ny;
+  let na = vb;
+  let nb = va;
+  const minOut = START_SPEED * 0.7;
+  if (na > -minOut) na = -minOut;
+  if (nb < minOut) nb = minOut;
+  a.vx = tax * 0.78 + na * nx;
+  a.vy = tay * 0.78 + na * ny;
+  b.vx = tbx * 0.78 + nb * nx;
+  b.vy = tby * 0.78 + nb * ny;
+  const spin = (0.14 + rng() * 0.2) * (rng() < 0.5 ? -1 : 1);
+  const a2 = rotateVec(a.vx, a.vy, spin);
+  const b2 = rotateVec(b.vx, b.vy, -spin);
+  a.vx = a2.vx;
+  a.vy = a2.vy;
+  b.vx = b2.vx;
+  b.vy = b2.vy;
+  restoreCruise(a);
+  restoreCruise(b);
   a.separateT = SEPARATE_TIME;
   b.separateT = SEPARATE_TIME;
   a.recoilT = 0;
@@ -266,8 +282,6 @@ export function bounceFighters(a, b, rng = Math.random, arena = null) {
   b.recoilT = 0;
   b.recoilVx = 0;
   b.recoilVy = 0;
-  clampInArena(a, arena);
-  clampInArena(b, arena);
   return true;
 }
 
@@ -306,9 +320,9 @@ export function tickRecoil(f, dt) {
   f.recoilVy *= k;
 }
 
-export function placeOnRing(arena, rng, inset = 70) {
+export function placeOnRing(arena, rng, inset = 110) {
   const ang = rng() * Math.PI * 2;
-  const rad = inset + rng() * (arena.r - inset - 40);
+  const rad = inset + rng() * Math.max(40, arena.r - inset - 80);
   return { x: arena.x + Math.cos(ang) * rad, y: arena.y + Math.sin(ang) * rad };
 }
 
@@ -319,7 +333,7 @@ export function spawnPickup(state, rng = Math.random) {
   if (roll >= 0.16 && roll < 0.3) kind = "boost";
   else if (roll >= 0.3) kind = GUN_KINDS[Math.floor(((roll - 0.3) / 0.7) * GUN_KINDS.length)] || "pistol";
   const pos = placeOnRing(state.arena, rng);
-  const item = { kind, x: pos.x, y: pos.y, r: WEAPON_ICON_PX / 2 };
+  const item = { kind, x: pos.x, y: pos.y, r: PICKUP_PX / 2 };
   state.pickups.push(item);
   return item;
 }
@@ -484,12 +498,12 @@ export function cpuAim(state) {
   };
 }
 
-export function integrateFighter(f, dt, arena, rimHits) {
+export function integrateFighter(f, dt, arena, rimHits, other = null) {
   tickRecoil(f, dt);
   tickSeparate(f, dt);
   f.x += (f.vx + (f.recoilVx || 0)) * dt;
   f.y += (f.vy + (f.recoilVy || 0)) * dt;
-  return bounceArena(f, arena, rimHits);
+  return bounceArena(f, arena, rimHits, other);
 }
 
 export function stepMatch(state, dt, input = {}, rng = Math.random) {
@@ -498,13 +512,14 @@ export function stepMatch(state, dt, input = {}, rng = Math.random) {
   for (const f of [state.player, state.foe]) {
     f.cooldown = Math.max(0, f.cooldown - dt);
     tickBoost(f, dt);
-    const flash = integrateFighter(f, dt, state.arena, state.rimHits);
+    const other = f.id === "player" ? state.foe : state.player;
+    const flash = integrateFighter(f, dt, state.arena, state.rimHits, other);
     if (flash) state.flashes.push({ ...flash, life: 0.28, age: 0 });
     tickBurst(state, f, dt);
   }
   bounceFighters(state.player, state.foe, rng, state.arena);
-  const extraA = bounceArena(state.player, state.arena, state.rimHits);
-  const extraB = bounceArena(state.foe, state.arena, state.rimHits);
+  const extraA = bounceArena(state.player, state.arena, state.rimHits, state.foe);
+  const extraB = bounceArena(state.foe, state.arena, state.rimHits, state.player);
   if (extraA) state.flashes.push({ ...extraA, life: 0.28, age: 0 });
   if (extraB) state.flashes.push({ ...extraB, life: 0.28, age: 0 });
   state.flashes = state.flashes.filter((flash) => {
