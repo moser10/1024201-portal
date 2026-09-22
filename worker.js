@@ -90,7 +90,7 @@ async function serveStatic(request, env) {
   const lower = pathname.toLowerCase();
   if (lower.endsWith("/sw.js") || lower === "/sw.js") {
     headers.set("Cache-Control", "no-cache");
-  } else if ((lower.includes("/game/paddlemaze") || lower.includes("/game/dua") || lower.includes("/rooms")) && (lower.endsWith("/") || lower.endsWith(".html"))) {
+  } else if ((lower.includes("/game/paddlemaze") || lower.includes("/game/dua") || lower.includes("/rooms") || lower.includes("/account")) && (lower.endsWith("/") || lower.endsWith(".html"))) {
     headers.set("Cache-Control", "no-cache");
   } else if (/\.(css|js|png|jpg|jpeg|webp|svg|ico|woff2|webmanifest)$/.test(lower)) {
     headers.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");

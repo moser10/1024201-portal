@@ -1,7 +1,6 @@
 import { roomApi } from "./api.js";
 import { bindNameCheck } from "./nameCheck.js";
 import { getUser, getRoom, clearRoom } from "../../js/store.js";
-import { mountUserBar } from "../../js/userBar.js";
 import { renderTodos } from "../../js/todos.js";
 import { showToast, confirmSheet } from "../../js/toast.js";
 
@@ -111,14 +110,8 @@ export function renderPlay(app, onLeave, game) {
       </section>
     </div>`;
 
-  mountUserBar(document.getElementById("playUserBar"), {
-    variant: "game",
-    returnPath: "onesentence/",
-    onLogout: () => {
-      stopPlayTimers();
-      window.location.href = `/game/register/?return=${encodeURIComponent("onesentence/")}`;
-    },
-  });
+  const playUserBar = document.getElementById("playUserBar");
+  if (playUserBar) playUserBar.hidden = true;
 
   const renameInput = document.getElementById("renameInput");
   const renameBtn = document.getElementById("renameBtn");

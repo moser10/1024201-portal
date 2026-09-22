@@ -5,9 +5,9 @@ const LOGIN_IMG = '<img src="/icons/apps/login.svg" alt="">';
 import { getPortalLang } from "/js/langTabs.js";
 
 const TEXT = {
-  zh: { hint: "点击退出", logout: "退出登录" },
-  en: { hint: "Tap to sign out", logout: "Sign out" },
-  ja: { hint: "タップでログアウト", logout: "ログアウト" },
+  zh: { logout: "退出登录", settings: "设置" },
+  en: { logout: "Sign out", settings: "Settings" },
+  ja: { logout: "ログアウト", settings: "設定" },
 };
 
 export function getBarLang() {
@@ -66,7 +66,7 @@ export function mountUserBar(container, options = {}) {
     menuUnbind.get(container)();
     menuUnbind.delete(container);
   }
-  const { returnPath, variant = "game", onLogout, showHint = false } = options;
+  const { returnPath, variant = "game", onLogout, menu = "none" } = options;
   const lang = getBarLang();
   const t = TEXT[lang] || TEXT.zh;
   const user = getUser();
@@ -92,31 +92,34 @@ export function mountUserBar(container, options = {}) {
   nameBtn.className = "user-bar-name";
   nameBtn.innerHTML = `<span class="user-bar-handle"><span class="user-bar-at">@</span><span class="user-bar-name-text">${escapeHtml(user.username)}</span></span>`;
 
-  const hint = document.createElement("div");
-  hint.className = "user-bar-hint";
-  hint.textContent = t.hint;
+  wrap.append(nameBtn);
+  container.append(wrap);
 
-  const menu = document.createElement("div");
-  menu.className = "user-bar-menu";
+  if (menu !== "home") {
+    nameBtn.disabled = true;
+    nameBtn.style.cursor = "default";
+    return;
+  }
+
+  const pop = document.createElement("div");
+  pop.className = "user-bar-menu";
+  const settingsLink = document.createElement("a");
+  settingsLink.className = "user-bar-settings";
+  settingsLink.href = "/account/";
+  settingsLink.textContent = t.settings;
   const logoutBtn = document.createElement("button");
   logoutBtn.type = "button";
+  logoutBtn.className = "user-bar-logout";
   logoutBtn.textContent = t.logout;
-  menu.appendChild(logoutBtn);
+  pop.append(settingsLink, logoutBtn);
+  container.append(pop);
 
-  if (showHint) {
-    wrap.append(nameBtn, hint);
-  } else {
-    wrap.append(nameBtn);
-  }
-  container.append(wrap, menu);
-
-  const triggers = showHint ? [nameBtn, hint] : [nameBtn];
-  const unbind = bindMenuToggle(container, menu, triggers);
+  const unbind = bindMenuToggle(container, pop, [nameBtn]);
   menuUnbind.set(container, unbind);
 
   logoutBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    menu.classList.remove("is-open");
+    pop.classList.remove("is-open");
     clearRoom();
     clearUser();
     if (onLogout) onLogout();

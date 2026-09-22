@@ -10,6 +10,10 @@ ALTER TABLE users ADD COLUMN temp_password_expires TEXT;
 ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE users ADD COLUMN email_verify_token TEXT;
 ALTER TABLE users ADD COLUMN email_verify_expires TEXT;
+ALTER TABLE users ADD COLUMN email_change_to TEXT;
+ALTER TABLE users ADD COLUMN email_change_code TEXT;
+ALTER TABLE users ADD COLUMN email_change_expires TEXT;
+ALTER TABLE users ADD COLUMN email_change_attempts INTEGER NOT NULL DEFAULT 0;
 
 -- stories
 ALTER TABLE stories ADD COLUMN game_id TEXT NOT NULL DEFAULT 'osn';

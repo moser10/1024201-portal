@@ -1,0 +1,36 @@
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.account-form h2 {
+  margin: 0;
+  font-size: 15px;
+  color: #2B3054;
+}
+.account-form label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2B3054;
+}
+.account-form input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #d8d2c8;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #f7f4ef;
+  font-size: 16px;
+}
+.account-now {
+  margin: 0;
+  font-size: 13px;
+  color: #8e8e93;
+}
+.account-msg {
+  margin: 0;
+  font-size: 13px;
+  color: #2B3054;
+}
+.account-msg.is-err { color: #E07A3D; }

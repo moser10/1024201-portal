@@ -1,7 +1,6 @@
 import { roomApi } from "./api.js";
 import { bindNameCheck } from "./nameCheck.js";
 import { getUser, setRoom, clearRoom } from "../../js/store.js";
-import { mountUserBar } from "../../js/userBar.js";
 import { mountLangTabs } from "/js/langTabs.js";
 import { renderTodos } from "../../js/todos.js";
 import { showToast } from "../../js/toast.js";
@@ -72,15 +71,8 @@ export function renderLobby(app, onEnterRoom, game) {
     </div>`;
 
   mountLangTabs(document.getElementById("lobbyLangSlot"));
-  mountUserBar(document.getElementById("lobbyUserBar"), {
-    variant: "game",
-    returnPath: "onesentence/",
-    onLogout: () => {
-      lobbyDisposed = true;
-      clearInterval(todoTimer);
-      window.location.href = "/game/register/";
-    },
-  });
+  const lobbyUserBar = document.getElementById("lobbyUserBar");
+  if (lobbyUserBar) lobbyUserBar.hidden = true;
 
   document.getElementById("leaveLobbyBtn").onclick = () => {
     clearInterval(todoTimer);

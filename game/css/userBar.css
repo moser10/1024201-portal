@@ -111,6 +111,7 @@
   display: block;
   pointer-events: auto;
 }
+.user-bar-menu a,
 .user-bar-menu button {
   display: block;
   width: 100%;
@@ -120,6 +121,10 @@
   text-align: left;
   cursor: pointer;
   font-size: 14px;
-  color: #ff3b30;
+  text-decoration: none;
+  box-sizing: border-box;
 }
+.user-bar-menu .user-bar-settings { color: #2B3054; font-weight: 600; }
+.user-bar-menu .user-bar-logout { color: #ff3b30; }
+.user-bar-menu a:hover,
 .user-bar-menu button:hover { background: #f2f2f7; }

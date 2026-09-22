@@ -37,7 +37,7 @@ const LOGIN_IMG = '<img src="/icons/apps/login.svg" alt="">';
  */
 export function mountAccountChrome(container, options = {}) {
   if (!container) return;
-  const { variant = "game", returnPath, onLogout, onLangChange, active, layout } = options;
+  const { variant = "game", returnPath, onLogout, onLangChange, active, layout, account = "lang" } = options;
   const user = getUser();
 
   const signedIn = !!user;
@@ -45,6 +45,19 @@ export function mountAccountChrome(container, options = {}) {
     signedIn ? "account-chrome--signed" : "account-chrome--guest"
   }`;
   container.replaceChildren();
+
+  if (signedIn && account === "lang") {
+    const langWrap = document.createElement("div");
+    langWrap.className = "account-chrome-lang-wrap";
+    container.appendChild(langWrap);
+    mountLangTabs(langWrap, {
+      active,
+      layout: "horizontal",
+      onChange: onLangChange,
+    });
+    watchLayout(container);
+    return;
+  }
 
   if (!signedIn) {
     const group = document.createElement("div");

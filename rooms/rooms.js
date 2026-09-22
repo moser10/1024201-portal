@@ -1,5 +1,5 @@
 import { getPortalLang } from "/js/langTabs.js";
-import { mountAccountChrome } from "/js/accountChrome.js";
+import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getUser, requireAuth } from "/game/js/store.js";
 import { applyNavBack, setNavBack } from "/js/navBack.js?v=1";
 import { roomsCopy } from "./copy.js?v=2";

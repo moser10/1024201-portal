@@ -1,6 +1,6 @@
 import { setUser } from "../js/store.js";
 import { bindNameCheck } from "../onesentence/js/nameCheck.js";
-import { mountAccountChrome } from "/js/accountChrome.js";
+import { mountAccountChrome } from "/js/accountChrome.js?v=3";
 import { getPortalLang } from "/js/langTabs.js";
 
 const API = "";

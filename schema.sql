@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified INTEGER NOT NULL DEFAULT 1,
   email_verify_token TEXT,
   email_verify_expires TEXT,
+  email_change_to TEXT,
+  email_change_code TEXT,
+  email_change_expires TEXT,
+  email_change_attempts INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
