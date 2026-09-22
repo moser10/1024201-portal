@@ -49,7 +49,7 @@ const SHELL = [
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
   "/icons/favicon-32.png",
-  "/icons/weapon/glock.png",
+  "/icons/weapon/pistol.png",
   "/icons/weapon/ak.png",
   "/icons/weapon/rpg.png",
   "/icons/weapon/sg.png",

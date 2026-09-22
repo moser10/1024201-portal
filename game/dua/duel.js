@@ -28,7 +28,7 @@ export const WEAPONS = Object.freeze({
   pistol: Object.freeze({
     speed: 540, damage: 1, cooldown: 0.32, life: 1.2, r: 5,
     shots: 5, burst: 1, spread: 0, knock: 240, emoji: "🔫", file: "glock",
-    icon: `${WEAPON_DIR}/glock.png`, svg: `${WEAPON_DIR}/glock.svg`,
+    icon: `${WEAPON_DIR}/pistol.png`, svg: `${WEAPON_DIR}/glock.svg`,
   }),
   ak: Object.freeze({
     speed: 580, damage: 1, cooldown: 0.9, life: 1.05, r: 4,

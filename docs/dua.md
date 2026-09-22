@@ -26,7 +26,7 @@
 - 碰到圆周必须弹离圈心方向，**不能贴边滑、也不能贴边连弹**。
 - 中枪有短后坐力，结束后速度回到原来的巡航速度。
 - 双方碰到立刻离开原位，一人约 30–80°、另一人约 115–170° 加速飞开，短时间不再贴在一起。
-- 场上道具图统一用 `/icons/weapon/` 原创图：`glock.png` 手枪、`ak.png`、`rpg.png`、`sg.png` 霰弹、`knife.png`、`heart.png` 血、`boost.png` 加速。
+- 场上道具图统一用 `/icons/weapon/` 原创图：`pistol.png` 手枪（原稿 glock）、`ak.png`、`rpg.png`、`sg.png` 霰弹、`knife.png`、`heart.png` 血、`boost.png` 加速。
 - 游戏页只留标题 DUA，不要副标题。
 - 松手开火会短时记住；若松开时刚捡到枪，仍会打出，不再空放一次。
 - 顶栏两排心：玩家 10、CPU 10。到 0 落败。
