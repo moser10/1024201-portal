@@ -25,7 +25,7 @@ const GAMES = [
     title: { zh: "对圈", en: "Dua", ja: "デュエル円" },
     fullName: "Dua Circle",
     href: "dua/",
-    gradient: "linear-gradient(135deg, #ff453a 0%, #ffd60a 62%, #1c1c1e 100%)",
+    gradient: "linear-gradient(160deg, #64d2ff 0%, #00c7be 48%, #0040c7 100%)",
   },
 ];
 

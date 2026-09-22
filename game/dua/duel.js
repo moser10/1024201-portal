@@ -7,6 +7,7 @@ export const START_SPEED = 252;
 export const BOOST_MUL = 1.85;
 export const BOOST_TIME = 5.2;
 export const RIM_DRIFT = 5 * Math.PI / 180;
+export const MIN_INWARD = 155;
 export const EMOJI_STACK = '"Noto Color Emoji","Noto Emoji","Segoe UI Emoji","Apple Color Emoji","Android Emoji","Twemoji Mozilla",sans-serif';
 
 export const AVATARS = Object.freeze([
@@ -93,6 +94,15 @@ export function rotateVec(vx, vy, rad) {
   return { vx: vx * c - vy * s, vy: vx * s + vy * c };
 }
 
+export function peelOffWall(f, nx, ny) {
+  const inward = -(f.vx * nx + f.vy * ny);
+  if (inward < MIN_INWARD) {
+    const add = MIN_INWARD - inward;
+    f.vx -= add * nx;
+    f.vy -= add * ny;
+  }
+}
+
 export function bounceArena(f, arena, rimHits = null) {
   const dx = f.x - arena.x;
   const dy = f.y - arena.y;
@@ -101,8 +111,8 @@ export function bounceArena(f, arena, rimHits = null) {
   if (dist <= max) return null;
   const nx = dx / dist;
   const ny = dy / dist;
-  f.x = arena.x + nx * max;
-  f.y = arena.y + ny * max;
+  f.x = arena.x + nx * (max - 3);
+  f.y = arena.y + ny * (max - 3);
   const dot = f.vx * nx + f.vy * ny;
   if (dot > 0) {
     f.vx -= 2 * dot * nx;
@@ -114,13 +124,14 @@ export function bounceArena(f, arena, rimHits = null) {
     const drift = (seen % 4) * RIM_DRIFT;
     if (drift) {
       const spun = rotateVec(f.vx, f.vy, drift);
-      if (spun.vx * nx + spun.vy * ny < 0) {
+      if (spun.vx * nx + spun.vy * ny <= 0) {
         f.vx = spun.vx;
         f.vy = spun.vy;
       }
     }
     rimHits[key] = seen + 1;
   }
+  peelOffWall(f, nx, ny);
   return { x: f.x, y: f.y, nx, ny, id: f.id };
 }
 
@@ -380,7 +391,7 @@ export function stepMatch(state, dt, input = {}, rng = Math.random) {
   collectPickups(state.player, state.pickups);
   collectPickups(state.foe, state.pickups);
 
-  if (input.fire && input.aimX != null) {
+  if ((input.fire || input.queuedFire) && input.aimX != null) {
     triggerWeapon(state, state.player, input.aimX, input.aimY);
   }
   const cpu = cpuAim(state);

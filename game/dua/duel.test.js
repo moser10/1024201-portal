@@ -10,6 +10,7 @@ import {
   WEAPONS,
   BOOST_MUL,
   START_SPEED,
+  MIN_INWARD,
   applyBoost,
   armWeapon,
   bounceArena,
@@ -139,6 +140,20 @@ test("aim hint exists in the three portal languages", () => {
   assert.match(spec, /正圆|纯圆/);
 });
 
+test("grazing the rim must bounce inward instead of sliding around", () => {
+  const match = createMatch();
+  const f = match.player;
+  f.x = match.arena.x + match.arena.r;
+  f.y = match.arena.y;
+  f.vx = 0;
+  f.vy = 180;
+  bounceArena(f, match.arena, match.rimHits);
+  const nx = 1;
+  const inward = -(f.vx * nx + f.vy * 0);
+  assert.ok(inward >= MIN_INWARD - 0.01, `inward=${inward}`);
+  assert.ok(f.x < match.arena.x + match.arena.r - f.r);
+});
+
 test("boost pickup makes a fighter extra fast", () => {
   const match = createMatch();
   match.player.vx = START_SPEED;
@@ -146,6 +161,14 @@ test("boost pickup makes a fighter extra fast", () => {
   applyBoost(match.player);
   assert.ok(Math.abs(match.player.vx - START_SPEED * BOOST_MUL) < 0.01);
   assert.ok(match.player.boostT > 0);
+});
+
+test("queued fire shoots once a weapon is collected", () => {
+  const match = createMatch();
+  match.pickups.push({ kind: "pistol", x: match.player.x, y: match.player.y, r: 20 });
+  stepMatch(match, 0.016, { fire: false, queuedFire: true, aimX: match.foe.x, aimY: match.foe.y }, () => 0.9);
+  assert.equal(match.player.weapon, "pistol");
+  assert.ok(match.shots.length >= 1);
 });
 
 test("a second hit on the same rim bin drifts about five degrees", () => {

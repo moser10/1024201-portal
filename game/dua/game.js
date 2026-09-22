@@ -1,4 +1,4 @@
-import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=4";
+import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=5";
 import { duaCopy } from "./copy.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
 
@@ -39,6 +39,7 @@ let aiming = false;
 let aimX = match.foe.x;
 let aimY = match.foe.y;
 let fireOnce = false;
+let fireQueue = 0;
 let overlayMode = "pick";
 
 function heartsRow(count, glyph) {
@@ -124,6 +125,7 @@ function resetMatch() {
   aimX = match.foe.x;
   aimY = match.foe.y;
   fireOnce = false;
+  fireQueue = 0;
   aiming = false;
   setKnob(0, 0);
   syncHud();
@@ -221,10 +223,16 @@ function draw() {
 function update(dt) {
   const over = stepMatch(match, dt, {
     fire: fireOnce,
+    queuedFire: fireQueue > 0,
     aimX,
     aimY,
   });
+  if (fireOnce || fireQueue > 0) {
+    if (!canFire(match.player) && match.player.weapon) fireQueue = 0;
+    else if (match.player.cooldown > 0) fireQueue = 0;
+  }
   fireOnce = false;
+  if (fireQueue > 0) fireQueue -= dt;
   syncHud();
   if (over) {
     running = false;
@@ -286,7 +294,9 @@ function releaseStick() {
   if (!aiming) return;
   aiming = false;
   setKnob(0, 0);
-  if (running && !paused && canFire(match.player)) fireOnce = true;
+  if (!running || paused) return;
+  if (canFire(match.player)) fireOnce = true;
+  else fireQueue = 0.45;
 }
 stick.addEventListener("pointerup", releaseStick);
 stick.addEventListener("pointercancel", releaseStick);
