@@ -27,6 +27,7 @@ export async function ensureOpenRoomSchema(db) {
         username TEXT NOT NULL,
         last_seen TEXT NOT NULL DEFAULT (datetime('now')),
         ready INTEGER NOT NULL DEFAULT 0,
+        practice INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (room_id, user_id)
       )`
     )
@@ -46,6 +47,7 @@ export async function ensureOpenRoomSchema(db) {
   await addCol(db, "open_rooms", "started_at", "ALTER TABLE open_rooms ADD COLUMN started_at TEXT");
   await addCol(db, "open_rooms", "called_at", "ALTER TABLE open_rooms ADD COLUMN called_at TEXT");
   await addCol(db, "open_room_seats", "ready", "ALTER TABLE open_room_seats ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
+  await addCol(db, "open_room_seats", "practice", "ALTER TABLE open_room_seats ADD COLUMN practice INTEGER NOT NULL DEFAULT 0");
   primed = true;
 }
 

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { ROOMS_COPY, roomsCopy } from "./copy.js";
 
 test("rooms tile labels stay distinct in the three portal languages", () => {
@@ -30,4 +31,13 @@ test("rooms tile labels stay distinct in the three portal languages", () => {
   assert.equal(roomsCopy("en").unready, "Unready");
   assert.equal(roomsCopy("ja").unready, "準備解除");
   assert.equal(roomsCopy("zh").call, "呼叫");
+});
+
+test("room chat syncs faster than the old 8s heartbeat and uses practice 0/1", () => {
+  const js = readFileSync(new URL("./rooms.js", import.meta.url), "utf8");
+  assert.match(js, /setInterval\(tick, 700\)/);
+  assert.match(js, /practice: 1/);
+  assert.match(js, /practice: 0/);
+  assert.match(js, /action === "sync"/);
+  assert.match(js, /is-away/);
 });

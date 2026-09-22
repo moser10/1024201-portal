@@ -1,6 +1,6 @@
 import { corsHeaders, json, requireDb, generateUniqueName, ensureAppSchema, issueCliToken, verifyCliToken, revokeCliToken } from "./_shared.js";
 import { hashPassword, verifyPassword, randomPassword, randomVerifyCode, randomCliVerifyCode } from "./_crypto.js";
-import { SYSTEM_MAIL_FROM } from "./_mail.js";
+import { sendSystemMail } from "./_mail.js";
 import { parseUsername, parseNewEmail, parsePasswordPair } from "./authAccount.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,21 +92,7 @@ async function completePendingRegistration(db, pending) {
 }
 
 async function sendMail(env, to, subject, html) {
-  if (!env.RESEND_API_KEY) {
-    throw new Error("邮件服务未配置（RESEND_API_KEY）。请在 Cloudflare → Workers → 1024201-portal → Settings → Variables 添加 Secret。");
-  }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: SYSTEM_MAIL_FROM, to, subject, html }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`邮件发送失败 (${res.status})${detail ? `: ${detail.slice(0, 120)}` : ""}`);
-  }
+  return sendSystemMail(env, to, subject, html);
 }
 
 function publicUser(row) {
@@ -180,6 +166,22 @@ export async function onRequest(context) {
 
   try {
     const db = requireDb(env);
+
+    if (request.method === "GET" && action === "me") {
+      const id = Number(url.searchParams.get("user_id") || 0);
+      if (!id) return json({ error: "account_gone" }, 401);
+      try {
+        const row = await db.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+        if (!row) return json({ error: "account_gone" }, 401);
+        return json({ ok: true });
+      } catch {
+        await ensureAppSchema(db);
+        const row = await db.prepare("SELECT id FROM users WHERE id = ?").bind(id).first();
+        if (!row) return json({ error: "account_gone" }, 401);
+        return json({ ok: true });
+      }
+    }
+
     await ensureAppSchema(db);
 
     if (request.method === "GET" && action === "verify") {

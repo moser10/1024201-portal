@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeRoomCode, parseCreate, canJoin, canReady, canStart, canCall, callIsLive, sanitizeMsg, publicRoom, chatFate, CODE_ALPHABET } from "./openroomLogic.js";
+import { makeRoomCode, parseCreate, canJoin, canReady, canStart, canCall, callingActive, sanitizeMsg, publicRoom, chatFate, CODE_ALPHABET } from "./openroomLogic.js";
 
 test("room codes stay in the readable alphabet", () => {
   for (let i = 0; i < 20; i++) {
@@ -37,8 +37,11 @@ test("dua rooms can ready; only the host starts", () => {
   assert.equal(canStart({ room: dua, userId: 1 }).ok, true);
   assert.equal(canCall(dua).ok, true);
   assert.equal(canCall({ ...dua, kind: "chat" }).error, "kind");
-  assert.equal(callIsLive(new Date().toISOString()), true);
-  assert.equal(callIsLive(new Date(Date.now() - 200_000).toISOString()), false);
+  assert.equal(callingActive("now", [{ practice: 1 }]), true);
+  assert.equal(callingActive("now", [{ practice: 0 }]), false);
+  assert.equal(callingActive(null, [{ practice: 1 }]), false);
+  const live = publicRoom({ id: "AB12", kind: "dua", title: "x", host_id: 1, called_at: "t" }, 1, Date.now(), [{ practice: 1 }]);
+  assert.equal(live.called, true);
 });
 
 test("leave keeps chat; close wipes it for game and chat rooms", () => {

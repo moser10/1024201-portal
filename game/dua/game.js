@@ -109,10 +109,11 @@ async function pulsePracticeRoom() {
     const res = await fetch("/api/openroom?action=heartbeat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ room_id: spec.roomId, user_id: user.id }),
+      body: JSON.stringify({ room_id: spec.roomId, user_id: user.id, practice: 1 }),
     });
     const data = await res.json().catch(() => ({}));
-    if (data.room?.called) showCallBanner(true);
+    if (res.status === 401) return;
+    showCallBanner(Boolean(data.room?.called));
   } catch {
     /* stay in practice */
   }
@@ -510,11 +511,22 @@ window.addEventListener("storage", (e) => {
 });
 
 roomCall?.addEventListener("click", () => {
+  const spec = roomNav();
+  const user = getUser();
+  if (spec?.roomId && user?.id) {
+    fetch("/api/openroom?action=presence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ room_id: spec.roomId, user_id: user.id, practice: 0 }),
+      keepalive: true,
+    }).catch(() => {});
+  }
+  showCallBanner(false);
   location.href = "/rooms/";
 });
 if (roomNav()?.mode === "practice") {
   pulsePracticeRoom();
-  setInterval(pulsePracticeRoom, 4000);
+  setInterval(pulsePracticeRoom, 1200);
 }
 
 startBtn.disabled = true;

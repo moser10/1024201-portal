@@ -1,8 +1,8 @@
 import { getPortalLang } from "/js/langTabs.js";
-import { mountAccountChrome } from "/js/accountChrome.js?v=4";
-import { getUser, requireAuth } from "/game/js/store.js";
+import { mountAccountChrome } from "/js/accountChrome.js?v=5";
+import { getUser, requireAuth, forceLogout } from "/game/js/store.js";
 import { applyNavBack, setNavBack, roomReturnId } from "/js/navBack.js?v=5";
-import { roomsCopy } from "./copy.js?v=8";
+import { roomsCopy } from "./copy.js?v=9";
 import { showPortalModal, hidePortalModal } from "/js/portalModal.js?v=1";
 
 const root = document.getElementById("roomsRoot");
@@ -16,6 +16,7 @@ let kind = "dua";
 let view = "lobby";
 let current = null;
 let pulse = 0;
+let beat = 0;
 let askingClose = false;
 const lastList = { dua: null, chat: null };
 let listPaintKey = "";
@@ -23,6 +24,8 @@ let imeLock = false;
 let pendingInside = null;
 const inflightList = { dua: null, chat: null };
 let listEpoch = 0;
+const localPractice = new Map();
+const ROOM_DOC = "portal_open_room_doc:";
 
 function esc(s) {
   return String(s ?? "")
@@ -34,17 +37,25 @@ function esc(s) {
 
 async function api(action, body) {
   const user = getUser();
-  const isList = action === "list";
-  const url = isList
-    ? `/api/openroom?action=list&kind=${encodeURIComponent(kind)}`
-    : `/api/openroom?action=${encodeURIComponent(action)}`;
-  const res = await fetch(url, {
-    method: isList ? "GET" : "POST",
+  const isGet = action === "list" || action === "get" || action === "sync";
+  const qs = new URLSearchParams({ action });
+  if (action === "list") qs.set("kind", kind);
+  if (isGet && action !== "list") {
+    if (user?.id) qs.set("user_id", String(user.id));
+    if (body?.room_id) qs.set("room_id", String(body.room_id));
+    if (body?.since != null) qs.set("since", String(body.since));
+  }
+  const res = await fetch(`/api/openroom?${qs}`, {
+    method: isGet ? "GET" : "POST",
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
-    body: isList ? undefined : JSON.stringify({ ...(body || {}), user_id: user?.id }),
+    body: isGet ? undefined : JSON.stringify({ ...(body || {}), user_id: user?.id }),
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && data.error === "account_gone") {
+    forceLogout();
+    throw Object.assign(new Error(data.error), { code: data.error, status: res.status });
+  }
   if (!res.ok) throw Object.assign(new Error(data.error || "fail"), { code: data.error, status: res.status });
   return data;
 }
@@ -137,6 +148,43 @@ function fillRoomList(list, error = "") {
   listPaintKey = key;
   box.innerHTML = paintList(list);
   bindLobbyJoins();
+}
+
+function writeRoomDoc(data) {
+  if (!data?.room?.id) return;
+  try {
+    sessionStorage.setItem(ROOM_DOC + data.room.id, JSON.stringify(data));
+  } catch {
+    /* ignore */
+  }
+}
+
+function readRoomDoc(id) {
+  try {
+    const raw = sessionStorage.getItem(ROOM_DOC + id);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function mergeSeats(seats) {
+  return (seats || []).map((s) => {
+    const id = Number(s.user_id);
+    const local = localPractice.has(id) ? localPractice.get(id) : null;
+    const practice = local == null ? Number(s.practice) === 1 : local === 1;
+    if (local != null && Number(s.practice) === local) localPractice.delete(id);
+    return { ...s, practice: practice ? 1 : 0 };
+  });
+}
+
+function seatAway(s) {
+  return Number(s.practice) === 1;
+}
+
+function roomIsCalled(data) {
+  const seats = mergeSeats(data?.seats || []);
+  return Boolean(data?.room?.called_at || data?.room?.called) && seats.some(seatAway);
 }
 
 function dropFromCache(id) {
@@ -265,24 +313,35 @@ async function tryJoin(id, needPin) {
   if (needPin) {
     pin = window.prompt(copy.needPin, "") || "";
   }
+  const cached = readRoomDoc(id);
+  const stub = (readCachedList(kind) || []).find((r) => String(r.id) === String(id));
+  if (cached?.room) openInside(cached, { wait: true });
+  else if (stub) {
+    openInside({ room: { ...stub, member: true, called: false }, seats: [], messages: [] }, { wait: true });
+  }
   try {
     const data = await api("join", { room_id: id, pin });
+    writeRoomDoc(data);
     openInside(data);
   } catch (err) {
     loadLobby(err.code);
   }
 }
 
-function openInside(data) {
+function openInside(data, { wait = false } = {}) {
   current = data;
+  writeRoomDoc(data);
   setNavBack({ type: "rooms" });
   history.replaceState(null, "", "/rooms/");
   renderInside(data);
-  startPulse();
+  if (!wait) {
+    api("presence", { room_id: data.room.id, practice: 0 }).catch(() => {});
+    startPulse();
+  }
 }
 
 function seatsHtml(seats) {
-  return (seats || []).map((s) => `<span class="seat-chip">@${esc(s.username)}${s.ready ? " ✓" : ""}</span>`).join("");
+  return mergeSeats(seats).map((s) => `<span class="seat-chip${seatAway(s) ? " is-away" : ""}">@${esc(s.username)}${s.ready ? " ✓" : ""}</span>`).join("");
 }
 
 function msgsHtml(msgs) {
@@ -317,11 +376,21 @@ function bindSayBox() {
     if (imeLock || e.isComposing) return;
     const text = box.value;
     if (!text.trim()) return;
+    const mine = getUser();
+    const optimistic = {
+      id: `local-${Date.now()}`,
+      username: mine?.username || "",
+      text,
+    };
+    const prev = current?.messages || [];
+    box.value = "";
+    patchInside({ ...current, messages: [...prev, optimistic] });
     try {
       current = await api("say", { room_id: current.room.id, text });
-      box.value = "";
+      writeRoomDoc(current);
       patchInside(current);
     } catch (err) {
+      box.value = text;
       if (err.code === "closed") showRoomsLobby();
     }
   });
@@ -334,16 +403,17 @@ function patchInside(data) {
     current = data;
     return;
   }
-  current = data;
-  const room = data.room;
-  const seats = data.seats || [];
+  const seats = mergeSeats(data.seats || current?.seats || []);
+  const called = roomIsCalled({ room: data.room, seats });
+  current = { ...data, seats, room: { ...data.room, called } };
+  writeRoomDoc(current);
   const titleEl = root.querySelector(".rooms-title");
-  if (titleEl) titleEl.textContent = room.title;
+  if (titleEl) titleEl.textContent = data.room.title;
   const seatsEl = root.querySelector(".seat-list");
   if (seatsEl) seatsEl.innerHTML = seatsHtml(seats);
   const msgsEl = root.querySelector(".msg-list");
-  if (msgsEl) {
-    const key = (data.messages || []).map((m) => m.id).join(",");
+  if (msgsEl && Array.isArray(data.messages)) {
+    const key = data.messages.map((m) => m.id).join(",");
     if (msgsEl.dataset.key !== key) {
       msgsEl.dataset.key = key;
       msgsEl.innerHTML = msgsHtml(data.messages);
@@ -352,21 +422,22 @@ function patchInside(data) {
   const readyBtn = document.getElementById("readyBtn");
   if (readyBtn) readyBtn.textContent = mineReady(seats) ? copy.unready : copy.ready;
   const callBtn = document.getElementById("callBtn");
-  if (callBtn) callBtn.textContent = room.called ? copy.called : copy.call;
+  if (callBtn) callBtn.textContent = called ? copy.called : copy.call;
   const note = root.querySelector(".rooms-call-note");
-  if (room.called && !note) {
+  if (called && !note) {
     const actions = root.querySelector(".rooms-practice");
     actions?.insertAdjacentHTML("beforebegin", `<p class="rooms-note rooms-call-note">${esc(copy.callNote)}</p>`);
-  } else if (!room.called && note) {
+  } else if (!called && note) {
     note.remove();
   }
 }
 
 function renderInside(data) {
   view = "inside";
-  current = data;
-  const room = data.room;
-  const seats = data.seats || [];
+  const seats = mergeSeats(data.seats || []);
+  const called = roomIsCalled({ room: data.room, seats });
+  current = { ...data, seats, room: { ...data.room, called } };
+  const room = current.room;
   const msgs = data.messages || [];
   const msgKey = msgs.map((m) => m.id).join(",");
   root.innerHTML = `
@@ -408,8 +479,14 @@ function renderInside(data) {
       if (err.code === "closed") showRoomsLobby();
     }
   });
-  document.getElementById("practiceDua")?.addEventListener("click", () => goDua(room, "practice"));
-  document.getElementById("enterDua")?.addEventListener("click", () => goDua(room, "online"));
+  document.getElementById("practiceDua")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    goDua(room, "practice");
+  });
+  document.getElementById("enterDua")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    goDua(room, "online");
+  });
   document.getElementById("callBtn")?.addEventListener("click", async () => {
     try {
       current = await api("call", { room_id: room.id });
@@ -422,7 +499,15 @@ function renderInside(data) {
 }
 
 function goDua(room, mode = "practice") {
+  stopPulse();
+  const uid = Number(getUser()?.id);
+  if (mode === "practice" && uid) {
+    localPractice.set(uid, 1);
+    if (current) patchInside(current);
+    api("presence", { room_id: room.id, practice: 1 }).catch(() => {});
+  }
   setNavBack({ type: "room", roomId: room.id, roomTitle: room.title, mode });
+  location.assign("/game/dua/");
 }
 
 function paintCloseAsk() {
@@ -476,22 +561,54 @@ function showRoomsLobby() {
   paintBack();
 }
 
+function lastServerMsgId(msgs) {
+  return (msgs || []).reduce((max, m) => {
+    const n = Number(m.id);
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 0);
+}
+
+function mergeIncomingMessages(prev, incoming, since) {
+  if (!since) return incoming || prev || [];
+  const have = new Set((prev || []).map((m) => String(m.id)));
+  const extra = (incoming || []).filter((m) => !have.has(String(m.id)));
+  const kept = (prev || []).filter((m) => !String(m.id).startsWith("local-"));
+  return extra.length ? [...kept, ...extra] : kept;
+}
+
 function startPulse() {
   stopPulse();
-  pulse = setInterval(async () => {
+  const tick = async () => {
     if (!current?.room?.id) return;
     try {
-      const data = await api("heartbeat", { room_id: current.room.id });
-      if (view === "inside" && !askingClose) patchInside(data);
+      const since = lastServerMsgId(current.messages);
+      const data = await api("sync", { room_id: current.room.id, since });
+      if (view !== "inside" || askingClose) return;
+      patchInside({
+        ...data,
+        messages: mergeIncomingMessages(current.messages, data.messages, since),
+      });
     } catch (err) {
       if (err.code === "closed" || err.code === "member") showRoomsLobby();
     }
-  }, 8000);
+  };
+  tick();
+  pulse = setInterval(tick, 700);
+  beat = setInterval(async () => {
+    if (!current?.room?.id) return;
+    try {
+      await api("heartbeat", { room_id: current.room.id, practice: 0 });
+    } catch {
+      /* sync tick handles closed */
+    }
+  }, 12000);
 }
 
 function stopPulse() {
   if (pulse) clearInterval(pulse);
+  if (beat) clearInterval(beat);
   pulse = 0;
+  beat = 0;
 }
 
 if (!requireAuth("rooms/")) {

@@ -140,6 +140,11 @@
   font-weight: 700;
 }
 
+.seat-chip.is-away {
+  background: #c7c7cc;
+  color: #636366;
+}
+
 .msg-list {
   min-height: 140px;
   max-height: 220px;

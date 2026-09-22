@@ -62,15 +62,12 @@ export function canJoin({ room, seats, pin, userId }) {
   return { ok: true };
 }
 
-export const CALL_WINDOW_MS = 90_000;
-
-export function callIsLive(calledAt, now = Date.now(), windowMs = CALL_WINDOW_MS) {
-  const t = Date.parse(calledAt);
-  if (!Number.isFinite(t)) return false;
-  return now - t <= windowMs;
+export function callingActive(calledAt, seats) {
+  if (!calledAt) return false;
+  return (seats || []).some((s) => Number(s.practice) === 1);
 }
 
-export function publicRoom(row, seatCount, now = Date.now()) {
+export function publicRoom(row, seatCount, _now = Date.now(), seats = row?._seats) {
   return {
     id: row.id,
     kind: row.kind,
@@ -83,7 +80,7 @@ export function publicRoom(row, seatCount, now = Date.now()) {
     created_at: row.created_at,
     started: Boolean(row.started_at),
     called_at: row.called_at || null,
-    called: callIsLive(row.called_at, now),
+    called: callingActive(row.called_at, seats),
   };
 }
 

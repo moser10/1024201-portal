@@ -1,6 +1,6 @@
 import { mountLangTabs } from "./langTabs.js";
 import { prefersStackedChrome } from "./device.js";
-import { getUser } from "/game/js/store.js";
+import { getUser, watchAccountAlive } from "/game/js/store.js";
 import { mountUserBar } from "/game/js/userBar.js";
 
 const roMap = new WeakMap();
@@ -44,6 +44,7 @@ export function mountAccountChrome(container, options = {}) {
   if (!container) return;
   const { variant = "game", returnPath, onLogout, onLangChange, active, layout, account = "lang" } = options;
   const user = getUser();
+  if (user?.id) watchAccountAlive();
 
   const signedIn = !!user;
   container.className = `account-chrome account-chrome--${variant} ${

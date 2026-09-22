@@ -1,6 +1,6 @@
-import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
+import { corsHeaders, json, requireDb } from "./_shared.js";
 import { ensureOpenRoomSchema } from "./openroomSchema.js";
-import { parseCreate, canJoin, canReady, canStart, canCall, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat } from "./openroomLogic.js";
+import { parseCreate, canJoin, canReady, canStart, canCall, publicRoom, sanitizeMsg, makeRoomCode, callingActive } from "./openroomLogic.js";
 
 function liveJson(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -34,39 +34,54 @@ async function requireUser(db, userId) {
   return db.prepare("SELECT id, username FROM users WHERE id = ?").bind(id).first();
 }
 
+function gone() {
+  return json({ error: "account_gone" }, 401);
+}
+
 async function pruneSeats(db, roomId) {
-  const { results } = await db
-    .prepare("SELECT user_id, last_seen FROM open_room_seats WHERE room_id = ?")
+  await db
+    .prepare("DELETE FROM open_room_seats WHERE room_id = ? AND last_seen < datetime('now', '-180 seconds')")
     .bind(roomId)
-    .all();
-  for (const row of results || []) {
-    if (!isFreshSeat(row.last_seen)) {
-      await db.prepare("DELETE FROM open_room_seats WHERE room_id = ? AND user_id = ?").bind(roomId, row.user_id).run();
-    }
-  }
+    .run();
 }
 
 async function loadSeats(db, roomId) {
   const { results } = await db
-    .prepare("SELECT user_id, username, last_seen, ready FROM open_room_seats WHERE room_id = ? ORDER BY last_seen ASC")
+    .prepare(
+      `SELECT user_id, username, last_seen, ready, practice
+       FROM open_room_seats WHERE room_id = ? ORDER BY last_seen ASC`
+    )
     .bind(roomId)
     .all();
-  return (results || []).filter((row) => isFreshSeat(row.last_seen));
+  return results || [];
 }
 
 async function loadRoom(db, roomId) {
   return db.prepare("SELECT * FROM open_rooms WHERE id = ?").bind(String(roomId || "").toUpperCase()).first();
 }
 
-async function sit(db, roomId, user) {
+async function sit(db, roomId, user, { practice } = {}) {
   await db
     .prepare(
-      `INSERT INTO open_room_seats (room_id, user_id, username, last_seen, ready)
-       VALUES (?, ?, ?, datetime('now'), 0)
+      `INSERT INTO open_room_seats (room_id, user_id, username, last_seen, ready, practice)
+       VALUES (?, ?, ?, datetime('now'), 0, 0)
        ON CONFLICT(room_id, user_id) DO UPDATE SET username = excluded.username, last_seen = datetime('now')`
     )
     .bind(roomId, user.id, user.username)
     .run();
+  if (practice === 0 || practice === 1) {
+    await db
+      .prepare("UPDATE open_room_seats SET practice = ?, last_seen = datetime('now') WHERE room_id = ? AND user_id = ?")
+      .bind(practice, roomId, user.id)
+      .run();
+  }
+}
+
+async function maybeClearCall(db, room, seats) {
+  if (!room?.called_at) return room;
+  if (callingActive(room.called_at, seats)) return room;
+  await db.prepare("UPDATE open_rooms SET called_at = NULL WHERE id = ?").bind(room.id).run();
+  return { ...room, called_at: null };
 }
 
 async function uniqueCode(db) {
@@ -78,23 +93,32 @@ async function uniqueCode(db) {
   return `${makeRoomCode()}${makeRoomCode()}`.slice(0, 4);
 }
 
-async function roomPayload(db, room, userId) {
-  await pruneSeats(db, room.id);
+async function roomPayload(db, room, userId, { prune = true, since = 0 } = {}) {
+  if (prune) await pruneSeats(db, room.id);
   const seats = await loadSeats(db, room.id);
+  room = await maybeClearCall(db, room, seats);
   const member = seats.some((s) => Number(s.user_id) === Number(userId));
   let messages = [];
   if (member) {
-    const { results } = await db
-      .prepare(
-        "SELECT id, user_id, username, text, created_at FROM open_room_msgs WHERE room_id = ? ORDER BY id DESC LIMIT 40"
-      )
-      .bind(room.id)
-      .all();
-    messages = (results || []).reverse();
+    const after = Number(since) || 0;
+    const { results } = after
+      ? await db
+          .prepare(
+            "SELECT id, user_id, username, text, created_at FROM open_room_msgs WHERE room_id = ? AND id > ? ORDER BY id ASC LIMIT 80"
+          )
+          .bind(room.id, after)
+          .all()
+      : await db
+          .prepare(
+            "SELECT id, user_id, username, text, created_at FROM open_room_msgs WHERE room_id = ? ORDER BY id DESC LIMIT 40"
+          )
+          .bind(room.id)
+          .all();
+    messages = after ? results || [] : (results || []).reverse();
   }
   return {
     room: {
-      ...publicRoom(room, seats.length),
+      ...publicRoom(room, seats.length, Date.now(), seats),
       host: Number(room.host_id) === Number(userId),
       member,
     },
@@ -102,9 +126,17 @@ async function roomPayload(db, room, userId) {
       user_id: s.user_id,
       username: s.username,
       ready: Boolean(Number(s.ready)),
+      practice: Number(s.practice) === 1 ? 1 : 0,
     })),
     messages,
   };
+}
+
+async function readBodyUser(request, url) {
+  if (request.method === "GET") {
+    return { user_id: url.searchParams.get("user_id"), room_id: url.searchParams.get("room_id"), since: url.searchParams.get("since") };
+  }
+  return request.json().catch(() => ({}));
 }
 
 export async function onRequest(context) {
@@ -127,14 +159,14 @@ export async function onRequest(context) {
       }
     }
 
-    await ensureAppSchema(db);
     await ensureOpenRoomSchema(db);
 
-    if (request.method !== "POST") return json({ error: "method" }, 405);
-
-    const body = await request.json().catch(() => ({}));
+    const body = await readBodyUser(request, url);
     const user = await requireUser(db, body.user_id);
-    if (!user) return json({ error: "login_required" }, 401);
+    if (!user) return gone();
+
+    const hotGet = request.method === "GET" && (action === "get" || action === "sync");
+    if (request.method !== "POST" && !hotGet) return json({ error: "method" }, 405);
 
     if (action === "create") {
       const parsed = parseCreate(body);
@@ -147,9 +179,9 @@ export async function onRequest(context) {
         )
         .bind(id, parsed.kind, parsed.title, user.id, user.username, parsed.maxSeats, parsed.pin || null)
         .run();
-      await sit(db, id, user);
+      await sit(db, id, user, { practice: 0 });
       const room = await loadRoom(db, id);
-      return json(await roomPayload(db, room, user.id));
+      return liveJson(await roomPayload(db, room, user.id));
     }
 
     const room = await loadRoom(db, body.room_id);
@@ -160,12 +192,14 @@ export async function onRequest(context) {
       const seats = await loadSeats(db, room.id);
       const gate = canJoin({ room, seats, pin: body.pin, userId: user.id });
       if (!gate.ok) return json({ error: gate.error }, gate.error === "pin" ? 403 : 409);
-      await sit(db, room.id, user);
-      return json(await roomPayload(db, room, user.id));
+      await sit(db, room.id, user, { practice: 0 });
+      return liveJson(await roomPayload(db, room, user.id, { prune: false }));
     }
 
     if (action === "leave") {
       await db.prepare("DELETE FROM open_room_seats WHERE room_id = ? AND user_id = ?").bind(room.id, user.id).run();
+      const seats = await loadSeats(db, room.id);
+      await maybeClearCall(db, room, seats);
       return json({ ok: true });
     }
 
@@ -186,7 +220,15 @@ export async function onRequest(context) {
         .prepare("UPDATE open_room_seats SET ready = ?, last_seen = datetime('now') WHERE room_id = ? AND user_id = ?")
         .bind(on, room.id, user.id)
         .run();
-      return json(await roomPayload(db, room, user.id));
+      return liveJson(await roomPayload(db, room, user.id));
+    }
+
+    if (action === "presence") {
+      const seated = (await loadSeats(db, room.id)).some((s) => Number(s.user_id) === Number(user.id));
+      if (!seated) return json({ error: "member" }, 403);
+      const practice = body.practice === 1 || body.practice === true || body.practice === "1" ? 1 : 0;
+      await sit(db, room.id, user, { practice });
+      return liveJson(await roomPayload(db, await loadRoom(db, room.id), user.id, { prune: false }));
     }
 
     if (action === "call") {
@@ -195,8 +237,7 @@ export async function onRequest(context) {
       const seated = (await loadSeats(db, room.id)).some((s) => Number(s.user_id) === Number(user.id));
       if (!seated) return json({ error: "member" }, 403);
       await db.prepare("UPDATE open_rooms SET called_at = datetime('now') WHERE id = ?").bind(room.id).run();
-      room.called_at = room.called_at || "now";
-      return json(await roomPayload(db, await loadRoom(db, room.id), user.id));
+      return liveJson(await roomPayload(db, await loadRoom(db, room.id), user.id, { prune: false }));
     }
 
     if (action === "start") {
@@ -204,23 +245,23 @@ export async function onRequest(context) {
       if (!gate.ok) return json({ error: gate.error }, gate.error === "host" ? 403 : 400);
       await db.prepare("UPDATE open_rooms SET started_at = datetime('now') WHERE id = ?").bind(room.id).run();
       room.started_at = room.started_at || "now";
-      return json(await roomPayload(db, room, user.id));
+      return liveJson(await roomPayload(db, room, user.id));
     }
 
-    if (action === "get") {
-      return json(await roomPayload(db, room, user.id));
+    if (action === "get" || action === "sync") {
+      const since = Number(body.since || url.searchParams.get("since") || 0);
+      return liveJson(await roomPayload(db, room, user.id, { prune: action === "get", since: action === "sync" ? since : 0 }));
     }
 
     if (action === "heartbeat") {
-      await pruneSeats(db, room.id);
-      const seated = (await loadSeats(db, room.id)).some((s) => Number(s.user_id) === Number(user.id));
-      if (!seated) return json({ error: "member" }, 403);
-      await sit(db, room.id, user);
-      return json(await roomPayload(db, room, user.id));
+      const practice = body.practice === 1 || body.practice === true || body.practice === "1" ? 1 : 0;
+      await sit(db, room.id, user, { practice });
+      const fresh = await loadRoom(db, room.id);
+      return liveJson(await roomPayload(db, fresh, user.id, { prune: practice === 0 }));
     }
 
     if (action === "say") {
-      await sit(db, room.id, user);
+      await sit(db, room.id, user, { practice: 0 });
       const seats = await loadSeats(db, room.id);
       if (!seats.some((s) => Number(s.user_id) === Number(user.id))) return json({ error: "member" }, 403);
       const text = sanitizeMsg(body.text);
@@ -229,7 +270,7 @@ export async function onRequest(context) {
         .prepare("INSERT INTO open_room_msgs (room_id, user_id, username, text) VALUES (?, ?, ?, ?)")
         .bind(room.id, user.id, user.username, text)
         .run();
-      return json(await roomPayload(db, room, user.id));
+      return liveJson(await roomPayload(db, room, user.id, { prune: false }));
     }
 
     return json({ error: "action" }, 400);

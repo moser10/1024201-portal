@@ -1,6 +1,6 @@
 import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
 import { hashPassword, verifyPassword } from "./_crypto.js";
-import { SYSTEM_MAIL_FROM } from "./_mail.js";
+import { SYSTEM_MAIL_FROM, sendSystemMail, accountClosedMailHtml } from "./_mail.js";
 
 const SESSION_HOURS = 12;
 const DEFAULT_ADMIN_USER = "sa";
@@ -100,21 +100,7 @@ async function ensureAdminSchema(db) {
 }
 
 async function sendAdminMail(env, to, subject, html) {
-  if (!env.RESEND_API_KEY) {
-    throw new Error("邮件服务未配置（RESEND_API_KEY）");
-  }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: SYSTEM_MAIL_FROM, to, subject, html }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`邮件发送失败 (${res.status})${detail ? `: ${detail.slice(0, 120)}` : ""}`);
-  }
+  return sendSystemMail(env, to, subject, html);
 }
 
 function escHtml(s) {
@@ -213,11 +199,14 @@ async function deleteNovelContent(db, storyId) {
     .run();
 }
 
-async function deleteUserCompletely(db, userId) {
+async function deleteUserCompletely(db, userId, env) {
   if (userId === null || userId === undefined || !Number.isFinite(Number(userId))) {
     throw new Error("无效用户 ID");
   }
   const uid = Number(userId);
+  const account = await db.prepare("SELECT id, email, username FROM users WHERE id = ?").bind(uid).first();
+  if (!account) throw Object.assign(new Error("用户不存在"), { status: 404 });
+
   const { results: owned } = await db.prepare("SELECT id FROM stories WHERE owner_id = ?").bind(uid).all();
   for (const row of owned) {
     await deleteRoomCompletely(db, row.id);
@@ -228,11 +217,28 @@ async function deleteUserCompletely(db, userId) {
   await db.prepare("DELETE FROM story_members WHERE user_id = ?").bind(uid).run();
   await db.prepare("DELETE FROM user_sync_notes WHERE user_id = ?").bind(uid).run();
   await db.prepare("DELETE FROM tool_usage_quota WHERE quota_key = ?").bind(String(uid)).run();
-  const user = await db.prepare("SELECT email FROM users WHERE id = ?").bind(uid).first();
-  if (user?.email) {
-    await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(user.email).run();
+  if (account.email) {
+    await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(account.email).run();
   }
   await db.prepare("DELETE FROM users WHERE id = ?").bind(uid).run();
+  try {
+    await db.prepare("DELETE FROM open_room_seats WHERE user_id = ?").bind(uid).run();
+  } catch {
+    /* open rooms may not exist yet */
+  }
+
+  if (env && account.email) {
+    try {
+      await sendSystemMail(
+        env,
+        account.email,
+        "1024201 · 账号已注销 / Account closed",
+        accountClosedMailHtml(account.username || account.email)
+      );
+    } catch {
+      /* account is already gone */
+    }
+  }
 }
 
 function gameLabel(gameId, title) {
@@ -585,7 +591,7 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "delete_user") {
       const { user_id } = await request.json();
-      await deleteUserCompletely(db, user_id);
+      await deleteUserCompletely(db, user_id, env);
       return json({ success: true });
     }
 
