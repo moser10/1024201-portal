@@ -18,11 +18,11 @@ let current = null;
 let pulse = 0;
 let askingClose = false;
 const lastList = { dua: null, chat: null };
-const listAt = { dua: 0, chat: 0 };
-const LIST_TTL_MS = 20_000;
 let listPaintKey = "";
 let imeLock = false;
 let pendingInside = null;
+const inflightList = { dua: null, chat: null };
+let listEpoch = 0;
 
 function esc(s) {
   return String(s ?? "")
@@ -34,14 +34,15 @@ function esc(s) {
 
 async function api(action, body) {
   const user = getUser();
-  const isGet = action === "list" || (action === "get" && !body);
-  const url = isGet && action === "list"
+  const isList = action === "list";
+  const url = isList
     ? `/api/openroom?action=list&kind=${encodeURIComponent(kind)}`
     : `/api/openroom?action=${encodeURIComponent(action)}`;
   const res = await fetch(url, {
-    method: isGet && action === "list" ? "GET" : "POST",
+    method: isList ? "GET" : "POST",
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
-    body: action === "list" ? undefined : JSON.stringify({ ...(body || {}), user_id: user?.id }),
+    body: isList ? undefined : JSON.stringify({ ...(body || {}), user_id: user?.id }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error || "fail"), { code: data.error, status: res.status });
@@ -99,7 +100,6 @@ function readCachedList(k) {
 
 function writeCachedList(k, rooms) {
   lastList[k] = rooms;
-  listAt[k] = Date.now();
   try {
     const all = JSON.parse(sessionStorage.getItem(LOBBY_CACHE) || "{}");
     all[k] = rooms;
@@ -139,8 +139,26 @@ function fillRoomList(list, error = "") {
   bindLobbyJoins();
 }
 
-function listIsFresh(k) {
-  return Array.isArray(lastList[k]) && Date.now() - (listAt[k] || 0) < LIST_TTL_MS;
+function dropFromCache(id) {
+  listEpoch += 1;
+  inflightList.dua = null;
+  inflightList.chat = null;
+  const rid = String(id || "");
+  if (!rid) return;
+  for (const k of ["dua", "chat"]) {
+    const list = readCachedList(k);
+    if (!Array.isArray(list)) continue;
+    writeCachedList(k, list.filter((r) => String(r.id) !== rid));
+  }
+}
+
+function fetchList() {
+  if (!inflightList[kind]) {
+    inflightList[kind] = api("list").finally(() => {
+      inflightList[kind] = null;
+    });
+  }
+  return inflightList[kind];
 }
 
 function renderLobby(list = null, error = "") {
@@ -216,7 +234,8 @@ function paintList(rooms) {
     .join("");
 }
 
-async function loadLobby(error = "", force = false) {
+async function loadLobby(error = "") {
+  const epoch = listEpoch;
   const cached = readCachedList(kind);
   if (lobbyIsPainted()) {
     if (cached) fillRoomList(cached, error);
@@ -224,16 +243,16 @@ async function loadLobby(error = "", force = false) {
   } else {
     renderLobby(cached, error);
   }
-  if (!force && !error && listIsFresh(kind)) return;
   try {
-    const data = await api("list");
+    const data = await fetchList();
+    if (epoch !== listEpoch) return;
     const rooms = data.rooms || [];
     writeCachedList(kind, rooms);
     if (view !== "lobby") return;
     if (lobbyIsPainted()) fillRoomList(rooms, error);
     else renderLobby(rooms, error);
   } catch (err) {
-    if (view !== "lobby") return;
+    if (epoch !== listEpoch || view !== "lobby") return;
     const code = err.code || "fail";
     const fallback = readCachedList(kind);
     if (lobbyIsPainted()) fillRoomList(fallback || [], code);
@@ -438,7 +457,10 @@ function bindCloseAsk() {
     askingClose = false;
     hidePortalModal(document.getElementById("closeAsk"));
     const id = current?.room?.id;
-    if (id) await api("close", { room_id: id }).catch(() => {});
+    if (id) {
+      dropFromCache(id);
+      await api("close", { room_id: id }).catch(() => {});
+    }
     showRoomsLobby();
   });
 }
@@ -475,6 +497,7 @@ function stopPulse() {
 if (!requireAuth("rooms/")) {
   /* redirected */
 } else {
+  fetchList();
   applyChrome();
   bindCloseAsk();
   bindGameAsk();

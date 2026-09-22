@@ -1,6 +1,32 @@
 import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
 import { ensureOpenRoomSchema } from "./openroomSchema.js";
-import { parseCreate, canJoin, canReady, canStart, canCall, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat, SEAT_TTL_MS } from "./openroomLogic.js";
+import { parseCreate, canJoin, canReady, canStart, canCall, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat } from "./openroomLogic.js";
+
+function liveJson(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
+    },
+  });
+}
+
+async function listOpenRooms(db, kind) {
+  const k = String(kind || "").toLowerCase();
+  const { results } = await db
+    .prepare(
+      `SELECT id, kind, title, host_id, host_name, max_seats, pin, created_at, started_at, called_at
+       FROM open_rooms
+       WHERE closed_at IS NULL AND (? = '' OR kind = ?)
+       ORDER BY created_at DESC LIMIT 40`
+    )
+    .bind(k, k)
+    .all();
+  return (results || []).map((row) => publicRoom(row, 0));
+}
 
 async function requireUser(db, userId) {
   const id = Number(userId);
@@ -92,25 +118,13 @@ export async function onRequest(context) {
     const db = requireDb(env);
 
     if (request.method === "GET" && action === "list") {
-      await ensureOpenRoomSchema(db);
       const kind = String(url.searchParams.get("kind") || "").toLowerCase();
-      const window = `-${Math.round(SEAT_TTL_MS / 1000)} seconds`;
-      const { results } = await db
-        .prepare(
-          `SELECT r.*, (
-             SELECT COUNT(*) FROM open_room_seats s
-             WHERE s.room_id = r.id AND s.last_seen >= datetime('now', ?)
-           ) AS seats
-           FROM open_rooms r
-           WHERE r.closed_at IS NULL
-             AND (? = '' OR r.kind = ?)
-           ORDER BY r.created_at DESC LIMIT 40`
-        )
-        .bind(window, kind, kind)
-        .all();
-      return json({
-        rooms: (results || []).map((row) => publicRoom(row, Number(row.seats) || 0)),
-      });
+      try {
+        return liveJson({ rooms: await listOpenRooms(db, kind) });
+      } catch {
+        await ensureOpenRoomSchema(db);
+        return liveJson({ rooms: await listOpenRooms(db, kind) });
+      }
     }
 
     await ensureAppSchema(db);

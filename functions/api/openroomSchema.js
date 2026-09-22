@@ -1,4 +1,7 @@
+let primed = false;
+
 export async function ensureOpenRoomSchema(db) {
+  if (primed) return;
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS open_rooms (
@@ -43,6 +46,7 @@ export async function ensureOpenRoomSchema(db) {
   await addCol(db, "open_rooms", "started_at", "ALTER TABLE open_rooms ADD COLUMN started_at TEXT");
   await addCol(db, "open_rooms", "called_at", "ALTER TABLE open_rooms ADD COLUMN called_at TEXT");
   await addCol(db, "open_room_seats", "ready", "ALTER TABLE open_room_seats ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
+  primed = true;
 }
 
 async function addCol(db, table, column, sql) {
