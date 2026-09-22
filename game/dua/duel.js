@@ -22,27 +22,27 @@ export const AVATARS = Object.freeze([
 export const WEAPONS = Object.freeze({
   pistol: Object.freeze({
     speed: 540, damage: 1, cooldown: 0.32, life: 1.2, r: 5,
-    shots: 5, burst: 1, spread: 0, knock: 240, emoji: "🔫", icon: `${WEAPON_DIR}/pistol.png`,
+    shots: 5, burst: 1, spread: 0, knock: 240, emoji: "🔫", icon: `${WEAPON_DIR}/pistol.png`, svg: `${WEAPON_DIR}/pistol.svg`,
   }),
   ak: Object.freeze({
     speed: 580, damage: 1, cooldown: 0.9, life: 1.05, r: 4,
-    shots: 2, burst: 3, burstGap: 0.07, spread: 0.07, knock: 190, emoji: "🔫", icon: `${WEAPON_DIR}/ak.png`,
+    shots: 2, burst: 3, burstGap: 0.07, spread: 0.07, knock: 190, emoji: "🔫", icon: `${WEAPON_DIR}/ak.png`, svg: `${WEAPON_DIR}/ak.svg`,
   }),
   rpg: Object.freeze({
     speed: 270, damage: 2, cooldown: 0.4, life: 1.7, r: 8,
-    shots: 1, burst: 1, spread: 0, knock: 360, emoji: "🚀", icon: `${WEAPON_DIR}/rpg.png`,
+    shots: 1, burst: 1, spread: 0, knock: 360, emoji: "🚀", icon: `${WEAPON_DIR}/rpg.png`, svg: `${WEAPON_DIR}/rpg.svg`,
   }),
   knife: Object.freeze({
     speed: 0, damage: 2, cooldown: 0.2, life: 0.16, r: 18,
-    shots: 1, burst: 1, melee: true, range: 58, knock: 300, emoji: "🔪", icon: `${WEAPON_DIR}/knife.png`,
+    shots: 1, burst: 1, melee: true, range: 58, knock: 300, emoji: "🔪", icon: `${WEAPON_DIR}/knife.png`, svg: `${WEAPON_DIR}/knife.svg`,
   }),
   shotgun: Object.freeze({
     speed: 430, damage: 1, cooldown: 0.75, life: 0.5, r: 4,
-    shots: 2, burst: 3, spread: 0.28, simultaneous: true, knock: 210, emoji: "💥", icon: `${WEAPON_DIR}/shotgun.png`,
+    shots: 2, burst: 3, spread: 0.28, simultaneous: true, knock: 210, emoji: "💥", icon: `${WEAPON_DIR}/shotgun.png`, svg: `${WEAPON_DIR}/shotgun.svg`,
   }),
 });
 
-const GUN_KINDS = Object.freeze(Object.keys(WEAPONS));
+export const GUN_KINDS = Object.freeze(Object.keys(WEAPONS));
 
 export function pickAvatar(used, rng = Math.random) {
   const pool = AVATARS.filter((face) => face !== used);

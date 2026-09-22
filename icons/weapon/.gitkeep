@@ -1,1 +1,2 @@
-# Drop pistol.png, ak.png, rpg.png, knife.png, shotgun.png here.
+# Drop pistol.svg ak.svg rpg.svg knife.svg shotgun.svg here.
+# Heart and boost stay emoji. Rasterize with: npm run weapons

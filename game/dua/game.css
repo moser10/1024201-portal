@@ -111,6 +111,16 @@ body { min-height: 100dvh; overflow-x: hidden; }
   color: var(--muted);
   font: 700 11px/1 Arial, sans-serif;
   letter-spacing: .14em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.weapon-chip img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .canvas-wrap {

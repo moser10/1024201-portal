@@ -39,6 +39,9 @@ test("avatar picker only returns catalog faces and never the used one", () => {
 test("weapon icons are 80 percent of the avatar size", () => {
   assert.equal(WEAPON_ICON_PX, Math.round(AVATAR_PX * 0.8));
   assert.match(WEAPONS.pistol.icon, /\/icons\/weapon\/pistol\.png$/);
+  assert.match(WEAPONS.pistol.svg, /\/icons\/weapon\/pistol\.svg$/);
+  assert.equal("heart" in WEAPONS, false);
+  assert.equal("boost" in WEAPONS, false);
 });
 
 test("ammo: pistol 5, ak two bursts of 3, rpg 1, knife 1, shotgun two sprays of 3", () => {

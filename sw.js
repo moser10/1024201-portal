@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v108";
+const CACHE = "1042-pwa-v109";
 const SHELL = [
   "/",
   "/index.html",
@@ -37,9 +37,9 @@ const SHELL = [
   "/game/paddlemaze/stallRelief.js?v=27",
   "/game/dua/",
   "/game/dua/index.html",
-  "/game/dua/game.css?v=7",
-  "/game/dua/game.js?v=7",
-  "/game/dua/duel.js?v=7",
+  "/game/dua/game.css?v=8",
+  "/game/dua/game.js?v=8",
+  "/game/dua/duel.js?v=8",
   "/game/dua/copy.js?v=4",
   "/blog/",
   "/blog/index.html",
