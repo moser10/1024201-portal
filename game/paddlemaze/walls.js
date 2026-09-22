@@ -34,8 +34,16 @@ export function playField(board = DEFAULT_BOARD, spec = { rows: 26, cols: 32, se
 
 export const DEFAULT_FIELD = Object.freeze(playField());
 
-function add(out, x, y, w, h) {
-  if (w >= 2 && h >= 2) out.push({ x, y, w, h });
+function add(out, x, y, w, h, extra = {}) {
+  if (w >= 2 && h >= 2) out.push({ x, y, w, h, ...extra });
+}
+
+export function wallRole(r, c, rows, cols) {
+  if (r === 0) return "frame-top";
+  if (r === rows - 1) return "frame-bottom";
+  if (c === 0) return "frame-left";
+  if (c === cols - 1) return "frame-right";
+  return "interior";
 }
 
 export function cellMetrics(field, spec) {
@@ -62,6 +70,7 @@ export function buildWallRects(index, field, board = DEFAULT_BOARD) {
         used.y + r * (brickH + gap),
         brickW,
         brickH,
+        { r, c, role: wallRole(r, c, spec.rows, spec.cols) },
       );
     }
   }

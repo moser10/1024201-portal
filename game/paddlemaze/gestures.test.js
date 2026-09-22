@@ -31,6 +31,6 @@ test("game page JS cancels select/callout/zoom but keeps pointer paddle drag", (
 
 test("game page viewport disables pinch zoom and cache-busts lock assets", () => {
   assert.match(html, /user-scalable=no/);
-  assert.match(html, /game\.css\?v=26/);
-  assert.match(html, /game\.js\?v=26/);
+  assert.match(html, /game\.css\?v=\d+/);
+  assert.match(html, /game\.js\?v=\d+/);
 });

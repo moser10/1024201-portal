@@ -1,8 +1,9 @@
 import { buildLevelSpec } from "./levels.js?v=25";
-import { buildWallRects, playField } from "./walls.js?v=25";
+import { buildWallRects, playField } from "./walls.js?v=27";
 import { materializePower, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=25";
 import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=25";
 import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=25";
+import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=27";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -72,6 +73,7 @@ let initialDropInterval = 5;
 let dropsSinceBallMultiplier = 0;
 const welfare = createWelfareState();
 const paddleCap = createPaddleCapState();
+const stallRelief = createStallReliefState();
 const paddleCapTimeEl = document.getElementById("paddleCapTime");
 let nextWelfare = null;
 let levelElapsed = 0;
@@ -114,6 +116,7 @@ function makeLevel(index) {
   armNextWelfare();
   initialDropInterval = bricks.length <= 60 ? 3 : bricks.length <= 90 ? 4 : 5;
   walls = buildWallRects(index, field, { w: W, h: H, paddleY: H - 58 });
+  resetStallRelief(stallRelief, bricks.length);
   bakeStaticLayer();
   releaseAllBalls();
   releaseAllItems();
@@ -468,6 +471,17 @@ function update(dt) {
   }
   levelElapsed += dt;
   sessionElapsed += dt;
+  const stallActions = tickStallRelief(stallRelief, {
+    elapsed: levelElapsed,
+    brickCount: bricks.length,
+    walls,
+    bricks,
+    rng: Math.random,
+  });
+  if (stallActions.length) {
+    walls = applyStallActions(walls, stallActions);
+    bakeStaticLayer();
+  }
 
   // Only the main ball receives limited CCD substeps; split balls use cheap discrete physics.
   for (const ball of balls) {
