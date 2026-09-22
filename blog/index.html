@@ -16,7 +16,7 @@
   <link rel="modulepreload" href="md.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=5">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="blog.css?v=11">
+  <link rel="stylesheet" href="blog.css?v=12">
 </head>
 <body class="feature-page blog-page" data-tool="blog">
   <div class="feature-shell">
@@ -32,12 +32,10 @@
             <div class="page-mark-row">
               <img class="page-mark" src="/icons/apps/blog.svg" alt="">
               <h1 id="pageTitle">Blog</h1>
+              <button type="button" class="btn-primary blog-title-action" id="newBtn" hidden>New post</button>
             </div>
             <p class="sub" id="pageSub"></p>
             <p class="tool-user" id="userLine" hidden></p>
-          </div>
-          <div class="blog-toolbar" id="toolbar" hidden>
-            <button type="button" class="btn-primary" id="newBtn">New post</button>
           </div>
           <div id="listWrap">
             <ul class="blog-list" id="blogList"></ul>
@@ -61,11 +59,9 @@
           <div class="page-mark-row blog-article-title">
             <img class="page-mark" src="/icons/apps/blog.svg" alt="">
             <h1 id="readTitleEl"></h1>
+            <button type="button" class="btn-primary blog-title-action" id="readEditBtn" hidden>Edit</button>
           </div>
           <div class="blog-article-meta" id="readMetaEl"></div>
-          <div class="blog-toolbar" id="readToolbar" hidden>
-            <button type="button" class="btn-primary" id="readEditBtn">Edit</button>
-          </div>
           <p class="blog-loading" id="readLoading" hidden></p>
           <div class="blog-md" id="readBodyEl"></div>
           <div class="blog-like-bar" id="readLikeBar" hidden>
@@ -159,7 +155,7 @@
       const editView = document.getElementById("editView");
 
       if (uid) {
-        document.getElementById("toolbar").hidden = false;
+        document.getElementById("newBtn").hidden = false;
         document.getElementById("userLine").hidden = false;
         try {
           const raw = localStorage.getItem("blog_mine_v2:" + uid);
@@ -186,7 +182,6 @@
         listView.hidden = true;
         readView.hidden = false;
         editView.hidden = true;
-        document.getElementById("readToolbar").hidden = false;
         document.getElementById("readEditBtn").hidden = false;
         try {
           var raw = sessionStorage.getItem("blog_doc_v2:" + id);
@@ -274,7 +269,7 @@
       document.documentElement.classList.remove("blog-booting");
     })();
   </script>
-  <script type="module" src="blog-app.js?v=5"></script>
+  <script type="module" src="blog-app.js?v=6"></script>
   <script src="/js/edgeBack.js"></script>
 </body>
 </html>

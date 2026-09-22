@@ -191,14 +191,14 @@ async function bootContent() {
   const user = getUser();
   const loginPanel = document.getElementById("loginPanel");
   const listWrap = document.getElementById("listWrap");
-  const toolbar = document.getElementById("toolbar");
+  const newBtn = document.getElementById("newBtn");
   const userLine = document.getElementById("userLine");
   showErr("");
 
   if (!user?.id) {
     loginPanel.hidden = false;
     listWrap.hidden = true;
-    toolbar.hidden = true;
+    newBtn.hidden = true;
     userLine.hidden = true;
     document.getElementById("loginBtn").href = `/game/register/?return=${encodeURIComponent("/blog/")}`;
     return;
@@ -206,7 +206,7 @@ async function bootContent() {
 
   loginPanel.hidden = true;
   listWrap.hidden = false;
-  toolbar.hidden = false;
+  newBtn.hidden = false;
   userLine.hidden = false;
   userLine.textContent = `@${user.username || user.email || user.id}`;
   document.getElementById("newBtn").onclick = () => location.assign("/blog/edit.html");
@@ -223,7 +223,7 @@ async function bootContent() {
     if (e.data?.needLogin || e.status === 403) {
       loginPanel.hidden = false;
       listWrap.hidden = true;
-      toolbar.hidden = true;
+      newBtn.hidden = true;
       return;
     }
     if (!cached) showErr(e.message || t().err);

@@ -69,15 +69,23 @@ html.blog-page body {
   color: var(--blog-accent);
 }
 
+.blog-title-action {
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: center;
+}
+
+.blog-page .page-mark-row h1,
+.blog-article-title h1 {
+  flex: 1;
+  min-width: 0;
+}
+
 .blog-toolbar {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin: 8px 0 16px;
-}
-
-.blog-article .blog-toolbar {
-  margin: 0 0 22px;
 }
 
 .btn-primary,
@@ -437,9 +445,10 @@ html.blog-page body {
 
 .blog-article-title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   margin: 0 0 12px;
+  width: 100%;
 }
 
 .blog-article-title .page-mark {
@@ -448,7 +457,7 @@ html.blog-page body {
   border-radius: 50%;
   display: block;
   flex-shrink: 0;
-  margin-top: 4px;
+  margin-top: 0;
   box-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
 }
 

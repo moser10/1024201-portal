@@ -549,10 +549,8 @@ function paintReader(data) {
   document.getElementById("readBodyEl").innerHTML = `${updatedBlock}${bodyHtml}`;
 
   const editBtn = document.getElementById("readEditBtn");
-  const toolbar = document.getElementById("readToolbar");
   const owner = data?.is_owner !== false && !!getUser()?.id;
   editBtn.hidden = !owner;
-  if (toolbar) toolbar.hidden = !owner;
   editBtn.textContent = ui.edit;
 
   wireLikeBar(data);
@@ -855,13 +853,13 @@ function runPrimaryAction() {
 async function bootList() {
   const user = getUser();
   const loginPanel = document.getElementById("loginPanel");
-  const toolbar = document.getElementById("toolbar");
+  const newBtn = document.getElementById("newBtn");
   const userLine = document.getElementById("userLine");
   showErr("");
 
   if (!user?.id) {
     loginPanel.hidden = false;
-    toolbar.hidden = true;
+    newBtn.hidden = true;
     userLine.hidden = true;
     document.getElementById("blogList").innerHTML = "";
     document.getElementById("loginBtn").href = `/game/register/?return=${encodeURIComponent("/blog/")}`;
@@ -869,7 +867,7 @@ async function bootList() {
   }
 
   loginPanel.hidden = true;
-  toolbar.hidden = false;
+  newBtn.hidden = false;
   userLine.hidden = false;
   userLine.textContent = `@${user.username || user.email || user.id}`;
 
@@ -884,7 +882,7 @@ async function bootList() {
   } catch (e) {
     if (e.data?.needLogin || e.status === 403) {
       loginPanel.hidden = false;
-      toolbar.hidden = true;
+      newBtn.hidden = true;
       return;
     }
     if (!cached) showErr(e.message || t().err);

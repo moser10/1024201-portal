@@ -38,10 +38,15 @@ test("read uses \\?id= and edit uses \\?edit= or \\?new=1", () => {
 });
 
 test("reader keeps Edit out of the top chrome cluster", () => {
-  assert.match(html, /id="readToolbar"/);
   assert.equal(html.includes("blog-read-actions"), false);
+  assert.equal(html.includes("readToolbar"), false);
   const readTop = html.slice(html.indexOf('id="readView"'), html.indexOf('id="readArticle"'));
   assert.equal(readTop.includes("readEditBtn"), false);
+  const titleRow = html.slice(html.indexOf("blog-article-title"), html.indexOf("readMetaEl"));
+  assert.match(titleRow, /readEditBtn/);
+  assert.match(titleRow, /blog-title-action/);
+  const afterTitle = html.slice(html.indexOf('id="readMetaEl"'), html.indexOf('id="readBodyEl"'));
+  assert.equal(afterTitle.includes("readEditBtn"), false);
 });
 
 test("reader uses StackEdit-like serif markdown type", () => {

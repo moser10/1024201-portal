@@ -59,22 +59,29 @@ test("feature-top is Back plus language/account chrome, not content actions", ()
   }
 });
 
-test("blog reader keeps Edit in the article toolbar, not beside the lang stack", () => {
+test("blog reader keeps Edit on the article title row, not beside the lang stack", () => {
   const html = readFileSync(join(root, "blog/index.html"), "utf8");
   const view = readFileSync(join(root, "blog/view.html"), "utf8");
   const css = readFileSync(join(root, "blog/blog.css"), "utf8");
   assert.equal(html.includes("blog-read-actions"), false);
-  assert.match(html, /id="readToolbar"/);
+  assert.equal(html.includes("readToolbar"), false);
   assert.match(html, /id="readEditBtn"/);
-  const toolbar = html.slice(html.indexOf('id="readToolbar"'), html.indexOf('id="readEditBtn"') + 40);
-  assert.match(toolbar, /readEditBtn/);
+  const titleRow = html.slice(html.indexOf("blog-article-title"), html.indexOf("readMetaEl"));
+  assert.match(titleRow, /readEditBtn/);
+  assert.match(titleRow, /blog-title-action/);
   const readTop = html.slice(html.indexOf('id="readView"'), html.indexOf('id="readArticle"'));
   assert.match(readTop, /id="readLangSlot"/);
   assert.equal(readTop.includes("readEditBtn"), false);
-  const top = view.slice(view.indexOf("blog-article-top"), view.indexOf("blog-article-title"));
-  assert.equal(top.includes("editBtn"), false);
-  assert.match(view, /id="editBar"/);
-  assert.match(css, /align-items:\s*flex-start/);
+  const afterTitle = html.slice(html.indexOf('id="readMetaEl"'), html.indexOf('id="readBodyEl"'));
+  assert.equal(afterTitle.includes("readEditBtn"), false);
+  const listHead = html.slice(html.indexOf("feature-card-head"), html.indexOf('id="listWrap"'));
+  assert.match(listHead, /id="newBtn"/);
+  assert.match(listHead, /page-mark-row/);
+  assert.equal(html.includes('id="toolbar"'), false);
+  const viewTitle = view.slice(view.indexOf("blog-article-title"), view.indexOf("metaEl"));
+  assert.match(viewTitle, /id="editBtn"/);
+  assert.equal(view.includes("editBar"), false);
+  assert.match(css, /blog-title-action/);
   assert.equal(css.includes("blog-read-actions"), false);
 });
 
