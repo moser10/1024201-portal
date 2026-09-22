@@ -1,5 +1,5 @@
 import { AVATARS, WEAPON_ICON_PX, PICKUP_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch, triggerWeapon } from "./duel.js?v=14";
-import { duaCopy } from "./copy.js?v=7";
+import { duaCopy } from "./copy.js?v=8";
 import { getPortalLang } from "/js/langTabs.js";
 import { applyNavBack, readNavBack } from "/js/navBack.js?v=5";
 import { getUser } from "/game/js/store.js";

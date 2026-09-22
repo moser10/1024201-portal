@@ -196,6 +196,11 @@ test("aim hint exists in the three portal languages", () => {
   for (const lang of ["zh", "en", "ja"]) {
     assert.ok(DUA_COPY[lang].hint.length > 8);
   }
+  assert.match(DUA_COPY.zh.pick, /开火，\n路径/);
+  assert.match(DUA_COPY.en.pick, /^Pick a face first\.\n/);
+  assert.equal(DUA_COPY.en.pick.includes("  "), false);
+  assert.match(DUA_COPY.ja.pick, /ください。\n開始後/);
+  assert.match(DUA_COPY.ja.pick, /のみ。\n軌道/);
   const dir = dirname(fileURLToPath(import.meta.url));
   const spec = readFileSync(join(dir, "../../docs/dua.md"), "utf8");
   assert.match(spec, /头像/);

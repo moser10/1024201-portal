@@ -132,7 +132,7 @@
         .zone-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
         .zone-row {
             display: grid;
-            grid-template-columns: 92px 1fr;
+            grid-template-columns: minmax(7.6em, auto) 1fr;
             align-items: center;
             gap: 8px;
             padding: 4px 6px;
@@ -385,19 +385,19 @@
                 <div class="zone-date" id="zoneDate">--</div>
                 <ul class="zone-list">
                     <li class="zone-row" data-zone="us" data-tz="America/Los_Angeles" data-color="#E8D4B8">
-                        <span class="zone-label" id="lbl-us">LA, US</span>
+                        <span class="zone-label" id="lbl-us">San Jose, US</span>
                         <span class="zone-time" id="tz-us">--:--</span>
                     </li>
                     <li class="zone-row" data-zone="jp" data-tz="Asia/Tokyo" data-color="#E07A3D">
-                        <span class="zone-label" id="lbl-jp">Tokyo, JP</span>
+                        <span class="zone-label" id="lbl-jp">Osaka, JP</span>
                         <span class="zone-time" id="tz-jp">--:--</span>
                     </li>
                     <li class="zone-row" data-zone="cn" data-tz="Asia/Shanghai" data-color="#F0C44C">
-                        <span class="zone-label" id="lbl-cn">BJ, CN</span>
+                        <span class="zone-label" id="lbl-cn">Beijing, CH</span>
                         <span class="zone-time" id="tz-cn">--:--</span>
                     </li>
                     <li class="zone-row" data-zone="se" data-tz="Europe/Stockholm" data-color="#F0C44C">
-                        <span class="zone-label" id="lbl-se">GOT, SE</span>
+                        <span class="zone-label" id="lbl-se">Gothenburg, SE</span>
                         <span class="zone-time" id="tz-se">--:--</span>
                     </li>
                 </ul>
@@ -483,21 +483,21 @@
 
         const i18n = {
             en: {
-                us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
+                us: 'San Jose, US', jp: 'Osaka, JP', cn: 'Beijing, CH', se: 'Gothenburg, SE',
                 mail: 'Mail', game: 'Game Center', fx: 'Rates', tools: 'Toolbox', blog: 'Blog', rooms: 'Rooms',
                 locTitle: 'IP', locating: 'Locating…', locUnavailable: 'Location unavailable',
                 netResidential: 'Home', netDatacenter: 'DC', netMobile: 'Mobile',
                 purity: 'Purity', proxy: 'VPN', visits: 'Visits', speed: 'Speed'
             },
             ja: {
-                us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
+                us: 'San Jose, US', jp: 'Osaka, JP', cn: 'Beijing, CH', se: 'Gothenburg, SE',
                 mail: 'メール', game: 'ゲームセンター', fx: '為替', tools: 'ツールボックス', blog: 'ブログ', rooms: 'ルーム',
                 locTitle: 'IP', locating: '取得中…', locUnavailable: '位置を取得できません',
                 netResidential: '回線', netDatacenter: 'DC', netMobile: '携帯',
                 purity: '純度', proxy: 'VPN', visits: '訪問', speed: '速度'
             },
             zh: {
-                us: 'LA, US', jp: 'Tokyo, JP', cn: 'BJ, CN', se: 'GOT, SE',
+                us: 'San Jose, US', jp: 'Osaka, JP', cn: 'Beijing, CH', se: 'Gothenburg, SE',
                 mail: '邮箱', game: '游戏中心', fx: '汇率', tools: '工具箱', blog: '博客', rooms: '开房',
                 locTitle: 'IP', locating: '定位中…', locUnavailable: '无法获取位置',
                 netResidential: '家庭宽带', netDatacenter: '机房', netMobile: '移动',
@@ -602,7 +602,7 @@
         function updateClocks() {
             const now = new Date();
             const lang = localStorage.getItem('portal_lang') || 'en';
-            const timeOpts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            const timeOpts = { hour: '2-digit', minute: '2-digit', hour12: false };
             const dateOpts = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
 
             document.querySelectorAll('.zone-row').forEach((row) => {
