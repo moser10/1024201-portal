@@ -12,9 +12,11 @@ export const MIN_INWARD_RATIO = 0.97;
 export const RIM_TUCK = 52;
 export const TANGENT_KEEP = 0.12;
 export const RECOIL_TIME = 0.2;
-export const SEPARATE_MUL = 1.85;
-export const SEPARATE_GAP = 72;
-export const SEPARATE_TIME = 0.42;
+export const SEPARATE_MUL = 2.05;
+export const SEPARATE_GAP = 88;
+export const SEPARATE_TIME = 0.48;
+export const FLY_DEG_NEAR = Object.freeze([30, 80]);
+export const FLY_DEG_FAR = Object.freeze([115, 170]);
 export const WEAPON_DIR = "/icons/weapon";
 export const EMOJI_STACK = '"Noto Color Emoji","Noto Emoji","Segoe UI Emoji","Apple Color Emoji","Android Emoji","Twemoji Mozilla",sans-serif';
 
@@ -51,6 +53,17 @@ export const WEAPONS = Object.freeze({
 });
 
 export const GUN_KINDS = Object.freeze(Object.keys(WEAPONS));
+export const PICKUP_ICONS = Object.freeze({
+  heart: `${WEAPON_DIR}/heart.png`,
+  boost: `${WEAPON_DIR}/boost.png`,
+});
+
+export function artPaths(kind) {
+  const gun = WEAPONS[kind];
+  if (gun) return { icon: gun.icon, svg: gun.svg };
+  const icon = PICKUP_ICONS[kind];
+  return icon ? { icon, svg: null } : null;
+}
 
 export function pickAvatar(used, rng = Math.random) {
   const pool = AVATARS.filter((face) => face !== used);
@@ -188,27 +201,63 @@ export function tickBoost(fighter, dt) {
   }
 }
 
-export function bounceFighters(a, b) {
+export function headingUp(rad) {
+  return { x: Math.cos(rad), y: -Math.sin(rad) };
+}
+
+function mixDeg(range, t) {
+  return (range[0] + (range[1] - range[0]) * t) * Math.PI / 180;
+}
+
+function clampInArena(f, arena) {
+  if (!arena) return;
+  const dx = f.x - arena.x;
+  const dy = f.y - arena.y;
+  const max = arena.r - f.r - 10;
+  const d = Math.hypot(dx, dy) || 1;
+  if (d > max) {
+    f.x = arena.x + (dx / d) * max;
+    f.y = arena.y + (dy / d) * max;
+  }
+}
+
+export function bounceFighters(a, b, rng = Math.random, arena = null) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const dist = Math.hypot(dx, dy) || 0.0001;
   const min = a.r + b.r;
   const cooling = (a.separateT || 0) > 0 || (b.separateT || 0) > 0;
-  if (dist >= min + (cooling ? 10 : 0)) return false;
-  const nx = dx / dist;
-  const ny = dy / dist;
-  const push = (min + SEPARATE_GAP - dist) * 0.5;
-  a.x -= nx * push;
-  a.y -= ny * push;
-  b.x += nx * push;
-  b.y += ny * push;
-  if (cooling) return false;
+  if (dist >= min + (cooling ? 12 : 0)) return false;
+  if (cooling) {
+    const push = (min + 24 - dist) * 0.5;
+    const nx = dx / dist;
+    const ny = dy / dist;
+    a.x -= nx * push;
+    a.y -= ny * push;
+    b.x += nx * push;
+    b.y += ny * push;
+    clampInArena(a, arena);
+    clampInArena(b, arena);
+    return false;
+  }
+  const base = Math.atan2(-dy, dx);
+  const angA = base + mixDeg(FLY_DEG_FAR, rng());
+  const angB = base + mixDeg(FLY_DEG_NEAR, rng());
+  const dirA = headingUp(angA);
+  const dirB = headingUp(angB);
+  const mx = (a.x + b.x) / 2;
+  const my = (a.y + b.y) / 2;
+  const leap = min + SEPARATE_GAP;
+  a.x = mx + dirA.x * leap;
+  a.y = my + dirA.y * leap;
+  b.x = mx + dirB.x * leap;
+  b.y = my + dirB.y * leap;
   const sa = cruiseSpeed(a) * SEPARATE_MUL;
   const sb = cruiseSpeed(b) * SEPARATE_MUL;
-  a.vx = -nx * sa;
-  a.vy = -ny * sa;
-  b.vx = nx * sb;
-  b.vy = ny * sb;
+  a.vx = dirA.x * sa;
+  a.vy = dirA.y * sa;
+  b.vx = dirB.x * sb;
+  b.vy = dirB.y * sb;
   a.separateT = SEPARATE_TIME;
   b.separateT = SEPARATE_TIME;
   a.recoilT = 0;
@@ -217,6 +266,8 @@ export function bounceFighters(a, b) {
   b.recoilT = 0;
   b.recoilVx = 0;
   b.recoilVy = 0;
+  clampInArena(a, arena);
+  clampInArena(b, arena);
   return true;
 }
 
@@ -451,7 +502,7 @@ export function stepMatch(state, dt, input = {}, rng = Math.random) {
     if (flash) state.flashes.push({ ...flash, life: 0.28, age: 0 });
     tickBurst(state, f, dt);
   }
-  bounceFighters(state.player, state.foe);
+  bounceFighters(state.player, state.foe, rng, state.arena);
   const extraA = bounceArena(state.player, state.arena, state.rimHits);
   const extraB = bounceArena(state.foe, state.arena, state.rimHits);
   if (extraA) state.flashes.push({ ...extraA, life: 0.28, age: 0 });

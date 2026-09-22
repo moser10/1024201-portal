@@ -1,4 +1,4 @@
-import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=9";
+import { AVATARS, WEAPON_ICON_PX, AVATAR_PX, WEAPONS, PICKUP_ICONS, artPaths, EMOJI_STACK, canFire, createMatch, pickAvatar, stepMatch } from "./duel.js?v=10";
 import { duaCopy } from "./copy.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
 
@@ -25,19 +25,22 @@ const W = canvas.width;
 const H = canvas.height;
 const EMOJI_FONT = `${AVATAR_PX}px ${EMOJI_STACK}`;
 const GUN_FONT = `${WEAPON_ICON_PX}px ${EMOJI_STACK}`;
-const weaponImgs = {};
-function loadGunArt(kind) {
-  const spec = WEAPONS[kind];
+const pickupImgs = {};
+function loadArt(kind) {
+  const spec = artPaths(kind);
+  if (!spec) return null;
   const png = new Image();
-  const svg = new Image();
   png.src = spec.icon;
-  svg.src = spec.svg;
+  const svg = new Image();
+  if (spec.svg) svg.src = spec.svg;
   return { png, svg };
 }
-for (const kind of Object.keys(WEAPONS)) weaponImgs[kind] = loadGunArt(kind);
+for (const kind of [...Object.keys(WEAPONS), ...Object.keys(PICKUP_ICONS)]) {
+  pickupImgs[kind] = loadArt(kind);
+}
 
-function gunImage(kind) {
-  const pack = weaponImgs[kind];
+function pickupImage(kind) {
+  const pack = pickupImgs[kind];
   if (pack?.png?.complete && pack.png.naturalWidth) return pack.png;
   if (pack?.svg?.complete && pack.svg.naturalWidth) return pack.svg;
   return null;
@@ -112,7 +115,7 @@ function syncHud() {
   redHeartsEl.textContent = heartsRow(match.player.hearts, "❤️");
   yellowHeartsEl.textContent = heartsRow(match.foe.hearts, "💛");
   weaponEl.textContent = weaponLabel(match.player);
-  const art = match.player.weapon ? gunImage(match.player.weapon) : null;
+  const art = match.player.weapon ? pickupImage(match.player.weapon) : null;
   if (weaponArt) {
     if (art) {
       weaponArt.hidden = false;
@@ -183,8 +186,8 @@ function pickupGlyph(kind) {
   return WEAPONS[kind]?.emoji || "•";
 }
 
-function drawGun(x, y, kind) {
-  const img = gunImage(kind);
+function drawPickupArt(x, y, kind) {
+  const img = pickupImage(kind);
   if (!img) return false;
   const s = WEAPON_ICON_PX;
   ctx.drawImage(img, x - s / 2, y - s / 2, s, s);
@@ -230,7 +233,7 @@ function drawFighter(f) {
     const ang = f.id === "player"
       ? Math.atan2(aimY - f.y, aimX - f.x)
       : Math.atan2(match.player.y - f.y, match.player.x - f.x);
-    drawGun(f.x + Math.cos(ang) * (f.r + 10), f.y + Math.sin(ang) * (f.r + 10), f.weapon)
+    drawPickupArt(f.x + Math.cos(ang) * (f.r + 10), f.y + Math.sin(ang) * (f.r + 10), f.weapon)
       || drawEmoji(f.x + Math.cos(ang) * (f.r + 8), f.y + Math.sin(ang) * (f.r + 8), pickupGlyph(f.weapon), GUN_FONT);
   }
 }
@@ -246,7 +249,7 @@ function draw() {
   drawFlashes();
 
   for (const item of match.pickups) {
-    if (item.kind === "heart" || item.kind === "boost" || !drawGun(item.x, item.y, item.kind)) {
+    if (!drawPickupArt(item.x, item.y, item.kind)) {
       drawEmoji(item.x, item.y, pickupGlyph(item.kind), GUN_FONT);
     }
   }

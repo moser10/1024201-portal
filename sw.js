@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v110";
+const CACHE = "1042-pwa-v111";
 const SHELL = [
   "/",
   "/index.html",
@@ -38,8 +38,8 @@ const SHELL = [
   "/game/dua/",
   "/game/dua/index.html",
   "/game/dua/game.css?v=8",
-  "/game/dua/game.js?v=9",
-  "/game/dua/duel.js?v=9",
+  "/game/dua/game.js?v=10",
+  "/game/dua/duel.js?v=10",
   "/game/dua/copy.js?v=4",
   "/blog/",
   "/blog/index.html",
@@ -49,6 +49,13 @@ const SHELL = [
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
   "/icons/favicon-32.png",
+  "/icons/weapon/glock.png",
+  "/icons/weapon/ak.png",
+  "/icons/weapon/rpg.png",
+  "/icons/weapon/sg.png",
+  "/icons/weapon/knife.png",
+  "/icons/weapon/heart.png",
+  "/icons/weapon/boost.png",
 ];
 
 function isApi(url) {

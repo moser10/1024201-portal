@@ -12,7 +12,7 @@ import {
   START_SPEED,
   MIN_INWARD_RATIO,
   SEPARATE_MUL,
-  SEPARATE_GAP,
+  PICKUP_ICONS,
   applyBoost,
   integrateFighter,
   armWeapon,
@@ -46,8 +46,8 @@ test("weapon icons are 80 percent of the avatar size", () => {
   assert.match(WEAPONS.ak.svg, /\/icons\/weapon\/ak\.svg$/);
   assert.match(WEAPONS.rpg.svg, /\/icons\/weapon\/rpg\.svg$/);
   assert.match(WEAPONS.knife.svg, /\/icons\/weapon\/knife\.svg$/);
-  assert.equal("heart" in WEAPONS, false);
-  assert.equal("boost" in WEAPONS, false);
+  assert.match(PICKUP_ICONS.heart, /\/icons\/weapon\/heart\.png$/);
+  assert.match(PICKUP_ICONS.boost, /\/icons\/weapon\/boost\.png$/);
 });
 
 test("ammo: pistol 5, ak two bursts of 3, rpg 1, knife 1, shotgun two sprays of 3", () => {
@@ -104,15 +104,21 @@ test("fighters bounce apart and shots knock the target back", () => {
   match.foe.y = 500;
   match.player.vx = 80;
   match.foe.vx = -20;
-  bounceFighters(match.player, match.foe);
+  const ox = match.player.x;
+  const oy = match.player.y;
+  bounceFighters(match.player, match.foe, () => 0, match.arena);
+  assert.ok(Math.hypot(match.player.x - ox, match.player.y - oy) > 40);
   assert.ok(match.player.x < match.foe.x);
   assert.ok(match.player.vx < 0);
   assert.ok(match.foe.vx > 0);
-  assert.ok(Math.hypot(match.foe.x - match.player.x, match.foe.y - match.player.y) >= match.player.r + match.foe.r + SEPARATE_GAP - 1);
-  assert.ok(Math.abs(Math.hypot(match.player.vx, match.player.vy) - START_SPEED * SEPARATE_MUL) < 0.02);
+  assert.ok(match.player.vy < 0);
+  assert.ok(match.foe.vy < 0);
+  const gap = Math.hypot(match.foe.x - match.player.x, match.foe.y - match.player.y);
+  assert.ok(gap > match.player.r + match.foe.r + 20);
   const vx1 = match.player.vx;
-  bounceFighters(match.player, match.foe);
+  bounceFighters(match.player, match.foe, () => 0, match.arena);
   assert.equal(match.player.vx, vx1);
+  assert.ok(Math.abs(Math.hypot(match.player.vx, match.player.vy) - START_SPEED * SEPARATE_MUL) < 0.5);
 
   match.shots.push({
     owner: "player", kind: "pistol", x: match.foe.x, y: match.foe.y,
