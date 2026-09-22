@@ -73,7 +73,21 @@ export function publicRoom(row, seatCount) {
     seats: seatCount,
     has_pin: Boolean(row.pin),
     created_at: row.created_at,
+    started: Boolean(row.started_at),
   };
+}
+
+export function canReady(room) {
+  if (!room || room.closed_at) return { ok: false, error: "closed" };
+  if (room.kind !== "dua") return { ok: false, error: "kind" };
+  return { ok: true };
+}
+
+export function canStart({ room, userId }) {
+  if (!room || room.closed_at) return { ok: false, error: "closed" };
+  if (room.kind !== "dua") return { ok: false, error: "kind" };
+  if (Number(room.host_id) !== Number(userId)) return { ok: false, error: "host" };
+  return { ok: true };
 }
 
 /** Leave keeps messages. Only an explicit close wipes the room chat. */

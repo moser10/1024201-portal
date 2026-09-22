@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=9">
   <link rel="stylesheet" href="/js/accountChrome.css?v=2">
-  <link rel="stylesheet" href="rooms.css?v=5">
+  <link rel="stylesheet" href="rooms.css?v=6">
 </head>
 <body class="feature-page">
   <div class="feature-shell">
@@ -40,6 +40,15 @@
       </div>
     </div>
   </div>
-  <script type="module" src="rooms.js?v=8"></script>
+  <div class="portal-modal" id="gameAsk" hidden>
+    <div class="portal-modal-card">
+      <p id="gameAskTitle"></p>
+      <button type="button" class="rooms-game-opt" id="gameOptDua" data-game="dua">
+        <span id="gameOptDuaLabel"></span>
+        <span aria-hidden="true">✓</span>
+      </button>
+    </div>
+  </div>
+  <script type="module" src="rooms.js?v=9"></script>
 </body>
 </html>

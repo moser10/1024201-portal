@@ -10,7 +10,8 @@ export async function ensureOpenRoomSchema(db) {
         max_seats INTEGER NOT NULL DEFAULT 3,
         pin TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        closed_at TEXT
+        closed_at TEXT,
+        started_at TEXT
       )`
     )
     .run();
@@ -21,6 +22,7 @@ export async function ensureOpenRoomSchema(db) {
         user_id INTEGER NOT NULL,
         username TEXT NOT NULL,
         last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+        ready INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (room_id, user_id)
       )`
     )
@@ -37,4 +39,12 @@ export async function ensureOpenRoomSchema(db) {
       )`
     )
     .run();
+  await addCol(db, "open_rooms", "started_at", "ALTER TABLE open_rooms ADD COLUMN started_at TEXT");
+  await addCol(db, "open_room_seats", "ready", "ALTER TABLE open_room_seats ADD COLUMN ready INTEGER NOT NULL DEFAULT 0");
+}
+
+async function addCol(db, table, column, sql) {
+  const { results } = await db.prepare(`PRAGMA table_info(${table})`).all();
+  if ((results || []).some((row) => row.name === column)) return;
+  await db.prepare(sql).run();
 }

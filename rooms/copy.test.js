@@ -14,4 +14,9 @@ test("rooms tile labels stay distinct in the three portal languages", () => {
   assert.equal(roomsCopy("zh").gameDua, "对圈");
   assert.equal(roomsCopy("en").gameDua, "Dua");
   assert.equal(roomsCopy("ja").gameDua, "ガツン");
+  assert.equal(roomsCopy("zh").create, "开房");
+  assert.equal(roomsCopy("en").create, "Get a room");
+  assert.equal(roomsCopy("ja").create, "休憩する");
+  assert.equal(roomsCopy("zh").ready, "准备");
+  assert.equal(roomsCopy("zh").startMatch, "开始");
 });

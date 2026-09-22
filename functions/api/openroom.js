@@ -1,6 +1,6 @@
 import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
 import { ensureOpenRoomSchema } from "./openroomSchema.js";
-import { parseCreate, canJoin, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat } from "./openroomLogic.js";
+import { parseCreate, canJoin, canReady, canStart, publicRoom, sanitizeMsg, makeRoomCode, isFreshSeat } from "./openroomLogic.js";
 
 async function requireUser(db, userId) {
   const id = Number(userId);
@@ -22,7 +22,7 @@ async function pruneSeats(db, roomId) {
 
 async function loadSeats(db, roomId) {
   const { results } = await db
-    .prepare("SELECT user_id, username, last_seen FROM open_room_seats WHERE room_id = ? ORDER BY last_seen ASC")
+    .prepare("SELECT user_id, username, last_seen, ready FROM open_room_seats WHERE room_id = ? ORDER BY last_seen ASC")
     .bind(roomId)
     .all();
   return (results || []).filter((row) => isFreshSeat(row.last_seen));
@@ -35,8 +35,8 @@ async function loadRoom(db, roomId) {
 async function sit(db, roomId, user) {
   await db
     .prepare(
-      `INSERT INTO open_room_seats (room_id, user_id, username, last_seen)
-       VALUES (?, ?, ?, datetime('now'))
+      `INSERT INTO open_room_seats (room_id, user_id, username, last_seen, ready)
+       VALUES (?, ?, ?, datetime('now'), 0)
        ON CONFLICT(room_id, user_id) DO UPDATE SET username = excluded.username, last_seen = datetime('now')`
     )
     .bind(roomId, user.id, user.username)
@@ -72,7 +72,11 @@ async function roomPayload(db, room, userId) {
       host: Number(room.host_id) === Number(userId),
       member,
     },
-    seats: seats.map((s) => ({ user_id: s.user_id, username: s.username })),
+    seats: seats.map((s) => ({
+      user_id: s.user_id,
+      username: s.username,
+      ready: Boolean(Number(s.ready)),
+    })),
     messages,
   };
 }
@@ -151,6 +155,27 @@ export async function onRequest(context) {
       await db.prepare("UPDATE open_rooms SET closed_at = datetime('now') WHERE id = ?").bind(room.id).run();
       await db.prepare("DELETE FROM open_room_msgs WHERE room_id = ?").bind(room.id).run();
       return json({ ok: true, wiped: true });
+    }
+
+    if (action === "ready") {
+      const gate = canReady(room);
+      if (!gate.ok) return json({ error: gate.error }, 400);
+      const seated = (await loadSeats(db, room.id)).some((s) => Number(s.user_id) === Number(user.id));
+      if (!seated) return json({ error: "member" }, 403);
+      const on = body.ready === false || body.ready === 0 || body.ready === "0" ? 0 : 1;
+      await db
+        .prepare("UPDATE open_room_seats SET ready = ?, last_seen = datetime('now') WHERE room_id = ? AND user_id = ?")
+        .bind(on, room.id, user.id)
+        .run();
+      return json(await roomPayload(db, room, user.id));
+    }
+
+    if (action === "start") {
+      const gate = canStart({ room, userId: user.id });
+      if (!gate.ok) return json({ error: gate.error }, gate.error === "host" ? 403 : 400);
+      await db.prepare("UPDATE open_rooms SET started_at = datetime('now') WHERE id = ?").bind(room.id).run();
+      room.started_at = room.started_at || "now";
+      return json(await roomPayload(db, room, user.id));
     }
 
     if (action === "get") {

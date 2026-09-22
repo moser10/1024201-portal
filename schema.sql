@@ -129,7 +129,8 @@ CREATE TABLE IF NOT EXISTS open_rooms (
   max_seats INTEGER NOT NULL DEFAULT 3,
   pin TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  closed_at TEXT
+  closed_at TEXT,
+  started_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS open_room_seats (
@@ -137,6 +138,7 @@ CREATE TABLE IF NOT EXISTS open_room_seats (
   user_id INTEGER NOT NULL,
   username TEXT NOT NULL,
   last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+  ready INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (room_id, user_id)
 );
 

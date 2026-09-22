@@ -69,6 +69,10 @@
 | `game/dua/game.js` | 选头像、瞄准、绘制 |
 | `game/dua/stick.js` | 摇杆行程、瞄准方向、震动 |
 
+## 联机（中间步）
+
+Jev 选 **ready_start**：房间里准备、房主开始，然后进对圈页。这一期仍是本机物理 vs CPU。下一刀再做主机快照或 WebSocket。
+
 ## 明确不做
 
-联机、控制自己的路线、给 emoji 套圆底、Instagram 壳。
+控制自己的路线、给 emoji 套圆底、Instagram 壳。先不要 Durable Objects。

@@ -90,9 +90,7 @@ function renderLobby(list = null, error = "") {
       <input id="roomTitle" maxlength="24" placeholder="${esc(copy.namePh)}" required autocomplete="off">
       ${kind === "dua" ? `
       <label>${esc(copy.game)}</label>
-      <select id="roomGame">
-        <option value="dua" selected>${esc(copy.gameDua)}</option>
-      </select>
+      <button type="button" class="rooms-game-btn" id="gamePick">${esc(copy.gameDua)} ✓</button>
       <p class="rooms-game-blurb">${esc(copy.gameBlurb)}</p>` : `<p class="rooms-game-blurb">${esc(copy.unlimited)}</p>`}
       <label>${esc(copy.pin)}</label>
       <input id="roomPin" inputmode="numeric" maxlength="4" placeholder="${esc(copy.pinPh)}" autocomplete="off">
@@ -123,6 +121,9 @@ function renderLobby(list = null, error = "") {
   });
   root.querySelectorAll("[data-join]").forEach((btn) => {
     btn.addEventListener("click", () => tryJoin(btn.dataset.join, btn.dataset.pin === "1"));
+  });
+  document.getElementById("gamePick")?.addEventListener("click", () => {
+    showPortalModal(document.getElementById("gameAsk"));
   });
   paintBack();
 }
@@ -187,8 +188,13 @@ function renderInside(data) {
   root.innerHTML = `
     <div class="rooms-inside">
     <p class="rooms-note"><strong>${esc(room.title)}</strong> · ${seatLine({ seats: seats.length, max_seats: room.max_seats })}</p>
-    <div class="seat-list">${seats.map((s) => `<span class="seat-chip">@${esc(s.username)}</span>`).join("")}</div>
-    ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p><div class="rooms-practice"><a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a></div>` : ""}
+    <div class="seat-list">${seats.map((s) => `<span class="seat-chip">@${esc(s.username)}${s.ready ? " ✓" : ""}</span>`).join("")}</div>
+    ${room.kind === "dua" ? `<p class="rooms-note">${esc(copy.duaSoon)}</p>
+    <div class="rooms-practice rooms-actions">
+      <button type="button" class="btn-secondary" id="readyBtn">${esc(seats.some((s) => Number(s.user_id) === Number(getUser()?.id) && s.ready) ? copy.unready : copy.ready)}</button>
+      ${room.host && !room.started ? `<button type="button" class="btn-primary" id="startBtn">${esc(copy.startMatch)}</button>` : ""}
+      ${room.started ? `<a class="btn-primary" id="enterDua" href="/game/dua/">${esc(copy.enterDua)}</a>` : `<a class="btn-secondary" id="practiceDua" href="/game/dua/">${esc(copy.practice)}</a>`}
+    </div>` : ""}
     <div class="msg-list">${msgs.map((m) => `<p class="msg-row"><b>@${esc(m.username)}</b> ${esc(m.text)}</p>`).join("")}</div>
     <form class="rooms-say" id="sayForm">
       <input id="sayText" maxlength="280" placeholder="${esc(copy.chatPh)}" autocomplete="off" enterkeyhint="send">
@@ -218,10 +224,31 @@ function renderInside(data) {
     askingClose = true;
     showPortalModal(document.getElementById("closeAsk"));
   });
-  document.getElementById("practiceDua")?.addEventListener("click", () => {
-    setNavBack({ type: "room", roomId: room.id, roomTitle: room.title });
+  document.getElementById("readyBtn")?.addEventListener("click", async () => {
+    const mine = seats.some((s) => Number(s.user_id) === Number(getUser()?.id) && s.ready);
+    try {
+      current = await api("ready", { room_id: room.id, ready: !mine });
+      renderInside(current);
+    } catch (err) {
+      if (err.code === "closed") showRoomsLobby();
+    }
   });
+  document.getElementById("startBtn")?.addEventListener("click", async () => {
+    try {
+      current = await api("start", { room_id: room.id });
+      goDua(room);
+      location.href = "/game/dua/";
+    } catch (err) {
+      if (err.code === "closed") showRoomsLobby();
+    }
+  });
+  document.getElementById("practiceDua")?.addEventListener("click", () => goDua(room));
+  document.getElementById("enterDua")?.addEventListener("click", () => goDua(room));
   paintBack();
+}
+
+function goDua(room) {
+  setNavBack({ type: "room", roomId: room.id, roomTitle: room.title });
 }
 
 function paintCloseAsk() {
@@ -231,6 +258,20 @@ function paintCloseAsk() {
   if (text) text.textContent = copy.closeAsk;
   if (no) no.textContent = copy.cancel;
   if (yes) yes.textContent = copy.ok;
+  const gameTitle = document.getElementById("gameAskTitle");
+  const gameLabel = document.getElementById("gameOptDuaLabel");
+  if (gameTitle) gameTitle.textContent = copy.game;
+  if (gameLabel) gameLabel.textContent = copy.gameDua;
+}
+
+function bindGameAsk() {
+  const box = document.getElementById("gameAsk");
+  box?.addEventListener("click", (e) => {
+    if (e.target === box) hidePortalModal(box);
+  });
+  document.getElementById("gameOptDua")?.addEventListener("click", () => {
+    hidePortalModal(box);
+  });
 }
 
 function bindCloseAsk() {
@@ -286,6 +327,7 @@ if (!requireAuth("rooms/")) {
 } else {
   applyChrome();
   bindCloseAsk();
+  bindGameAsk();
   const fromUrl = new URLSearchParams(location.search).get("r");
   const want = roomReturnId() || fromUrl;
   if (fromUrl) history.replaceState(null, "", "/rooms/");
