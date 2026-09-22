@@ -19,6 +19,14 @@ const GAMES = [
     href: "paddlemaze/",
     gradient: "linear-gradient(135deg, #ff42bb 0%, #8b0aa8 58%, #24113f 100%)",
   },
+  {
+    id: "dua",
+    code: "DUA",
+    title: { zh: "对圈", en: "Dua", ja: "デュエル円" },
+    fullName: "Dua Circle",
+    href: "dua/",
+    gradient: "linear-gradient(135deg, #ff453a 0%, #ffd60a 62%, #1c1c1e 100%)",
+  },
 ];
 
 const HUB_I18N = {

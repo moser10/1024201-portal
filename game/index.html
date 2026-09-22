@@ -15,7 +15,7 @@
     <style>html,body{background:#f2f2f7}body{margin:0}</style>
     <link rel="modulepreload" href="/js/langTabs.js">
     <link rel="modulepreload" href="/js/accountChrome.js">
-    <link rel="stylesheet" href="css/hub.css?v=4">
+    <link rel="stylesheet" href="css/hub.css?v=5">
     <link rel="stylesheet" href="/js/featurePage.css?v=3">
     <link rel="stylesheet" href="/js/langTabs.css">
     <link rel="stylesheet" href="/js/accountChrome.css">
@@ -40,6 +40,11 @@
             <div class="game-label" data-label="paddlemaze">挡板方块迷宫</div>
             <div class="game-full">Paddle Block Maze</div>
           </a>
+          <a class="game-card" href="dua/" data-href="dua/" data-id="dua">
+            <div class="game-icon" style="background:linear-gradient(135deg,#ff453a 0%,#ffd60a 62%,#1c1c1e 100%)"><span class="game-code">DUA</span></div>
+            <div class="game-label" data-label="dua">对圈</div>
+            <div class="game-full">Dua Circle</div>
+          </a>
         </div>
       </div>
     </div>
@@ -47,18 +52,19 @@
       (function () {
         var lang = localStorage.getItem("portal_lang") || "en";
         var text = {
-          zh: { title:"游戏中心", back:"返回门户", osn:"一人一句，一句成书", paddlemaze:"挡板方块迷宫" },
-          en: { title:"Game Center", back:"Back to portal", osn:"One sentence, one novel", paddlemaze:"Paddle Block Maze" },
-          ja: { title:"ゲームセンター", back:"ポータルへ", osn:"一文執筆", paddlemaze:"パドルブロック迷路" }
+          zh: { title:"游戏中心", back:"返回门户", osn:"一人一句，一句成书", paddlemaze:"挡板方块迷宫", dua:"对圈" },
+          en: { title:"Game Center", back:"Back to portal", osn:"One sentence, one novel", paddlemaze:"Paddle Block Maze", dua:"Dua" },
+          ja: { title:"ゲームセンター", back:"ポータルへ", osn:"一文執筆", paddlemaze:"パドルブロック迷路", dua:"デュエル円" }
         }[lang] || null;
         if (!text) return;
         document.getElementById("hubTitle").textContent = text.title;
         document.getElementById("hubBack").textContent = text.back;
         document.querySelector('[data-label="osn"]').textContent = text.osn;
         document.querySelector('[data-label="paddlemaze"]').textContent = text.paddlemaze;
+        document.querySelector('[data-label="dua"]').textContent = text.dua;
       })();
     </script>
-    <script type="module" src="js/hub.js?v=3"></script>
+    <script type="module" src="js/hub.js?v=4"></script>
     <script src="/pwa.js" defer></script>
 </body>
 </html>

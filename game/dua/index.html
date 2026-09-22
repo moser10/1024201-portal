@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#050510">
+  <title>对圈 Dua | 1024201</title>
+  <link rel="stylesheet" href="/js/featurePage.css?v=3">
+  <link rel="stylesheet" href="game.css?v=1">
+</head>
+<body>
+  <main class="game-shell">
+    <header class="game-top">
+      <a class="game-back" id="gameBack" href="/game/">Back</a>
+      <div class="game-title">
+        <strong>DUA</strong>
+        <span>对圈</span>
+      </div>
+      <button class="icon-btn" id="pauseBtn" type="button" aria-label="暂停">Ⅱ</button>
+    </header>
+
+    <div class="hearts" aria-label="双方生命">
+      <div id="redHearts">❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️</div>
+      <div id="yellowHearts">💛💛💛💛💛💛💛💛💛💛</div>
+    </div>
+    <div class="weapon-chip" id="weaponText">UNARMED</div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="gameCanvas" width="900" height="1000" draggable="false" aria-label="对圈竞技场"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="overlay-card">
+          <p class="eyebrow" id="overlayEyebrow">DUA</p>
+          <h1 id="overlayTitle">对圈 Dua<br>DUEL CIRCLE</h1>
+          <p id="overlayText">圈内移动，捡枪开火，伸手抓心。红方是你，黄方是 CPU。</p>
+          <button id="startBtn" type="button">START</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-zone" id="controlZone" aria-label="移动与动作">
+      <button class="act-btn grab" id="grabBtn" type="button">GRAB</button>
+      <button class="act-btn fire" id="fireBtn" type="button">FIRE</button>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var lang = localStorage.getItem("portal_lang") || "en";
+      var copy = { en: "Game center", zh: "返回游戏", ja: "ゲームへ" };
+      document.getElementById("gameBack").textContent = copy[lang] || copy.en;
+    })();
+  </script>
+  <script type="module" src="game.js?v=1"></script>
+</body>
+</html>
