@@ -6,6 +6,7 @@ import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } fr
 import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=28";
 import { heldBallPose, launchVelocity } from "./serve.js?v=1";
 import { bounceCircleRect, bounceWorldEdge, resetTrap } from "./bounce.js?v=1";
+import { paddleCopy } from "./copy.js?v=1";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -50,6 +51,7 @@ const targetIconEl = document.getElementById("targetIcon");
 const overlayTitleEl = document.getElementById("overlayTitle");
 const overlayTextEl = document.getElementById("overlayText");
 const overlayEyebrowEl = document.getElementById("overlayEyebrow");
+const pauseBannerEl = document.getElementById("pauseBanner");
 const runTimeEl = document.getElementById("runTime");
 const welfareTimeEl = document.getElementById("welfareTime");
 const welfarePreviewEl = document.getElementById("welfarePreview");
@@ -61,6 +63,7 @@ staticLayer.width = W;
 staticLayer.height = H;
 const staticCtx = staticLayer.getContext("2d", { alpha: false });
 let lastHudKey = "";
+let overlayKind = "start";
 let running = false;
 let paused = false;
 let lastTime = 0;
@@ -600,12 +603,13 @@ function update(dt) {
     releaseAllBalls();
     if (levelIndex + 1 >= TOTAL_LEVELS) {
       running = false;
-      showOverlay("全部通关", `最终得分 ${score}。本关 ${spent}，总计 ${formatClock(sessionElapsed)}。`, "START", "COMPLETE");
+      showOverlay("complete", "全部通关", `最终得分 ${score}。本关 ${spent}，总计 ${formatClock(sessionElapsed)}。`, "START", "COMPLETE");
       levelIndex = 0;
     } else {
       running = false;
       levelIndex++;
       showOverlay(
+        "clear",
         `LEVEL ${String(levelIndex).padStart(2, "0")} CLEAR`,
         `用时 ${spent}。通道结构即将改变。准备进入下一层。`,
         "NEXT",
@@ -616,7 +620,7 @@ function update(dt) {
     running = false;
     releaseAllItems();
     haptic(35);
-    showOverlay("GAME OVER", `用时 ${formatClock(levelElapsed)}`, "Re-Start", "");
+    showOverlay("lose", "GAME OVER", `用时 ${formatClock(levelElapsed)}`, "Re-Start", "");
   }
   updateHud();
 }
@@ -700,22 +704,36 @@ function loop(time) {
   animationId = requestAnimationFrame(loop);
 }
 
-function showOverlay(title, text, button, eyebrow = "PADDLE") {
+function pageCopy() {
+  return paddleCopy(localStorage.getItem("portal_lang") || "en");
+}
+
+function setPauseBanner(on) {
+  if (!pauseBannerEl) return;
+  pauseBannerEl.hidden = !on;
+  if (on) pauseBannerEl.textContent = pageCopy().paused;
+}
+
+function showOverlay(kind, title, text, button, eyebrow = "PADDLE") {
+  overlayKind = kind;
   overlayTitleEl.textContent = title;
   overlayTextEl.textContent = text;
   overlayEyebrowEl.textContent = eyebrow;
   startBtn.textContent = button;
   overlay.hidden = false;
+  setPauseBanner(false);
 }
 
 function startLevel() {
-  const title = overlayTitleEl.textContent || "";
-  if (title.includes("全部通关") || title.includes("GAME OVER") || /Paddle|打砖块|ブロック崩し/.test(title)) {
+  const resetRun = overlayKind === "start" || overlayKind === "complete" || overlayKind === "lose";
+  if (resetRun) {
     sessionElapsed = 0;
-    if (title.includes("全部通关")) score = 0;
+    if (overlayKind === "complete") score = 0;
   }
   makeLevel(levelIndex);
+  overlayKind = "hidden";
   overlay.hidden = true;
+  setPauseBanner(false);
   paused = false;
   running = true;
   pauseBtn.textContent = "Ⅱ";
@@ -727,9 +745,10 @@ function togglePause() {
   paused = !paused;
   pauseBtn.textContent = paused ? "▶" : "Ⅱ";
   if (paused) {
-    showOverlay("已暂停", "当前进度已保留。", "RESUME", `LEVEL ${String(levelIndex + 1).padStart(2, "0")}`);
-  } else {
     overlay.hidden = true;
+    setPauseBanner(true);
+  } else {
+    setPauseBanner(false);
     lastTime = performance.now();
   }
 }
@@ -821,6 +840,7 @@ startBtn.addEventListener("click", () => {
   if (paused && running) {
     paused = false;
     overlay.hidden = true;
+    setPauseBanner(false);
     pauseBtn.textContent = "Ⅱ";
     lastTime = performance.now();
   } else {
@@ -835,6 +855,11 @@ document.addEventListener("visibilitychange", () => {
 
 sizeTouchZone();
 makeLevel(0);
+overlayKind = "start";
+overlayTitleEl.textContent = pageCopy().serveTitle;
+overlayTextEl.textContent = "";
+startBtn.textContent = pageCopy().start;
+overlay.hidden = false;
 draw();
 cancelAnimationFrame(animationId);
 animationId = requestAnimationFrame(loop);
