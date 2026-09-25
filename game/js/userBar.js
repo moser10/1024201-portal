@@ -24,7 +24,14 @@ function escapeHtml(str) {
 }
 
 function buildLoginUrl(returnPath) {
-  const ret = returnPath || location.pathname.replace(/^\//, "") + location.search;
+  let ret = returnPath;
+  if (ret == null || ret === "") {
+    ret = location.pathname + location.search;
+  }
+  // Portal root should round-trip to "/" (not empty → auth default)
+  if (ret === "/" || ret === "/index.html") ret = "/";
+  else if (ret.startsWith("/")) ret = ret;
+  else ret = `/${ret}`.replace(/^\/\//, "/");
   return `/game/register/?return=${encodeURIComponent(ret)}`;
 }
 

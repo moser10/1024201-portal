@@ -5,7 +5,7 @@ let state = {
   tab: "users",
   users: [],
   rooms: [],
-  overview: { users: 0, rooms: 0, pending: 0 },
+  overview: { users: 0, rooms: 0, pending: 0, visitors: 0 },
   me: {
     username: "sa",
     adminmail: "",
@@ -218,6 +218,9 @@ function userRowHtml(u, i) {
   const flags = [];
   if (Number(u.must_change_password) === 1) flags.push(`<span class="badge badge-warn">需改密</span>`);
   if (Number(u.has_temp_password) === 1) flags.push(`<span class="badge">临时密码</span>`);
+  const grants = [];
+  if (Number(u.pdf_extra) > 0) grants.push(`PDF+${u.pdf_extra}`);
+  if (Number(u.lyrics_extra) > 0) grants.push(`歌词+${u.lyrics_extra}`);
   return `
     <tr data-user-id="${u.id}">
       <td>${i + 1}</td>
@@ -225,8 +228,10 @@ function userRowHtml(u, i) {
       <td>${esc(u.email)}</td>
       <td>${esc(u.created_at || "—")}</td>
       <td>${flags.join(" ") || `<span class="badge badge-ok">正常</span>`}</td>
+      <td>${grants.length ? esc(grants.join(" · ")) : "—"}</td>
       <td>
         <div class="row-actions">
+          <button type="button" class="btn btn-ghost btn-small grant-user" data-id="${u.id}" data-name="${esc(u.username)}">加次数</button>
           <button type="button" class="btn btn-ghost btn-small reset-user" data-id="${u.id}">重置密码</button>
           <button type="button" class="btn btn-danger btn-small del-user" data-id="${u.id}">删除</button>
         </div>
@@ -267,7 +272,8 @@ function roomRowHtml(r, i) {
 function panelUsers() {
   return `
     <div class="card" data-panel="users">
-      <h2>用户</h2>
+      <h2>注册用户（${state.overview.users ?? state.users.length}）</h2>
+      <p class="panel-hint">可删除用户；「加次数」为指定功能增加额外可用次数（永久叠加在每日免费额度上）。</p>
       <div class="toolbar">
         <input class="search" id="userSearch" type="search" placeholder="搜索用户名 / 邮箱" value="${esc(state.userQ)}">
         <button type="button" class="btn btn-ghost btn-small" id="userSearchBtn">搜索</button>
@@ -276,7 +282,7 @@ function panelUsers() {
         ${
           state.users.length
             ? `<table>
-          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>状态</th><th>操作</th></tr></thead>
+          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>状态</th><th>额外次数</th><th>操作</th></tr></thead>
           <tbody>${state.users.map((u, i) => userRowHtml(u, i)).join("")}</tbody>
         </table>`
             : `<p class="empty">没有匹配的用户</p>`
@@ -325,9 +331,29 @@ function panelSettings() {
       <form class="form-grid" id="mailForm" onsubmit="return false">
         <div class="field">
           <label for="adminMail">邮箱</label>
-          <input id="adminMail" type="email" value="${esc(mail)}" autocomplete="email" placeholder="admin@1024201.com">
+          <input id="adminMail" type="email" value="${esc(mail)}" autocomplete="email" placeholder="1024201@1024201.com">
         </div>
         <button type="button" class="btn" id="saveMailBtn">保存邮箱</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>发送注册邀请码</h2>
+      <p class="panel-hint">邀请码仅限指定收件邮箱使用一次；特殊邀请码允许少于 6 个字符的昵称。</p>
+      <form class="form-grid" id="inviteForm" onsubmit="return false">
+        <div class="field">
+          <label for="inviteCode">邀请码</label>
+          <input id="inviteCode" type="text" maxlength="64" autocomplete="off" placeholder="手动填写邀请码">
+        </div>
+        <div class="field">
+          <label for="inviteEmail">收件邮箱</label>
+          <input id="inviteEmail" type="email" autocomplete="email" placeholder="name@example.com">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#3a3a3c">
+          <input id="inviteSpecial" type="checkbox" style="width:auto;margin:0">
+          特殊邀请码（允许短昵称）
+        </label>
+        <button type="button" class="btn" id="sendInviteBtn">发送邀请</button>
       </form>
     </div>
 
@@ -385,6 +411,7 @@ function bindDashboardEvents() {
 
   document.getElementById("savePwBtn")?.addEventListener("click", savePassword);
   document.getElementById("saveMailBtn")?.addEventListener("click", saveAdminMail);
+  document.getElementById("sendInviteBtn")?.addEventListener("click", sendInvitation);
 
   document.querySelectorAll(".del-user").forEach((btn) => {
     btn.onclick = async () => {
@@ -401,6 +428,38 @@ function bindDashboardEvents() {
       try {
         await api("delete_user", { method: "POST", body: JSON.stringify({ user_id: Number(btn.dataset.id) }) });
         toast("用户已删除");
+        await refreshQuiet();
+      } catch (e) {
+        btn.disabled = false;
+        toast(e.message);
+      }
+    };
+  });
+
+  document.querySelectorAll(".grant-user").forEach((btn) => {
+    btn.onclick = async () => {
+      const name = btn.dataset.name || "";
+      const tool = window.prompt(`给「${name}」增加次数的功能（pdf / lyrics）`, "pdf");
+      if (!tool) return;
+      const t = String(tool).trim().toLowerCase();
+      if (!["pdf", "lyrics"].includes(t)) {
+        toast("功能仅支持 pdf 或 lyrics");
+        return;
+      }
+      const raw = window.prompt(`额外次数（永久叠加在每日免费额度上，填 0 清除）`, "3");
+      if (raw == null) return;
+      const extra = parseInt(raw, 10);
+      if (!Number.isFinite(extra) || extra < 0) {
+        toast("请输入有效数字");
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const data = await api("grant_quota", {
+          method: "POST",
+          body: JSON.stringify({ user_id: Number(btn.dataset.id), tool: t, extra }),
+        });
+        toast(`已为 ${data.username} 设置 ${t} 额外 ${data.extra} 次`);
         await refreshQuiet();
       } catch (e) {
         btn.disabled = false;
@@ -511,6 +570,34 @@ function bindDashboardEvents() {
   });
 }
 
+async function sendInvitation() {
+  const code = document.getElementById("inviteCode")?.value.trim() || "";
+  const email = document.getElementById("inviteEmail")?.value.trim() || "";
+  const is_special = !!document.getElementById("inviteSpecial")?.checked;
+  const btn = document.getElementById("sendInviteBtn");
+  if (!code || !email) {
+    toast("请填写邀请码和收件邮箱");
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "发送中…";
+  try {
+    await api("send_invitation", {
+      method: "POST",
+      body: JSON.stringify({ code, email, is_special }),
+    });
+    toast(`邀请码已通过 1024201 发送至 ${email}`);
+    document.getElementById("inviteCode").value = "";
+    document.getElementById("inviteEmail").value = "";
+    document.getElementById("inviteSpecial").checked = false;
+  } catch (e) {
+    toast(e.message || "发送失败");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "发送邀请";
+  }
+}
+
 async function saveAdminMail() {
   const adminmail = document.getElementById("adminMail")?.value.trim() || "";
   const btn = document.getElementById("saveMailBtn");
@@ -605,6 +692,7 @@ function paintShell() {
         <div class="stat"><div class="stat-n">${state.overview.users ?? "—"}</div><div class="stat-l">注册用户</div></div>
         <div class="stat"><div class="stat-n">${state.overview.rooms ?? "—"}</div><div class="stat-l">游戏房间</div></div>
         <div class="stat"><div class="stat-n">${state.overview.pending ?? "—"}</div><div class="stat-l">待验证注册</div></div>
+        <div class="stat"><div class="stat-n">${state.overview.visitors ?? "—"}</div><div class="stat-l">门户独立访客</div></div>
       </div>
 
       <div class="tabs">

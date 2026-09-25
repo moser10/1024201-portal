@@ -84,6 +84,24 @@ async function ensureAppSchemaInner(db) {
     "register_channel",
     "ALTER TABLE pending_registrations ADD COLUMN register_channel TEXT NOT NULL DEFAULT 'web'"
   );
+  await ensureColumn(
+    db,
+    "pending_registrations",
+    "invitation_code",
+    "ALTER TABLE pending_registrations ADD COLUMN invitation_code TEXT"
+  );
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS registration_invitations (
+        code TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        is_special INTEGER NOT NULL DEFAULT 0,
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        used_at TEXT
+      )`
+    )
+    .run();
   await db.prepare("DELETE FROM pending_registrations WHERE expires_at <= datetime('now')").run();
   await db
     .prepare(
@@ -208,7 +226,9 @@ export async function resolveUserId(request, env, url, body) {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
-async function ensureSyncNoteSchema(db) {
+let syncNoteSchemaJob = null;
+
+async function ensureSyncNoteSchemaInner(db) {
   const { results } = await db.prepare("PRAGMA table_info(user_sync_notes)").all();
   const hasTable = results.length > 0;
   const hasSlot = results.some((r) => r.name === "slot");
@@ -249,6 +269,17 @@ async function ensureSyncNoteSchema(db) {
     await db.prepare("DROP TABLE user_sync_notes").run();
     await db.prepare("ALTER TABLE user_sync_notes_v2 RENAME TO user_sync_notes").run();
   }
+}
+
+/** Memoized — syncnote reads must not run the full app migration suite. */
+export async function ensureSyncNoteSchema(db) {
+  if (!syncNoteSchemaJob) {
+    syncNoteSchemaJob = ensureSyncNoteSchemaInner(db).catch((err) => {
+      syncNoteSchemaJob = null;
+      throw err;
+    });
+  }
+  return syncNoteSchemaJob;
 }
 
 export async function generateUniqueName(db, baseName, table, column) {

@@ -7,7 +7,7 @@ const UI = {
   en: {
     title: "Address Lookup",
     sub: "Rental & sale addresses · postal codes · local phone prefixes",
-    back: "Toolbox",
+    back: "Portal",
     lblCountry: "Country / region",
     lblCity: "City",
     lblKind: "Listing type",
@@ -37,7 +37,7 @@ const UI = {
   zh: {
     title: "地址查找",
     sub: "多国租售房源 · 详细地址 · 邮编 · 当地电话区号",
-    back: "返回工具箱",
+    back: "返回门户",
     lblCountry: "国家 / 地区",
     lblCity: "城市",
     lblKind: "租售类型",
@@ -67,7 +67,7 @@ const UI = {
   ja: {
     title: "住所検索",
     sub: "賃貸・売買 · 住所 · 郵便番号 · 電話番号",
-    back: "ツールボックス",
+    back: "ポータル",
     lblCountry: "国・地域",
     lblCity: "都市",
     lblKind: "種別",
@@ -114,6 +114,7 @@ function applyI18n() {
   document.getElementById("pageTitle").textContent = t.title;
   document.getElementById("pageSub").textContent = t.sub;
   document.getElementById("backLink").textContent = t.back;
+  document.getElementById("backLink").href = "/";
   document.getElementById("lblCountry").textContent = t.lblCountry;
   document.getElementById("lblCity").textContent = t.lblCity;
   document.getElementById("lblKind").textContent = t.lblKind;

@@ -155,8 +155,3 @@ export async function fetchStampTime() {
     return "";
   }
 }
-
-/** @deprecated use fetchStampTime */
-export async function fetchStampLine() {
-  return fetchStampTime();
-}

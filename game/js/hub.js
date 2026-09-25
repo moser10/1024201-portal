@@ -11,28 +11,27 @@ const GAMES = [
     href: "onesentence/",
     gradient: "linear-gradient(135deg, #ff5e62 0%, #ff9966 100%)",
   },
+  {
+    id: "paddlemaze",
+    code: "PBM",
+    title: { zh: "挡板方块迷宫", en: "Paddle Block Maze", ja: "パドルブロック迷路" },
+    fullName: "Paddle Block Maze",
+    href: "paddlemaze/",
+    gradient: "linear-gradient(135deg, #ff42bb 0%, #8b0aa8 58%, #24113f 100%)",
+  },
 ];
 
 const HUB_I18N = {
-  zh: { title: "游戏中心", sub: "一票通账号 · 选一个游戏开始", back: "返回门户" },
-  en: { title: "Game Center", sub: "One account · pick a game", back: "Back to portal" },
-  ja: { title: "ゲームセンター", sub: "共通アカウント · ゲームを選ぶ", back: "ポータルへ" },
+  zh: { title: "游戏中心", back: "返回门户" },
+  en: { title: "Game Center", back: "Back to portal" },
+  ja: { title: "ゲームセンター", back: "ポータルへ" },
 };
 
-const app = document.getElementById("app");
 const lang = getPortalLang();
 const t = HUB_I18N[lang] || HUB_I18N.zh;
 
-app.innerHTML = `
-  <div class="hub">
-    <div class="hub-top">
-      <a href="/" class="feature-back">${t.back}</a>
-      <div id="hubAccountChrome"></div>
-    </div>
-    <h1>${t.title}</h1>
-    <p class="sub">${t.sub}</p>
-    <div class="grid" id="gameGrid"></div>
-  </div>`;
+document.getElementById("hubTitle").textContent = t.title;
+document.getElementById("hubBack").textContent = t.back;
 
 mountAccountChrome(document.getElementById("hubAccountChrome"), {
   variant: "game",
@@ -40,17 +39,10 @@ mountAccountChrome(document.getElementById("hubAccountChrome"), {
 });
 
 const grid = document.getElementById("gameGrid");
-grid.innerHTML = GAMES.map((g) => {
-  const label = g.title[lang] || g.title.zh;
-  return `
-  <a class="game-card" href="${g.href}" data-href="${g.href}" data-id="${g.id}">
-    <div class="game-icon" style="background:${g.gradient}">
-      <span class="game-code">${g.code}</span>
-    </div>
-    <div class="game-label">${label}</div>
-    <div class="game-full">${g.fullName}</div>
-  </a>`;
-}).join("");
+for (const game of GAMES) {
+  const label = grid.querySelector(`[data-label="${game.id}"]`);
+  if (label) label.textContent = game.title[lang] || game.title.zh;
+}
 
 grid.querySelectorAll(".game-card").forEach((card) => {
   card.addEventListener("click", (e) => {

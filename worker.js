@@ -76,15 +76,22 @@ async function serveStatic(request, env) {
   }
 
   let response = await env.ASSETS.fetch(request);
-  if (response.status !== 404) return response;
-
-  if (pathname.endsWith("/")) {
+  if (response.status === 404 && pathname.endsWith("/")) {
     const indexUrl = new URL(request.url);
     indexUrl.pathname = `${pathname}index.html`;
     response = await env.ASSETS.fetch(new Request(indexUrl, request));
   }
+  if (response.status === 404) return response;
 
-  return response;
+  // Cache static shells aggressively; HTML short-cache for snappy repeat visits
+  const headers = new Headers(response.headers);
+  const lower = pathname.toLowerCase();
+  if (/\.(css|js|png|jpg|jpeg|webp|svg|ico|woff2|webmanifest)$/.test(lower)) {
+    headers.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+  } else if (lower.endsWith(".html") || lower.endsWith("/") || lower === "") {
+    headers.set("Cache-Control", "public, max-age=60, stale-while-revalidate=600");
+  }
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 /**

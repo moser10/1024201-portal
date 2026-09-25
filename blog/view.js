@@ -16,7 +16,7 @@ const UI = {
   },
   zh: {
     back: "博客",
-    backPortal: "门户",
+    backPortal: "返回门户",
     updated: "更新",
     author: "作者",
     like: "点赞",
@@ -137,12 +137,8 @@ async function boot() {
     }
   }
 
-  if (data.is_owner) {
-    document.getElementById("backLink").href = "/blog/";
-  } else {
-    document.getElementById("backLink").href = "/";
-    document.getElementById("backLink").textContent = ui.backPortal;
-  }
+  document.getElementById("backLink").href = "/";
+  document.getElementById("backLink").textContent = ui.backPortal;
 }
 
 boot();

@@ -2,29 +2,29 @@
   const LANGS = ["en", "ja", "zh"];
   const PAGES = {
     lyrics: {
-      en: { pageTitle: "Find Lyrics", pageSub: "LRCLIB + Deezer · search by song or artist", backLink: "Toolbox" },
-      zh: { pageTitle: "找歌词", pageSub: "LRCLIB + Deezer · 按歌名或歌手搜索", backLink: "返回工具箱" },
-      ja: { pageTitle: "歌詞検索", pageSub: "LRCLIB + Deezer · 曲名またはアーティスト", backLink: "ツールボックス" },
+      en: { pageTitle: "Find Lyrics", pageSub: "LRCLIB + Deezer · search by song or artist", backLink: "Portal" },
+      zh: { pageTitle: "找歌词", pageSub: "LRCLIB + Deezer · 按歌名或歌手搜索", backLink: "返回门户" },
+      ja: { pageTitle: "歌詞検索", pageSub: "LRCLIB + Deezer · 曲名またはアーティスト", backLink: "ポータル" },
     },
     pdf: {
-      en: { pageTitle: "PDF Convert", pageSub: "Word / TXT / MD → PDF (client-side)", backLink: "Toolbox" },
-      zh: { pageTitle: "PDF 转换", pageSub: "Word / TXT / MD → PDF（本地转换）", backLink: "返回工具箱" },
-      ja: { pageTitle: "PDF変換", pageSub: "Word / TXT / MD → PDF（ローカル）", backLink: "ツールボックス" },
+      en: { pageTitle: "PDF Convert", pageSub: "Word / TXT / MD → PDF (client-side)", backLink: "Portal" },
+      zh: { pageTitle: "PDF 转换", pageSub: "Word / TXT / MD → PDF（本地转换）", backLink: "返回门户" },
+      ja: { pageTitle: "PDF変換", pageSub: "Word / TXT / MD → PDF（ローカル）", backLink: "ポータル" },
     },
     music: {
-      en: { pageTitle: "Music", pageSub: "Deezer chart · 30s preview clips", backLink: "Toolbox" },
-      zh: { pageTitle: "音乐", pageSub: "Deezer 榜单 · 30 秒试听", backLink: "返回工具箱" },
-      ja: { pageTitle: "音楽", pageSub: "Deezerチャート · 30秒プレビュー", backLink: "ツールボックス" },
+      en: { pageTitle: "Music", pageSub: "Deezer chart · 30s preview clips", backLink: "Portal" },
+      zh: { pageTitle: "音乐", pageSub: "Deezer 榜单 · 30 秒试听", backLink: "返回门户" },
+      ja: { pageTitle: "音楽", pageSub: "Deezerチャート · 30秒プレビュー", backLink: "ポータル" },
     },
     syncnote: {
-      en: { pageTitle: "Text Relay", pageSub: "", backLink: "Toolbox" },
-      zh: { pageTitle: "文本中转站", pageSub: "", backLink: "返回工具箱" },
-      ja: { pageTitle: "テキスト中継", pageSub: "", backLink: "ツールボックス" },
+      en: { pageTitle: "Text Relay", pageSub: "", backLink: "Portal" },
+      zh: { pageTitle: "文本中转站", pageSub: "", backLink: "返回门户" },
+      ja: { pageTitle: "テキスト中継", pageSub: "", backLink: "ポータル" },
     },
     showcase: {
-      en: { pageTitle: "Portfolio", pageSub: "", backLink: "Toolbox" },
-      zh: { pageTitle: "作品展示", pageSub: "", backLink: "返回工具箱" },
-      ja: { pageTitle: "作品展示", pageSub: "", backLink: "ツールボックス" },
+      en: { pageTitle: "Portfolio", pageSub: "", backLink: "Portal" },
+      zh: { pageTitle: "作品展示", pageSub: "", backLink: "返回门户" },
+      ja: { pageTitle: "作品展示", pageSub: "", backLink: "ポータル" },
     },
     "showcase-view": {
       en: { backLink: "Portfolio" },
@@ -32,14 +32,14 @@
       ja: { backLink: "作品展示" },
     },
     cli: {
-      en: { pageTitle: "CLI", pageSub: "Run 1024201 tools from the terminal · same API & quotas as the web", backLink: "Toolbox" },
-      zh: { pageTitle: "命令行", pageSub: "在终端调用 1024201 工具 · 与网页共用接口与配额", backLink: "返回工具箱" },
-      ja: { pageTitle: "CLI", pageSub: "ターミナルから 1024201 ツール · Web と同じ API・割当", backLink: "ツールボックス" },
+      en: { pageTitle: "CLI", pageSub: "Run 1024201 tools from the terminal · same API & quotas as the web", backLink: "Portal" },
+      zh: { pageTitle: "命令行", pageSub: "在终端调用 1024201 工具 · 与网页共用接口与配额", backLink: "返回门户" },
+      ja: { pageTitle: "CLI", pageSub: "ターミナルから 1024201 ツール · Web と同じ API・割当", backLink: "ポータル" },
     },
     address: {
-      en: { pageTitle: "Address Lookup", pageSub: "Rental & sale addresses · postal codes · phone prefixes", backLink: "Toolbox" },
-      zh: { pageTitle: "地址查找", pageSub: "多国租售房源 · 详细地址 · 邮编 · 电话区号", backLink: "返回工具箱" },
-      ja: { pageTitle: "住所検索", pageSub: "賃貸・売買 · 住所 · 郵便番号 · 電話", backLink: "ツールボックス" },
+      en: { pageTitle: "Address Lookup", pageSub: "Rental & sale addresses · postal codes · phone prefixes", backLink: "Portal" },
+      zh: { pageTitle: "地址查找", pageSub: "多国租售房源 · 详细地址 · 邮编 · 电话区号", backLink: "返回门户" },
+      ja: { pageTitle: "住所検索", pageSub: "賃貸・売買 · 住所 · 郵便番号 · 電話", backLink: "ポータル" },
     },
     fx: {
       en: { pageTitle: "Exchange Rates", pageSub: "ECB reference · refreshes every 30 minutes", backLink: "Portal" },
@@ -47,9 +47,9 @@
       ja: { pageTitle: "為替レート", pageSub: "ECB参考 · 30分ごとに更新", backLink: "ポータル" },
     },
     "lyrics-view": {
-      en: { backLink: "Search" },
-      zh: { backLink: "返回搜索" },
-      ja: { backLink: "検索へ" },
+      en: { backLink: "Portal" },
+      zh: { backLink: "返回门户" },
+      ja: { backLink: "ポータル" },
     },
   };
 
