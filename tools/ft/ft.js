@@ -11,7 +11,7 @@ const TRI_TITLE = "超快传 / Fast Transfer / 超速転送";
 const UI = {
   zh: {
     title: "超快传",
-    sub: "同一门户账号：电脑上传 APK，投影/电视装壳后打开即可下载安装。默认 20MB，后台可扩容。首次把壳 APK 用 U 盘装到设备上。",
+    sub: "",
     guestBtn: "去门户登录",
     account: "用户名或邮箱",
     password: "密码",
@@ -31,7 +31,7 @@ const UI = {
   },
   en: {
     title: "Fast Transfer",
-    sub: "Same portal account: upload on a computer, open the kiosk app on the projector/TV to install. 20MB default. First time: USB-install the shell APK.",
+    sub: "",
     guestBtn: "Sign in on the portal",
     account: "Username or email",
     password: "Password",
@@ -51,7 +51,7 @@ const UI = {
   },
   ja: {
     title: "超速転送",
-    sub: "同じアカウントでPCから上げ、プロジェクター/テレビの専用アプリで受け取る。初期20MB。初回はシェルAPKをUSBで入れる。",
+    sub: "",
     guestBtn: "ポータルでログイン",
     account: "ユーザー名またはメール",
     password: "パスワード",
@@ -137,7 +137,9 @@ function paintApkButton(ui) {
 function applyChrome() {
   const ui = t();
   document.getElementById("pageTitle").textContent = tv ? TRI_TITLE : ui.title;
-  document.getElementById("pageSub").textContent = ui.sub;
+  const subEl = document.getElementById("pageSub");
+  subEl.textContent = ui.sub || "";
+  subEl.hidden = !ui.sub;
   const back = document.getElementById("backLink");
   if (back) {
     back.textContent = hallBackLabel(lang);

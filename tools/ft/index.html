@@ -20,7 +20,10 @@
         var t = document.getElementById("pageTitle");
         if (t) t.textContent = "超快传 / Fast Transfer / 超速転送";
         var sub = document.getElementById("pageSub");
-        if (sub) sub.textContent = "登录后显示可下载文件";
+        if (sub) {
+          sub.textContent = "";
+          sub.hidden = true;
+        }
         var form = document.getElementById("tvLoginForm");
         if (form) form.removeAttribute("hidden");
         var top = document.getElementById("ftTop");
@@ -94,10 +97,10 @@
       }
       var s = document.createElement("script");
       if (tv) {
-        s.src = "ft-tv.js?v=3";
+        s.src = "ft-tv.js?v=4";
       } else {
         s.type = "module";
-        s.src = "ft.js?v=12";
+        s.src = "ft.js?v=13";
       }
       document.body.appendChild(s);
     })();

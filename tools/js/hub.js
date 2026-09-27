@@ -72,7 +72,7 @@ const TOOLS = [
   {
     id: "ft",
     title: { zh: "超快传", en: "Fast Transfer", ja: "超速転送" },
-    sub: { zh: "投屏取文件 · 免 U 盘", en: "Drop files · skip the USB stick", ja: "USBなしで受け渡し" },
+    sub: { zh: "", en: "", ja: "" },
     href: "ft/",
     gradient: "linear-gradient(135deg, #ff9f0a 0%, #ff375f 100%)",
     icon: `<span class="tool-icon-block">FT</span>`,

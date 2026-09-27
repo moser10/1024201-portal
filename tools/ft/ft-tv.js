@@ -170,17 +170,8 @@
     el.hidden = false;
   }
 
-  function userFilesOnly(files) {
-    var out = [];
-    var i;
-    for (i = 0; i < (files || []).length; i++) {
-      if (!/\.apk$/i.test(files[i].name || "")) out.push(files[i]);
-    }
-    return out;
-  }
-
   function paintFiles(files, uid) {
-    filesCache = userFilesOnly(files);
+    filesCache = files && files.length ? files : [];
     var list = $("fileList");
     var empty = $("emptyBox");
     if (!list || !empty) return;
@@ -195,6 +186,7 @@
     var i;
     for (i = 0; i < filesCache.length; i++) {
       var f = filesCache[i];
+      var apk = /\.apk$/i.test(f.name || "");
       html.push(
         '<li class="ft-row ft-row-btn" data-id="' +
           esc(f.id) +
@@ -202,12 +194,14 @@
           esc(f.name) +
           " · " +
           formatStorageMb(f.size) +
-          " · 下载</button></li>"
+          " · " +
+          (apk ? "安装" : "下载") +
+          "</button></li>"
       );
     }
     list.innerHTML = html.join("");
     empty.hidden = filesCache.length > 0;
-    empty.textContent = "还没有自己的文件（官方安装包不占容量）";
+    empty.textContent = "还没有文件";
     var buttons = list.querySelectorAll(".ft-get");
     for (i = 0; i < buttons.length; i++) {
       buttons[i].onclick = function () {
@@ -341,7 +335,10 @@
     var title = $("pageTitle");
     if (title) title.textContent = "超快传 / Fast Transfer / 超速転送";
     var sub = $("pageSub");
-    if (sub) sub.textContent = "登录后显示可下载文件";
+    if (sub) {
+      sub.textContent = "";
+      sub.hidden = true;
+    }
     var lblA = $("lblAccount");
     var lblP = $("lblPass");
     var btn = $("loginBtn");
