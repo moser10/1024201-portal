@@ -11,8 +11,8 @@
 
 ## 投影仪 / 电视 APK
 
-源码在 `android/`。本机用 Android Studio 打开该目录，连接 Android 9 设备后 Build → Build APK。
+已编好的投影壳：`/tools/ft/dist/ft-tv-debug.apk`（部署后也可从门户下载）。源码在 `android/`；本机可用 Android Studio 或 `gradle assembleDebug` 重编。
 
 锁定主页：`https://1024201.com/tools/ft/?client=tv`（不能上网冲浪）。电视端只登录、列表、点文件下载/安装，没有上传和删除。
 
-首次把这个壳 APK 用 U 盘装到投影上，并允许未知来源。之后编译的包走超快传即可。
+首次把这个壳 APK 用 U 盘装到投影上，并允许未知来源。之后编译的业务包走超快传即可。

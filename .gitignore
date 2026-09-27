@@ -8,10 +8,10 @@ scripts/.address-seed*.sql
 .1024_context.md
 .vps_context.md
 
+tools/ft/android/local.properties
 tools/ft/android/.gradle/
 tools/ft/android/build/
 tools/ft/android/app/build/
-tools/ft/android/local.properties
 
 # Mac deploy watcher (local only)
 .deploy-watcher-last
