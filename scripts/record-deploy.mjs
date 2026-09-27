@@ -41,15 +41,17 @@ function firstLine(text) {
 
 function branchSummary(repo, name, detail) {
   if (BRANCH_PURPOSE[name]) return BRANCH_PURPOSE[name];
-  try {
-    const pulls = ghJson(`repos/${repo}/pulls?head=${repo.split("/")[0]}:${encodeURIComponent(name)}&state=all&per_page=1`);
-    const title = firstLine(pulls?.[0]?.title);
-    if (title) return title;
-  } catch {
-    /* commit fallback */
-  }
   const msg = firstLine(detail?.commit?.commit?.message);
   if (msg) return msg;
+  try {
+    const owner = repo.split("/")[0];
+    const pulls = ghJson(`repos/${repo}/pulls?head=${owner}:${encodeURIComponent(name)}&state=all&per_page=5`);
+    const latest = [...(pulls || [])].sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))[0];
+    const title = firstLine(latest?.title);
+    if (title) return title;
+  } catch {
+    /* leave empty */
+  }
   return "功能说明待补充";
 }
 
