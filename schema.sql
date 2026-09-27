@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified INTEGER NOT NULL DEFAULT 1,
   email_verify_token TEXT,
   email_verify_expires TEXT,
+  email_change_to TEXT,
+  email_change_code TEXT,
+  email_change_expires TEXT,
+  email_change_attempts INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -114,4 +118,36 @@ CREATE TABLE IF NOT EXISTS blog_likes (
   ip_hash TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (blog_id, ip_hash)
+);
+
+CREATE TABLE IF NOT EXISTS open_rooms (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  title TEXT NOT NULL,
+  host_id INTEGER NOT NULL,
+  host_name TEXT NOT NULL DEFAULT '',
+  max_seats INTEGER NOT NULL DEFAULT 3,
+  pin TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  closed_at TEXT,
+  started_at TEXT,
+  called_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS open_room_seats (
+  room_id TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  username TEXT NOT NULL,
+  last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+  ready INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (room_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS open_room_msgs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  username TEXT NOT NULL,
+  text TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

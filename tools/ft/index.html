@@ -7,15 +7,15 @@
   <title>超快传 FT | 1024201</title>
   <style>html,body{background:#f2f2f7}</style>
   <link rel="modulepreload" href="/js/langTabs.js">
-  <link rel="stylesheet" href="/js/langTabs.css">
-  <link rel="stylesheet" href="/js/featurePage.css?v=2">
-  <link rel="stylesheet" href="ft.css?v=2">
+  <link rel="stylesheet" href="/js/langTabs.css?v=4">
+  <link rel="stylesheet" href="/js/featurePage.css?v=7">
+  <link rel="stylesheet" href="ft.css?v=3">
 </head>
 <body class="feature-page" data-tool="ft">
   <div class="feature-shell">
     <div class="feature-main">
       <div class="feature-top" id="ftTop">
-        <a class="feature-back" id="backLink" href="/tools/">Back</a>
+        <a class="feature-back" id="backLink" href="/">Back to lobby</a>
         <div id="langSlot"></div>
       </div>
       <div class="feature-card ft-card">
@@ -26,7 +26,12 @@
         </div>
 
         <div class="ft-workspace feature-scroll-panel" id="ftWorkspace">
-          <form class="ft-form" id="loginForm">
+          <div class="login-panel" id="gatePanel" hidden>
+            <p id="gateDesc"></p>
+            <a class="btn-primary btn-link" id="gateLogin" href="/game/register/">Sign in</a>
+          </div>
+
+          <form class="ft-form" id="tvLoginForm" hidden>
             <label class="ft-label" id="lblAccount" for="accountIn">Account</label>
             <input class="ft-input" id="accountIn" type="text" autocomplete="username" required />
             <label class="ft-label" id="lblPass" for="passIn">Password</label>
@@ -50,6 +55,6 @@
     </div>
   </div>
   <script src="/js/edgeBack.js"></script>
-  <script type="module" src="ft.js?v=2"></script>
+  <script type="module" src="ft.js?v=3"></script>
 </body>
 </html>

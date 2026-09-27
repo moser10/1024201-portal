@@ -6,11 +6,12 @@
 
 .account-chrome-guest-group {
   display: inline-flex;
-  align-items: stretch;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .account-chrome--stack .account-chrome-guest-group {
@@ -35,36 +36,35 @@
   align-items: center;
   justify-content: center;
   border: none;
-  background: transparent;
-  color: #007aff;
+  background: #2B3054;
+  color: #E8D4B8;
   text-decoration: none;
   cursor: pointer;
   flex-shrink: 0;
   padding: 0;
   line-height: 1;
-}
-
-.account-chrome--inline .account-chrome-guest-btn {
-  width: 40px;
-  min-height: 31px;
-  border-left: 1px solid #f0f0f0;
-}
-
-.account-chrome--stack .account-chrome-guest-btn {
   width: 36px;
-  min-height: 34px;
-  border-top: 1px solid #f0f0f0;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
 }
 
+.account-chrome--inline .account-chrome-guest-btn,
+.account-chrome--stack .account-chrome-guest-btn {
+  border: 0;
+}
+
+.account-chrome-guest-btn img,
 .account-chrome-guest-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: #007aff;
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
 .account-chrome-guest-btn:active {
-  background: #e5e5ea;
+  transform: scale(0.94);
 }
 
 .account-chrome-signed {
@@ -83,38 +83,12 @@
   align-items: flex-end;
 }
 
-.account-chrome-user-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.account-chrome-lang-wrap {
-  flex-shrink: 0;
-}
-
 .account-chrome--game .user-bar-guest,
 .account-chrome--game .user-bar-name {
-  background: #e8f4fd;
+  font-family: inherit;
 }
 
 .account-chrome--ios .user-bar-guest,
 .account-chrome--ios .user-bar-name {
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-.account-chrome--inline.account-chrome--signed .account-chrome-user-wrap {
-  order: 1;
-}
-
-.account-chrome--inline.account-chrome--signed .account-chrome-lang-wrap {
-  order: 2;
-}
-
-.account-chrome--stack.account-chrome--signed .account-chrome-user-wrap {
-  order: 1;
-}
-
-.account-chrome--stack.account-chrome--signed .account-chrome-lang-wrap {
-  order: 2;
+  font-family: inherit;
 }

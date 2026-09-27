@@ -1,14 +1,11 @@
 import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
 import { hashPassword, verifyPassword } from "./_crypto.js";
+import { SYSTEM_MAIL_FROM, sendSystemMail, accountClosedMailHtml } from "./_mail.js";
 
 const SESSION_HOURS = 12;
 const DEFAULT_ADMIN_USER = "sa";
 const DEFAULT_ADMIN_PASS = "1qaz2wsx";
 const DEFAULT_ADMIN_MAIL = "admin@1024201.com";
-const SECOND_ADMIN_USER = "1024201";
-const SECOND_ADMIN_PASS = "1qaz2wsx";
-const SECOND_ADMIN_MAIL = "1024201@1024201.com";
-const SYSTEM_MAIL_FROM = "1024201@1024201.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function ensureAdminSchema(db) {
@@ -77,7 +74,6 @@ async function ensureAdminSchema(db) {
   }
 
   await ensureAdminAccount(DEFAULT_ADMIN_USER, DEFAULT_ADMIN_PASS, DEFAULT_ADMIN_MAIL);
-  await ensureAdminAccount(SECOND_ADMIN_USER, SECOND_ADMIN_PASS, SECOND_ADMIN_MAIL);
 
   await db
     .prepare(
@@ -104,21 +100,7 @@ async function ensureAdminSchema(db) {
 }
 
 async function sendAdminMail(env, to, subject, html) {
-  if (!env.RESEND_API_KEY) {
-    throw new Error("邮件服务未配置（RESEND_API_KEY）");
-  }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: SYSTEM_MAIL_FROM, to, subject, html }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`邮件发送失败 (${res.status})${detail ? `: ${detail.slice(0, 120)}` : ""}`);
-  }
+  return sendSystemMail(env, to, subject, html);
 }
 
 function escHtml(s) {
@@ -217,11 +199,14 @@ async function deleteNovelContent(db, storyId) {
     .run();
 }
 
-async function deleteUserCompletely(db, userId) {
+async function deleteUserCompletely(db, userId, env) {
   if (userId === null || userId === undefined || !Number.isFinite(Number(userId))) {
     throw new Error("无效用户 ID");
   }
   const uid = Number(userId);
+  const account = await db.prepare("SELECT id, email, username FROM users WHERE id = ?").bind(uid).first();
+  if (!account) throw Object.assign(new Error("用户不存在"), { status: 404 });
+
   const { results: owned } = await db.prepare("SELECT id FROM stories WHERE owner_id = ?").bind(uid).all();
   for (const row of owned) {
     await deleteRoomCompletely(db, row.id);
@@ -232,9 +217,26 @@ async function deleteUserCompletely(db, userId) {
   await db.prepare("DELETE FROM story_members WHERE user_id = ?").bind(uid).run();
   await db.prepare("DELETE FROM user_sync_notes WHERE user_id = ?").bind(uid).run();
   await db.prepare("DELETE FROM tool_usage_quota WHERE quota_key = ?").bind(String(uid)).run();
-  const user = await db.prepare("SELECT email FROM users WHERE id = ?").bind(uid).first();
-  if (user?.email) {
-    await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(user.email).run();
+  if (account.email) {
+    await db.prepare("DELETE FROM pending_registrations WHERE email = ?").bind(account.email).run();
+  }
+  try {
+    await db.prepare("DELETE FROM open_room_seats WHERE user_id = ?").bind(uid).run();
+  } catch {
+    /* open rooms may not exist yet */
+  }
+
+  if (env && account.email) {
+    try {
+      await sendSystemMail(
+        env,
+        account.email,
+        "1024201 · 账号已注销 / Account closed",
+        accountClosedMailHtml(account.username || account.email)
+      );
+    } catch {
+      /* still close the account */
+    }
   }
   await db.prepare("DELETE FROM users WHERE id = ?").bind(uid).run();
 }
@@ -276,8 +278,7 @@ export async function onRequest(context) {
         )
         .bind(token, result.row.id)
         .run();
-      const defaultPass =
-        password === DEFAULT_ADMIN_PASS || password === SECOND_ADMIN_PASS;
+      const defaultPass = password === DEFAULT_ADMIN_PASS;
       const mustChange =
         needsPasswordChange(result.row, result.via) ||
         (result.via === "plain" && defaultPass) ||
@@ -334,7 +335,7 @@ export async function onRequest(context) {
       if (next.length < 8) return json({ error: "新密码至少 8 位" }, 400);
       if (next !== next2) return json({ error: "两次新密码不一致" }, 400);
       if (next === current) return json({ error: "新密码不能与当前密码相同" }, 400);
-      if (next === DEFAULT_ADMIN_PASS || next === SECOND_ADMIN_PASS) {
+      if (next === DEFAULT_ADMIN_PASS) {
         return json({ error: "请勿使用系统默认密码" }, 400);
       }
 
@@ -416,18 +417,18 @@ export async function onRequest(context) {
           "[邀请码] 1024201 [Invitation Code]",
           `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.8;color:#1c1c1e">
 <p style="margin:0 0 14px;font-weight:600;color:#636366">中文</p>
-<p>你收到了一枚 1024201 注册邀请码：</p>
+<p>你收到了一枚 <span style="color:#1c1c1e!important;text-decoration:none!important">1024201</span> 注册邀请码：</p>
 <p style="margin:16px 0;padding:14px;background:#f5f5f7;border-radius:10px;text-align:center">
-  <strong style="font-size:20px;letter-spacing:2px">${escHtml(code)}</strong>
+  <strong style="font-size:20px;letter-spacing:2px;color:#007aff;font-weight:800">${escHtml(code)}</strong>
 </p>
 <p>请使用收件邮箱 <strong>${escHtml(email)}</strong> 注册。</p>
 <p style="margin:24px 0 14px;font-weight:600;color:#636366">English</p>
-<p>You have received a 1024201 invitation code:</p>
+<p>You have received a <span style="color:#1c1c1e!important;text-decoration:none!important">1024201</span> invitation code:</p>
 <p style="margin:16px 0;padding:14px;background:#f5f5f7;border-radius:10px;text-align:center">
-  <strong style="font-size:20px;letter-spacing:2px">${escHtml(code)}</strong>
+  <strong style="font-size:20px;letter-spacing:2px;color:#007aff;font-weight:800">${escHtml(code)}</strong>
 </p>
 <p>Register with <strong>${escHtml(email)}</strong>.</p>
-<p style="margin-top:24px"><strong>1024201</strong></p>
+<p style="margin-top:24px"><strong style="color:#1c1c1e!important;text-decoration:none!important">1024201</strong></p>
 </div>`
         );
       } catch (error) {
@@ -467,7 +468,9 @@ export async function onRequest(context) {
                     CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra,
-                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'ft'), 0) AS ft_extra
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'ft'), 0) AS ft_extra,
+                    5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_allowed,
+                    5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_allowed
              FROM users u
              WHERE u.username LIKE ? OR u.email LIKE ?
              ORDER BY u.id DESC
@@ -483,7 +486,9 @@ export async function onRequest(context) {
                     CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra,
-                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'ft'), 0) AS ft_extra
+COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'ft'), 0) AS ft_extra,
+                    5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_allowed,
+                    5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_allowed
              FROM users u ORDER BY u.id DESC LIMIT 200`
           )
           .all());
@@ -588,7 +593,7 @@ export async function onRequest(context) {
 
     if (request.method === "POST" && action === "delete_user") {
       const { user_id } = await request.json();
-      await deleteUserCompletely(db, user_id);
+      await deleteUserCompletely(db, user_id, env);
       return json({ success: true });
     }
 

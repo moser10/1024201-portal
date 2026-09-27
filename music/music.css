@@ -8,7 +8,7 @@
   --track-row-h: 68px;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
 body.feature-page {
   background: var(--ios-bg);
@@ -242,7 +242,7 @@ body.feature-page {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  z-index: 100;
+  z-index: 400;
 }
 
 .modal-backdrop[hidden] { display: none !important; }

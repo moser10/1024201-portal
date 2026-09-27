@@ -77,6 +77,19 @@
   font-size: 14px;
   margin: 8px 0 0;
 }
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
 .err {
   color: #ff3b30;
   font-size: 13px;

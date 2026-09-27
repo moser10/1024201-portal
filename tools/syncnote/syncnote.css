@@ -84,15 +84,16 @@
   flex: 1;
   min-width: 72px;
   padding: 8px 10px;
+  min-height: 32px;
   border: none;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
-.sync-actions .btn-primary { background: #007aff; color: #fff; }
-.sync-actions .btn-secondary { background: #e5e5ea; color: #007aff; }
-.sync-actions .btn-danger { background: #ff3b30; color: #fff; }
+.sync-actions .btn-primary { background: #E07A3D; color: #F4EFE4; }
+.sync-actions .btn-secondary { background: #2B3054; color: #E8D4B8; }
+.sync-actions .btn-danger { background: #2B3054; color: #E07A3D; }
 .login-panel {
   position: absolute;
   inset: 0;
@@ -119,13 +120,14 @@
   line-height: 1.45;
 }
 .login-panel .btn-link {
-  display: inline-block;
+  display: inline-flex;
   margin-top: 12px;
   text-decoration: none;
-  padding: 11px 20px;
-  border-radius: 12px;
-  background: #007aff;
-  color: #fff;
+  padding: 8px 12px;
+  min-height: 32px;
+  border-radius: 10px;
+  background: #E07A3D;
+  color: #F4EFE4;
   font-weight: 600;
 }
 .sync-slot-meta {

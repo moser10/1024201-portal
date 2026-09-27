@@ -1,14 +1,17 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser, setUser, clearUser } from "/game/js/store.js";
+import { loginHref } from "../js/quotaClient.js";
 import { paintToolUser } from "../js/toolPageBoot.js";
 import { uploadFile, deleteFile, downloadFileEntry } from "../js/attachGrid.js";
 import { fetchFileStorage, formatStorageMb } from "../js/storageQuota.js";
+import { hallBackLabel } from "/js/navBack.js?v=3";
 
 const UI = {
   zh: {
     title: "超快传",
     sub: "投屏安装包 · 同账号取文件",
-    back: "返回工具箱",
+    gate: "请先登录门户账号后再使用超快传。",
+    gateBtn: "登录 / 注册",
     account: "用户名或邮箱",
     password: "密码",
     login: "登录",
@@ -20,12 +23,13 @@ const UI = {
     get: "下载",
     install: "安装",
     err: "失败",
-    full: "容量不够，删几个或让后台加 MB",
+    full: "容量不够，删几个或让后台扩容",
   },
   en: {
     title: "Fast Transfer",
     sub: "Drop APKs here · pick them up on the projector",
-    back: "Toolbox",
+    gate: "Sign in with your portal account to use Fast Transfer.",
+    gateBtn: "Sign in / Register",
     account: "Username or email",
     password: "Password",
     login: "Sign in",
@@ -42,7 +46,8 @@ const UI = {
   ja: {
     title: "超速転送",
     sub: "APKを置いてプロジェクターで取る",
-    back: "ツールへ",
+    gate: "ポータルアカウントでログインしてください。",
+    gateBtn: "ログイン / 登録",
     account: "ユーザー名またはメール",
     password: "パスワード",
     login: "ログイン",
@@ -78,7 +83,11 @@ function applyChrome() {
   const ui = t();
   document.getElementById("pageTitle").textContent = ui.title;
   document.getElementById("pageSub").textContent = ui.sub;
-  document.getElementById("backLink").textContent = ui.back;
+  document.getElementById("backLink").textContent = hallBackLabel(lang);
+  document.getElementById("backLink").href = "/";
+  document.getElementById("gateDesc").textContent = ui.gate;
+  document.getElementById("gateLogin").textContent = ui.gateBtn;
+  document.getElementById("gateLogin").href = loginHref("/tools/ft/");
   document.getElementById("lblAccount").textContent = ui.account;
   document.getElementById("lblPass").textContent = ui.password;
   document.getElementById("loginBtn").textContent = ui.login;
@@ -169,14 +178,21 @@ function esc(s) {
 
 function paintAuth() {
   const user = getUser();
-  document.getElementById("loginForm").hidden = !!user;
-  document.getElementById("appWrap").hidden = !user;
+  const loggedIn = !!user?.id;
+  document.getElementById("gatePanel").hidden = loggedIn || tv;
+  document.getElementById("tvLoginForm").hidden = loggedIn || !tv;
+  document.getElementById("appWrap").hidden = !loggedIn;
   paintToolUser();
-  if (user) loadList().catch((e) => showErr(e.message || copy.err));
+  if (loggedIn) loadList().catch((e) => showErr(e.message || copy.err));
 }
 
 function boot() {
-  if (tv) document.getElementById("deskActions").querySelector("#uploadBtn").hidden = true;
+  // Share portal localStorage: never stay on ft.* host for the desk UI.
+  if (!tv && location.hostname.toLowerCase() === "ft.1024201.com") {
+    location.replace(`https://1024201.com/tools/ft/${location.search}${location.hash}`);
+    return;
+  }
+  if (tv) document.getElementById("uploadBtn").hidden = true;
   applyChrome();
   if (!tv) {
     mountLangTabs(document.getElementById("langSlot"), {
@@ -186,7 +202,7 @@ function boot() {
       },
     });
   }
-  document.getElementById("loginForm").onsubmit = async (e) => {
+  document.getElementById("tvLoginForm").onsubmit = async (e) => {
     e.preventDefault();
     showErr("");
     try {

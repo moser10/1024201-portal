@@ -58,6 +58,15 @@ async function ensureAppSchemaInner(db) {
   );
   await ensureColumn(db, "users", "email_verify_token", "ALTER TABLE users ADD COLUMN email_verify_token TEXT");
   await ensureColumn(db, "users", "email_verify_expires", "ALTER TABLE users ADD COLUMN email_verify_expires TEXT");
+  await ensureColumn(db, "users", "email_change_to", "ALTER TABLE users ADD COLUMN email_change_to TEXT");
+  await ensureColumn(db, "users", "email_change_code", "ALTER TABLE users ADD COLUMN email_change_code TEXT");
+  await ensureColumn(db, "users", "email_change_expires", "ALTER TABLE users ADD COLUMN email_change_expires TEXT");
+  await ensureColumn(
+    db,
+    "users",
+    "email_change_attempts",
+    "ALTER TABLE users ADD COLUMN email_change_attempts INTEGER NOT NULL DEFAULT 0"
+  );
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS pending_registrations (
@@ -145,6 +154,8 @@ async function ensureAppSchemaInner(db) {
   await ensureSyncNoteSchema(db);
   await ensureCliTokenSchema(db);
   await ensureAddressSchema(db);
+  const { ensureOpenRoomSchema } = await import("./openroomSchema.js");
+  await ensureOpenRoomSchema(db);
 }
 
 /** Once per Worker isolate — do not re-run migrations on every API hit. */

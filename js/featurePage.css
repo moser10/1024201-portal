@@ -1,40 +1,88 @@
 /* Keep scroll containment on the shell — NOT on html/body.
    overflow:hidden on the document breaks Safari's edge-swipe back gesture. */
+:root {
+  --portal-font:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    "PingFang SC", "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --disc-navy: #2B3054;
+  --disc-cream: #E8D4B8;
+  --disc-orange: #E07A3D;
+  --disc-gold: #F0C44C;
+  --disc-ink: #F4EFE4;
+  --disc-muted: #C9B392;
+  --disc-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
+  --portal-desktop: #f2f2f7;
+}
+
+html.feature-page,
+html.feature-page *,
+body.feature-page,
+body.feature-page * {
+  box-sizing: border-box;
+}
+
+html,
+html.feature-page,
+html.feature-page body,
+body.feature-page {
+  background: var(--portal-desktop);
+}
+
 html.feature-page,
 html.feature-page body {
   height: 100%;
   overflow: visible;
   overscroll-behavior-y: none;
+  font-family: var(--portal-font);
+}
+
+.feature-page button,
+.feature-page input,
+.feature-page textarea,
+.feature-page select {
+  font-family: inherit;
+}
+
+.feature-page input,
+.feature-page textarea,
+.feature-page select {
+  font-size: 16px;
 }
 
 .feature-shell {
+  --gutter-x: 16px;
   height: 100dvh;
   max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding:
-    max(12px, env(safe-area-inset-top))
-    max(16px, env(safe-area-inset-right))
-    max(12px, env(safe-area-inset-bottom))
-    max(16px, env(safe-area-inset-left));
+  align-items: stretch;
+  background: var(--portal-desktop);
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left: var(--gutter-x);
+  padding-right: var(--gutter-x);
   overflow: hidden;
   overscroll-behavior: contain;
 }
 
 .feature-main {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 520px;
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
+  overflow-x: hidden;
 }
 
 .feature-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   flex-shrink: 0;
   margin-bottom: 12px;
@@ -42,9 +90,12 @@ html.feature-page body {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: #f2f2f7;
+  background: var(--portal-desktop);
   padding: 2px 0 6px;
 }
+
+/* feature-top is Back + language/account chrome only.
+   Extra actions in this row sit against the vertical lang stack on desktop. */
 
 .feature-card {
   flex: 1;
@@ -52,14 +103,37 @@ html.feature-page body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
   width: 100%;
+  max-width: 100%;
   border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  box-shadow: none;
 }
 
 .feature-card-head {
   flex-shrink: 0;
+}
+
+.page-mark-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.page-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: block;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(20, 22, 40, 0.16);
+}
+
+.page-mark-row h1 {
+  margin: 0;
 }
 
 .feature-card-head h1 {
@@ -73,6 +147,11 @@ html.feature-page body {
   margin-bottom: 12px;
 }
 
+.feature-card-head h1,
+.feature-card .tool-user {
+  color: #1c1c1e;
+}
+
 .feature-scroll-panel {
   flex: 1;
   min-height: 0;
@@ -80,30 +159,103 @@ html.feature-page body {
   -webkit-overflow-scrolling: touch;
 }
 
-.feature-back {
+.feature-back,
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-danger,
+.btn-link {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  padding: 8px 12px;
+  border: none;
   min-height: 32px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.feature-back,
+.btn-secondary,
+.btn-ghost {
+  background: var(--disc-navy);
+  color: var(--disc-cream);
+}
+
+.btn-primary,
+.btn-link {
+  background: var(--disc-orange);
+  color: var(--disc-ink);
+}
+
+.btn-danger {
+  background: var(--disc-navy);
+  color: var(--disc-orange);
+}
+
+.feature-back {
   width: max-content;
   max-width: max-content;
   flex: 0 0 auto;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: #007aff;
-  line-height: 1;
-  white-space: nowrap;
-  -webkit-tap-highlight-color: transparent;
+}
+
+.feature-back:active,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active,
+.btn-danger:active,
+.btn-link:active {
+  transform: scale(0.94);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-ghost:disabled,
+.btn-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .feature-top .lang-tabs-host {
   flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Sit on document.body so feature-top (z-index 20) cannot leak desktop color. */
+.portal-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top, 0px)) 20px max(20px, env(safe-area-inset-bottom, 0px));
+  background: rgba(20, 22, 40, 0.46);
+}
+.portal-modal[hidden] { display: none; }
+.portal-modal-card {
+  width: min(100%, 320px);
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px;
+}
+.portal-modal-card p {
+  margin: 0 0 12px;
+  color: #2B3054;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .tool-user {

@@ -1,4 +1,12 @@
-import { buildLevelSpec } from "./levels.js";
+import { buildLevelSpec } from "./levels.js?v=28";
+import { buildWallRects, playField, paddleUnitPx } from "./walls.js?v=28";
+import { PADDLE_MIN_UNITS, PADDLE_START_UNITS, ballResourceScope, formatPaddleUnits, materializePower, maxPaddlePixelWidth, multiplyCloneAngles, paddleWidthFromUnits, pickDivideKeep, pickSubtractNear, pickPower, resourceLabel, RESOURCE_LABEL_COLOR, targetBallCount, targetPaddleWidth } from "./resources.js?v=27";
+import { createWelfareState, noteWelfareBrickHit, pickWelfarePower, tickWelfare, welfareNextKind, welfareRemaining } from "./welfare.js?v=25";
+import { createPaddleCapState, paddleCapClock, syncPaddleCap, tickPaddleCap } from "./paddleCap.js?v=26";
+import { applyStallActions, createStallReliefState, resetStallRelief, tickStallRelief } from "./stallRelief.js?v=28";
+import { heldBallPose, launchVelocity } from "./serve.js?v=1";
+import { bounceCircleRect, bounceWorldEdge, clampSpeed, resetTrap } from "./bounce.js?v=2";
+import { paddleCopy } from "./copy.js?v=1";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -11,22 +19,10 @@ const pauseBtn = document.getElementById("pauseBtn");
 const W = canvas.width;
 const H = canvas.height;
 const TOTAL_LEVELS = 24;
-const INITIAL_PADDLE = 120;
 const BALL_R = 7;
 const MAX_BALLS = 128;
 const MAX_ITEMS = 48;
 const BRICK_CELL = 64;
-const POWER_TYPES = [
-  { kind: "paddle", factor: 2, label: "2×", good: true },
-  { kind: "balls", factor: 2, label: "2×", good: true },
-  { kind: "paddle", factor: 0.5, label: "0.5×", good: false },
-  { kind: "balls", factor: 10, label: "10×", good: true },
-  { kind: "balls", factor: 0.5, label: "÷2", good: false },
-  { kind: "paddle", factor: 4, label: "4×", good: true },
-  { kind: "balls", factor: 0.1, label: "÷10", good: false },
-  { kind: "balls", factor: 20, label: "20×", good: true },
-  { kind: "balls", factor: 0.05, label: "÷20", good: false },
-];
 
 let levelIndex = 0;
 let score = 0;
@@ -36,15 +32,36 @@ let walls = [];
 let balls = [];
 let powers = [];
 const ballPool = Array.from({ length: MAX_BALLS }, () => ({
-  active: false, x: 0, y: 0, vx: 0, vy: 0, r: BALL_R, primary: false,
+  active: false, x: 0, y: 0, vx: 0, vy: 0, r: BALL_R, primary: false, held: false, trapAxis: "", trapHits: 0,
 }));
 const itemPool = Array.from({ length: MAX_ITEMS }, () => ({
-  active: false, x: 0, y: 0, w: 40, h: 22, vy: 105,
-  kind: "balls", factor: 2, label: "2×", good: true,
+  active: false, x: 0, y: 0, w: 72, h: 26, vy: 105,
+  kind: "balls", operation: "subtract", value: 2, label: "-2", color: "#bf5af2", buff: false,
 }));
 const particlePool = Array.from({ length: 120 }, () => ({
   active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, hue: 320,
 }));
+const brickCountEl = document.getElementById("brickCount");
+const ballCountEl = document.getElementById("ballCount");
+const paddleCountEl = document.getElementById("paddleCount");
+const levelTextEl = document.getElementById("levelText");
+const targetIconEl = document.getElementById("targetIcon");
+const overlayTitleEl = document.getElementById("overlayTitle");
+const overlayTextEl = document.getElementById("overlayText");
+const overlayEyebrowEl = document.getElementById("overlayEyebrow");
+const pauseBannerEl = document.getElementById("pauseBanner");
+const runTimeEl = document.getElementById("runTime");
+const welfareTimeEl = document.getElementById("welfareTime");
+const welfarePreviewEl = document.getElementById("welfarePreview");
+const controlGap = document.getElementById("controlGap");
+const PADDLE_UP_ICON = '<svg viewBox="0 0 48 30"><rect x="3" y="12" width="42" height="7" rx="3.5"/></svg>';
+const BALLS_UP_ICON = '<svg viewBox="0 0 58 30"><circle cx="7" cy="15" r="5"/><path d="M15 15h10m-4-4 4 4-4 4"/><circle cx="34" cy="8" r="4"/><circle cx="34" cy="22" r="4"/><circle cx="46" cy="15" r="4"/></svg>';
+const staticLayer = document.createElement("canvas");
+staticLayer.width = W;
+staticLayer.height = H;
+const staticCtx = staticLayer.getContext("2d", { alpha: false });
+let lastHudKey = "";
+let overlayKind = "start";
 let running = false;
 let paused = false;
 let lastTime = 0;
@@ -56,40 +73,54 @@ let lastHapticAt = 0;
 let consecutiveHits = 0;
 let hitsSinceDrop = 0;
 let initialDropInterval = 5;
-let paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 43, w: INITIAL_PADDLE, h: 12 };
-const keys = { left: false, right: false };
-
-function seeded(seed) {
-  let n = seed >>> 0;
-  return () => {
-    n = (n * 1664525 + 1013904223) >>> 0;
-    return n / 4294967296;
-  };
+let dropsSinceBallMultiplier = 0;
+const welfare = createWelfareState();
+const paddleCap = createPaddleCapState();
+const stallRelief = createStallReliefState();
+const paddleCapTimeEl = document.getElementById("paddleCapTime");
+let nextWelfare = null;
+let levelElapsed = 0;
+let sessionElapsed = 0;
+let paddleUnit = 24;
+function startPaddleW() {
+  return paddleWidthFromUnits(PADDLE_START_UNITS, paddleUnit, W);
 }
+function minPaddleW() {
+  return paddleWidthFromUnits(PADDLE_MIN_UNITS, paddleUnit, W);
+}
+function maxPaddleW() {
+  return maxPaddlePixelWidth(paddleUnit, W);
+}
+function placePaddle(width) {
+  const w = Math.max(minPaddleW(), Math.min(maxPaddleW(), width));
+  return { x: W / 2 - w / 2, y: H - 58, w, h: 12 };
+}
+let paddle = placePaddle(startPaddleW());
+let paddleDrag = null;
+const keys = { left: false, right: false };
 
 function makeLevel(index) {
   const cfg = buildLevelSpec(index);
-  const rand = seeded(cfg.seed);
-  const field = { x: 142, y: 190, w: 616, h: 430 };
-  const fineRows = cfg.rows * 2;
-  const fineCols = cfg.cols * 2;
-  const gap = 3;
+  const levelHue = (292 + cfg.number * 29) % 360;
+  const field = playField({ w: W, h: H, paddleY: H - 58 }, cfg);
+  const fineRows = cfg.rows;
+  const fineCols = cfg.cols;
+  const gap = 2;
   const brickW = (field.w - gap * (fineCols - 1)) / fineCols;
   const brickH = (field.h - gap * (fineRows - 1)) / fineRows;
+  paddleUnit = paddleUnitPx(field, cfg) || brickW;
 
   bricks = [];
   for (let r = 0; r < fineRows; r++) {
     for (let c = 0; c < fineCols; c++) {
-      if (!cfg.mask[Math.floor(r / 2)][Math.floor(c / 2)]) continue;
-      // A few deterministic pinholes stop the dense 2× expansion looking tiled.
-      if ((r * 29 + c * 17 + cfg.number * 11) % 97 === 0) continue;
+      if (!cfg.mask[r]?.[c]) continue;
       bricks.push({
         x: field.x + c * (brickW + gap),
         y: field.y + r * (brickH + gap),
         w: brickW,
         h: brickH,
-        hp: index >= 12 && (r * 5 + c * 3 + index) % 17 === 0 ? 2 : 1,
-        hue: 318 + Math.round(rand() * 18),
+        hp: 1,
+        hue: levelHue,
       });
     }
   }
@@ -97,66 +128,69 @@ function makeLevel(index) {
   rebuildBrickBuckets();
   consecutiveHits = 0;
   hitsSinceDrop = 0;
+  dropsSinceBallMultiplier = 0;
+  noteWelfareBrickHit(welfare);
+  levelElapsed = 0;
+  armNextWelfare();
   initialDropInterval = bricks.length <= 60 ? 3 : bricks.length <= 90 ? 4 : 5;
-  walls = makeMazeWalls(cfg, field);
+  walls = buildWallRects(index, field, { w: W, h: H, paddleY: H - 58 });
+  resetStallRelief(stallRelief, bricks.length);
+  bakeStaticLayer();
   releaseAllBalls();
   releaseAllItems();
   releaseAllParticles();
-  paddle = { x: W / 2 - INITIAL_PADDLE / 2, y: H - 58, w: INITIAL_PADDLE, h: 12 };
-  activateBall(cfg.speed, null, true);
+  paddle = placePaddle(startPaddleW());
+  syncPaddleCap(paddleCap, paddle.w, maxPaddleW());
+  activateBall(cfg.speed, null, true, true);
+  targetIconEl.style.background = `hsl(${levelHue} 90% 52%)`;
+  lastHudKey = "";
   updateHud();
-  document.getElementById("levelText").textContent =
+  levelTextEl.textContent =
     `LEVEL ${String(cfg.number).padStart(2, "0")} / ${TOTAL_LEVELS}`;
 }
 
-function makeMazeWalls(cfg, field) {
-  const thick = 16;
-  const bottomY = field.y + field.h + 17;
-  const topY = field.y - 24;
-  const topGateW = 58;
-  const rawTopCenter = W / 2 - cfg.gates[0] * 0.55;
-  const topGateX = Math.max(field.x + 35, Math.min(field.x + field.w - 35 - topGateW, rawTopCenter - topGateW / 2));
-  const result = [
-    { x: field.x - 25, y: topY, w: topGateX - (field.x - 25), h: thick },
-    { x: topGateX + topGateW, y: topY, w: field.x + field.w + 25 - topGateX - topGateW, h: thick },
-    { x: field.x - 25, y: field.y - 24, w: thick, h: field.h + 58 },
-    { x: field.x + field.w + 9, y: field.y - 24, w: thick, h: field.h + 58 },
-  ];
-
-  const gateW = cfg.gates.length === 1 ? 68 : cfg.gates.length === 2 ? 54 : 46;
-  const centers = cfg.gates.map((offset) => W / 2 + offset);
-
-  const left = field.x - 25;
-  const right = field.x + field.w + 25;
-  let cursor = left;
-  for (const [gateIndex, center] of centers.sort((a, b) => a - b).entries()) {
-    const gx = Math.max(left + 25, Math.min(right - 25 - gateW, center - gateW / 2));
-    if (gx > cursor) result.push({ x: cursor, y: bottomY, w: gx - cursor, h: thick });
-    cursor = gx + gateW;
-
-    // Short alternating channel guides make each trap entrance distinct.
-    const channelDepth = 30 + ((cfg.number * 13 + Math.round(center)) % 44);
-    if (cfg.guides[gateIndex] > 0) {
-      result.push({ x: gx - thick, y: bottomY, w: thick, h: channelDepth });
-      result.push({ x: gx + gateW, y: bottomY + channelDepth - thick, w: thick, h: channelDepth });
-    } else {
-      result.push({ x: gx - thick, y: bottomY + channelDepth - thick, w: thick, h: channelDepth });
-      result.push({ x: gx + gateW, y: bottomY, w: thick, h: channelDepth });
-    }
+function bakeStaticLayer() {
+  const s = staticCtx;
+  s.fillStyle = "#0c0c14";
+  s.fillRect(0, 0, W, H);
+  s.strokeStyle = "rgba(255,255,255,.03)";
+  s.lineWidth = 1;
+  s.beginPath();
+  for (let x = 0; x <= W; x += 60) {
+    s.moveTo(x + 0.5, 0);
+    s.lineTo(x + 0.5, H);
   }
-  if (cursor < right) result.push({ x: cursor, y: bottomY, w: right - cursor, h: thick });
-
-  // Hand-curated bars make the lower maze topology unique for every level.
-  for (const [barIndex, [sourceY, openingOffset]] of cfg.bars.entries()) {
-    const y = bottomY + 66 + barIndex * 76 + (sourceY % 17);
-    const openingX = W / 2 + openingOffset;
-    result.push({ x: 90, y, w: Math.max(70, openingX - 90), h: 12 });
-    result.push({ x: openingX + 80, y, w: Math.max(70, 810 - openingX - 80), h: 12 });
+  for (let y = 0; y <= H; y += 60) {
+    s.moveTo(0, y + 0.5);
+    s.lineTo(W, y + 0.5);
   }
-  return result;
+  s.stroke();
+  for (const wall of walls) paintSteel(s, wall);
 }
 
-function activateBall(speed = buildLevelSpec(levelIndex).speed, source, primary = false) {
+function paintSteel(s, wall) {
+  const joint = 2;
+  const seg = 20;
+  const horizontal = wall.w >= wall.h;
+  const span = horizontal ? wall.w : wall.h;
+  for (let offset = 0; offset < span; offset += seg) {
+    const slice = Math.min(seg - joint, span - offset);
+    const block = horizontal
+      ? { x: wall.x + offset, y: wall.y, w: slice, h: wall.h }
+      : { x: wall.x, y: wall.y + offset, w: wall.w, h: slice };
+    s.fillStyle = "#4c5566";
+    s.fillRect(block.x, block.y, block.w, block.h);
+    if (reducedVisuals || block.w < 5 || block.h < 5) continue;
+    s.fillStyle = "#8b93a6";
+    s.fillRect(block.x, block.y, block.w, 3);
+    s.fillRect(block.x, block.y, 3, block.h);
+    s.fillStyle = "#2a303c";
+    s.fillRect(block.x, block.y + block.h - 3, block.w, 3);
+    s.fillRect(block.x + block.w - 3, block.y, 3, block.h);
+  }
+}
+
+function activateBall(speed = buildLevelSpec(levelIndex).speed, source, primary = false, held = false) {
   const ball = ballPool.find((entry) => !entry.active);
   if (!ball) return null;
   const angle = source
@@ -164,13 +198,52 @@ function activateBall(speed = buildLevelSpec(levelIndex).speed, source, primary 
     : -Math.PI / 2 + (Math.random() - 0.5) * 0.65;
   ball.active = true;
   ball.primary = primary;
-  ball.x = source?.x ?? W / 2;
-  ball.y = source?.y ?? H - 70;
-  ball.vx = Math.cos(angle) * speed;
-  ball.vy = Math.sin(angle) * speed;
+  ball.held = !!held;
+  resetTrap(ball);
   ball.r = BALL_R;
+  if (ball.held) {
+    const pose = heldBallPose(paddle, ball.r);
+    ball.x = pose.x;
+    ball.y = pose.y;
+    ball.vx = 0;
+    ball.vy = 0;
+  } else {
+    ball.x = source?.x ?? W / 2;
+    ball.y = source?.y ?? H - 70;
+    ball.vx = Math.cos(angle) * speed;
+    ball.vy = Math.sin(angle) * speed;
+  }
   balls.push(ball);
   return ball;
+}
+
+function isServing() {
+  return balls.some((ball) => ball.held);
+}
+
+function seatHeldBalls() {
+  for (const ball of balls) {
+    if (!ball.held) continue;
+    const pose = heldBallPose(paddle, ball.r);
+    ball.x = pose.x;
+    ball.y = pose.y;
+    ball.vx = 0;
+    ball.vy = 0;
+  }
+}
+
+function launchHeldBalls() {
+  if (!isServing()) return;
+  const speed = buildLevelSpec(levelIndex).speed;
+  for (const ball of balls) {
+    if (!ball.held) continue;
+    const v = launchVelocity(paddle, ball.x, speed);
+    ball.held = false;
+    ball.vx = v.vx;
+    ball.vy = v.vy;
+  }
+  levelElapsed = 0;
+  resetStallRelief(stallRelief, bricks.length);
 }
 
 function releaseBallAt(index) {
@@ -178,6 +251,7 @@ function releaseBallAt(index) {
   if (!ball) return;
   ball.active = false;
   ball.primary = false;
+  ball.held = false;
   balls.splice(index, 1);
 }
 
@@ -185,6 +259,7 @@ function releaseAllBalls() {
   for (const ball of balls) {
     ball.active = false;
     ball.primary = false;
+    ball.held = false;
   }
   balls.length = 0;
 }
@@ -231,7 +306,7 @@ function hitNearbyBrick(ball) {
       const bucket = brickBuckets.get(`${x}:${y}`);
       if (!bucket) continue;
       for (const brick of bucket) {
-        if (bounceRect(ball, brick)) return brick;
+        if (bounceCircleRect(ball, brick, cruiseSpeed())) return brick;
       }
     }
   }
@@ -270,45 +345,64 @@ function circleRectHit(ball, rect) {
   return dx * dx + dy * dy <= ball.r * ball.r;
 }
 
-function bounceRect(ball, rect) {
-  if (!circleRectHit(ball, rect)) return false;
-  const left = Math.abs(ball.x + ball.r - rect.x);
-  const right = Math.abs(rect.x + rect.w - (ball.x - ball.r));
-  const top = Math.abs(ball.y + ball.r - rect.y);
-  const bottom = Math.abs(rect.y + rect.h - (ball.y - ball.r));
-  const m = Math.min(left, right, top, bottom);
-  if (m === left) {
-    ball.x = rect.x - ball.r - 0.1;
-    ball.vx = -Math.abs(ball.vx);
-  } else if (m === right) {
-    ball.x = rect.x + rect.w + ball.r + 0.1;
-    ball.vx = Math.abs(ball.vx);
-  } else if (m === top) {
-    ball.y = rect.y - ball.r - 0.1;
-    ball.vy = -Math.abs(ball.vy);
-  } else {
-    ball.y = rect.y + rect.h + ball.r + 0.1;
-    ball.vy = Math.abs(ball.vy);
-  }
-  return true;
-}
-
-function spawnPower(brick) {
+function activatePowerDrop(type, x, y) {
   const power = itemPool.find((entry) => !entry.active);
   if (!power) return;
-  const type = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)];
-  Object.assign(power, type, {
+  const spec = materializePower(type);
+  if (spec.kind === "balls" && spec.operation === "multiply") dropsSinceBallMultiplier = 0;
+  else dropsSinceBallMultiplier++;
+  Object.assign(power, spec, {
     active: true,
-    x: brick.x + brick.w / 2 - 20,
-    y: brick.y + brick.h / 2 - 11,
-    w: 40,
-    h: 22,
+    x,
+    y,
+    w: 56,
+    h: 26,
     vy: 105,
+    label: resourceLabel(spec.operation, spec.value),
+    color: spec.color,
   });
   powers.push(power);
 }
 
+function spawnPower(brick) {
+  const type = pickPower(Math.random, { forceBallMultiplier: dropsSinceBallMultiplier >= 2 });
+  activatePowerDrop(type, brick.x + brick.w / 2 - 28, brick.y + brick.h / 2 - 13);
+}
+
+function formatClock(seconds) {
+  const total = Math.max(0, Math.floor(seconds + 1e-6));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function paintWelfarePreview(power) {
+  if (!welfarePreviewEl || !power) return;
+  const isPaddle = power.kind === "paddle";
+  welfarePreviewEl.className = `hud-welfare-preview ${isPaddle ? "paddle-up" : "balls-up"}`;
+  welfarePreviewEl.style.color = isPaddle ? "#30d158" : "#ff453a";
+  welfarePreviewEl.innerHTML = isPaddle ? PADDLE_UP_ICON : BALLS_UP_ICON;
+}
+
+function armNextWelfare() {
+  nextWelfare = pickWelfarePower(welfareNextKind(welfare));
+  paintWelfarePreview(nextWelfare);
+}
+
+function sizeTouchZone() {
+  const vh = window.innerHeight;
+  const rows = vh >= 920 ? 5 : vh >= 780 ? 4 : vh >= 660 ? 3 : 2;
+  document.documentElement.style.setProperty("--touch-rows", String(rows));
+  if (controlGap) controlGap.style.minHeight = `${rows * 22}px`;
+}
+
+function spawnWelfareDrop() {
+  const type = nextWelfare || pickWelfarePower(welfareNextKind(welfare));
+  activatePowerDrop(type, paddle.x + paddle.w / 2 - 28, Math.max(36, paddle.y - 220));
+  armNextWelfare();
+}
+
 function registerBrickHit(brick) {
+  noteWelfareBrickHit(welfare);
+  armNextWelfare();
   consecutiveHits++;
   hitsSinceDrop++;
   const interval =
@@ -321,53 +415,131 @@ function registerBrickHit(brick) {
 }
 
 function applyPower(power) {
-  if (power.kind === "paddle") {
-    paddle.w = Math.max(INITIAL_PADDLE, Math.min(W, paddle.w * power.factor));
+  const spec = materializePower(power);
+  if (spec.kind === "paddle") {
+    paddle.w = targetPaddleWidth(paddle.w, spec, startPaddleW(), minPaddleW(), maxPaddleW(), paddleUnit);
     paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
-  } else {
-    const remaining = Math.max(1, bricks.length);
-    if (power.factor >= 1) {
-      const target = Math.min(remaining, MAX_BALLS, Math.max(1, Math.floor(balls.length * power.factor)));
-      const source = balls[0];
-      while (source && balls.length < target) {
-        if (!activateBall(undefined, source, false)) break;
+    syncPaddleCap(paddleCap, paddle.w, maxPaddleW());
+    for (const ball of balls) {
+      if (!ball.held && circleRectHit(ball, paddle)) {
+        ball.y = Math.min(ball.y, paddle.y - ball.r - 0.2);
       }
-    } else {
-      const target = Math.max(1, Math.ceil(balls.length * power.factor));
-      while (balls.length > target) releaseBallAt(balls.length - 1);
+      pinBallSpeed(ball);
     }
+  } else if (spec.kind === "balls") {
+    applyBallResource(spec);
+  } else if (spec.kind === "reset") {
+    paddle.w = startPaddleW();
+    paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+    syncPaddleCap(paddleCap, paddle.w, maxPaddleW());
+    while (balls.length > 1) releaseBallAt(balls.length - 1);
+    pinBallSpeed(balls[0]);
   }
   haptic(16);
   updateHud();
 }
 
+function cruiseSpeed() {
+  return buildLevelSpec(levelIndex).speed;
+}
+
+function pinBallSpeed(ball) {
+  if (!ball || ball.held) return;
+  const v = clampSpeed(ball.vx, ball.vy, cruiseSpeed());
+  ball.vx = v.vx;
+  ball.vy = v.vy;
+}
+
+function paddleServeSource() {
+  const speed = cruiseSpeed();
+  const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.4;
+  return {
+    x: paddle.x + paddle.w / 2,
+    y: paddle.y - BALL_R - 1,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+  };
+}
+
+function cloneBallFrom(source, extraAngle) {
+  const spawned = activateBall(undefined, source, false, false);
+  if (!spawned) return null;
+  const speed = cruiseSpeed();
+  const angle = Math.atan2(source.vy || -1, source.vx) + extraAngle;
+  spawned.x = source.x;
+  spawned.y = source.y;
+  spawned.held = false;
+  spawned.vx = Math.cos(angle) * speed;
+  spawned.vy = Math.sin(angle) * speed;
+  resetTrap(spawned);
+  pinBallSpeed(spawned);
+  return spawned;
+}
+
+function applyBallResource(spec) {
+  const scope = ballResourceScope(spec.operation);
+  if (spec.operation === "add" || (spec.buff && scope === "paddle")) {
+    const target = targetBallCount(balls.length, spec, MAX_BALLS);
+    while (balls.length < target) {
+      if (!activateBall(undefined, paddleServeSource(), false)) break;
+    }
+    return;
+  }
+  if (spec.operation === "multiply") {
+    const extras = Math.max(0, Math.floor(spec.value) - 1);
+    const sources = balls.slice();
+    const angles = multiplyCloneAngles(extras);
+    for (const source of sources) {
+      for (const angle of angles) {
+        if (balls.length >= MAX_BALLS) return;
+        cloneBallFrom(source, angle);
+      }
+    }
+    return;
+  }
+  if (spec.operation === "subtract") {
+    for (const ball of pickSubtractNear(balls, paddle, spec.value)) {
+      const index = balls.indexOf(ball);
+      if (index >= 0) releaseBallAt(index);
+    }
+    return;
+  }
+  if (spec.operation === "divide") {
+    const target = targetBallCount(balls.length, spec, MAX_BALLS);
+    const keep = new Set(pickDivideKeep(balls, target));
+    for (let i = balls.length - 1; i >= 0; i--) {
+      if (balls.length <= target) break;
+      if (!keep.has(balls[i])) releaseBallAt(i);
+    }
+  }
+}
+
 function moveBallStep(ball, dt) {
   ball.x += ball.vx * dt;
   ball.y += ball.vy * dt;
-
-  if (ball.x - ball.r < 0) {
-    ball.x = ball.r;
-    ball.vx = Math.abs(ball.vx);
-  } else if (ball.x + ball.r > W) {
-    ball.x = W - ball.r;
-    ball.vx = -Math.abs(ball.vx);
-  }
-  if (ball.y - ball.r < 0) {
-    ball.y = ball.r;
-    ball.vy = Math.abs(ball.vy);
-  }
+  const cruise = cruiseSpeed();
+  bounceWorldEdge(ball, W, H, cruise);
 
   if (ball.vy > 0 && circleRectHit(ball, paddle)) {
     const hit = ((ball.x - paddle.x) / paddle.w - 0.5) * 1.65;
-    const mag = Math.hypot(ball.vx, ball.vy);
+    const mag = cruise;
     ball.vx = Math.sin(hit) * mag;
     ball.vy = -Math.abs(Math.cos(hit) * mag);
     ball.y = paddle.y - ball.r - 0.2;
+    resetTrap(ball);
+    pinBallSpeed(ball);
     if (ball.primary) haptic(6);
   }
 
-  for (const wall of walls) {
-    if (bounceRect(ball, wall)) break;
+  for (let pass = 0; pass < 3; pass++) {
+    let hitWall = false;
+    for (const wall of walls) {
+      if (bounceCircleRect(ball, wall, cruise)) {
+        hitWall = true;
+        break;
+      }
+    }
+    if (!hitWall) break;
   }
 
   const brick = hitNearbyBrick(ball);
@@ -380,6 +552,7 @@ function moveBallStep(ball, dt) {
       spawnParticles(brick);
     }
   }
+  pinBallSpeed(ball);
 }
 
 function update(dt) {
@@ -387,6 +560,28 @@ function update(dt) {
   if (keys.left) paddle.x -= speed * dt;
   if (keys.right) paddle.x += speed * dt;
   paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+  if (tickPaddleCap(paddleCap, dt)) {
+    paddle.w = startPaddleW();
+    paddle.x = Math.max(0, Math.min(W - paddle.w, paddle.x));
+  }
+  if (isServing()) {
+    seatHeldBalls();
+    updateHud();
+    return;
+  }
+  levelElapsed += dt;
+  sessionElapsed += dt;
+  const stallActions = tickStallRelief(stallRelief, {
+    elapsed: levelElapsed,
+    brickCount: bricks.length,
+    walls,
+    bricks,
+    rng: Math.random,
+  });
+  if (stallActions.length) {
+    walls = applyStallActions(walls, stallActions);
+    bakeStaticLayer();
+  }
 
   // Only the main ball receives limited CCD substeps; split balls use cheap discrete physics.
   for (const ball of balls) {
@@ -400,6 +595,11 @@ function update(dt) {
     if (balls[i].y - balls[i].r >= H + 20) releaseBallAt(i);
   }
   if (balls.length && !balls.some((ball) => ball.primary)) balls[0].primary = true;
+
+  if (bricks.length && balls.length) {
+    const drop = tickWelfare(welfare, dt);
+    if (drop) spawnWelfareDrop();
+  }
 
   for (let i = powers.length - 1; i >= 0; i--) {
     const power = powers[i];
@@ -433,17 +633,19 @@ function update(dt) {
 
   if (!bricks.length) {
     score += 500 + (levelIndex + 1) * 50;
+    const spent = formatClock(levelElapsed);
     releaseAllBalls();
     if (levelIndex + 1 >= TOTAL_LEVELS) {
       running = false;
-      showOverlay("全部通关", `最终得分 ${score}。24 个迷宫已全部清除。`, "START", "COMPLETE");
+      showOverlay("complete", "全部通关", `最终得分 ${score}。本关 ${spent}，总计 ${formatClock(sessionElapsed)}。`, "START", "COMPLETE");
       levelIndex = 0;
     } else {
       running = false;
       levelIndex++;
       showOverlay(
+        "clear",
         `LEVEL ${String(levelIndex).padStart(2, "0")} CLEAR`,
-        "通道结构即将改变。准备进入下一层。",
+        `用时 ${spent}。通道结构即将改变。准备进入下一层。`,
         "NEXT",
         `SCORE ${score}`
       );
@@ -452,64 +654,31 @@ function update(dt) {
     running = false;
     releaseAllItems();
     haptic(35);
-    showOverlay("GAME OVER", "", "Re-Start", "");
+    showOverlay("lose", "GAME OVER", `用时 ${formatClock(levelElapsed)}`, "Re-Start", "");
   }
   updateHud();
 }
 
-function drawRoundedRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
-}
-
 function draw() {
-  const gradient = ctx.createLinearGradient(0, 0, 0, H);
-  gradient.addColorStop(0, "#11111b");
-  gradient.addColorStop(1, "#050509");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, W, H);
-
-  // Subtle grid gives the board a technical maze look.
-  ctx.strokeStyle = "rgba(255,255,255,.025)";
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= W; x += 30) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-  }
-  for (let y = 0; y <= H; y += 30) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-  }
+  ctx.drawImage(staticLayer, 0, 0);
 
   for (const brick of bricks) {
-    const g = ctx.createLinearGradient(brick.x, brick.y, brick.x, brick.y + brick.h);
-    g.addColorStop(0, `hsl(${brick.hue} 92% ${brick.hp > 1 ? 67 : 57}%)`);
-    g.addColorStop(1, `hsl(${brick.hue} 88% 39%)`);
-    ctx.fillStyle = g;
-    drawRoundedRect(brick.x, brick.y, brick.w, brick.h, 3);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,.16)";
-    ctx.stroke();
-  }
-
-  for (const wall of walls) {
-    ctx.fillStyle = "#393945";
-    drawRoundedRect(wall.x, wall.y, wall.w, wall.h, 3);
-    ctx.fill();
-    ctx.strokeStyle = "#5b5b69";
-    ctx.stroke();
+    ctx.fillStyle = `hsl(${brick.hue} 90% ${brick.hp > 1 ? 62 : 52}%)`;
+    ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
   }
 
   for (const power of powers) {
-    const g = ctx.createLinearGradient(power.x, power.y, power.x + power.w, power.y + power.h);
-    g.addColorStop(0, power.good ? "#35c759" : "#ff453a");
-    g.addColorStop(1, power.good ? "#0d7530" : "#8c1714");
-    ctx.fillStyle = g;
-    drawRoundedRect(power.x, power.y, power.w, power.h, 5);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = "700 12px Arial";
+    ctx.fillStyle = power.color;
+    ctx.fillRect(power.x, power.y, power.w, power.h);
+    ctx.font = "800 15px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(power.label, power.x + power.w / 2, power.y + power.h / 2);
+    ctx.fillStyle = RESOURCE_LABEL_COLOR;
+    ctx.fillText(
+      resourceLabel(power.operation, power.value),
+      power.x + power.w / 2,
+      power.y + power.h / 2 + 0.5,
+    );
   }
 
   if (!reducedVisuals) {
@@ -522,62 +691,83 @@ function draw() {
     ctx.globalAlpha = 1;
   }
 
-  const pg = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.h);
-  pg.addColorStop(0, "#ff9c98");
-  pg.addColorStop(1, "#ff5e57");
-  ctx.fillStyle = pg;
-  ctx.shadowColor = "rgba(255,94,87,.45)";
-  ctx.shadowBlur = reducedVisuals ? 0 : 12;
-  drawRoundedRect(paddle.x, paddle.y, paddle.w, paddle.h, 6);
-  ctx.fill();
-  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#ff6b64";
+  ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
 
   ctx.fillStyle = "#fff";
-  ctx.shadowColor = "rgba(255,255,255,.7)";
-  ctx.shadowBlur = reducedVisuals ? 0 : 10;
   for (const ball of balls) {
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.shadowBlur = 0;
 }
 
 function updateHud() {
-  document.getElementById("brickCount").textContent = bricks.length;
-  document.getElementById("ballCount").textContent = balls.length;
-  document.getElementById("paddleCount").textContent =
-    `${Math.max(1, Math.round((paddle.w / INITIAL_PADDLE) * 10) / 10)}×`;
-  document.getElementById("scoreCount").textContent = score;
+  const capClock = paddleCapClock(paddleCap);
+  const remain = Math.ceil(welfareRemaining(welfare));
+  const key = `${bricks.length}:${balls.length}:${paddle.w}:${Math.floor(levelElapsed)}:${remain}:${capClock}:${nextWelfare?.label || ""}`;
+  if (key === lastHudKey) return;
+  lastHudKey = key;
+  brickCountEl.textContent = bricks.length;
+  ballCountEl.textContent = balls.length;
+  paddleCountEl.textContent = String(formatPaddleUnits(paddle.w, paddleUnit));
+  if (paddleCapTimeEl) {
+    paddleCapTimeEl.hidden = !capClock;
+    if (capClock) paddleCapTimeEl.textContent = capClock;
+  }
+  if (runTimeEl) runTimeEl.textContent = formatClock(levelElapsed);
+  if (welfareTimeEl) welfareTimeEl.textContent = formatClock(remain);
 }
 
 function loop(time) {
   const rawDt = Math.max(0, (time - lastTime) / 1000 || 0);
-  const dt = Math.min(0.025, rawDt);
   lastTime = time;
+  if (rawDt > 0.08) {
+    animationId = requestAnimationFrame(loop);
+    return;
+  }
+  const dt = Math.min(0.04, rawDt);
   if (rawDt > 0) {
     const fps = Math.min(120, 1 / rawDt);
     fpsAverage = fpsAverage * 0.94 + fps * 0.06;
     lowFpsFrames = fpsAverage < 45 ? lowFpsFrames + 1 : Math.max(0, lowFpsFrames - 2);
-    reducedVisuals = balls.length > 40 || lowFpsFrames > 20;
+    reducedVisuals = balls.length > 32 || lowFpsFrames > 12;
   }
   if (running && !paused) update(dt);
   draw();
   animationId = requestAnimationFrame(loop);
 }
 
-function showOverlay(title, text, button, eyebrow = "PADDLE BLOCK MAZE") {
-  document.getElementById("overlayTitle").textContent = title;
-  document.getElementById("overlayText").textContent = text;
-  document.getElementById("overlayEyebrow").textContent = eyebrow;
+function pageCopy() {
+  return paddleCopy(localStorage.getItem("portal_lang") || "en");
+}
+
+function setPauseBanner(on) {
+  if (!pauseBannerEl) return;
+  pauseBannerEl.hidden = !on;
+  if (on) pauseBannerEl.textContent = pageCopy().paused;
+}
+
+function showOverlay(kind, title, text, button, eyebrow = "PADDLE") {
+  overlayKind = kind;
+  overlayTitleEl.textContent = title;
+  overlayTextEl.textContent = text;
+  overlayEyebrowEl.textContent = eyebrow;
   startBtn.textContent = button;
   overlay.hidden = false;
+  setPauseBanner(false);
 }
 
 function startLevel() {
-  if (levelIndex === 0 && document.getElementById("overlayTitle").textContent === "全部通关") score = 0;
+  const resetRun = overlayKind === "start" || overlayKind === "complete" || overlayKind === "lose";
+  if (resetRun) {
+    sessionElapsed = 0;
+    if (overlayKind === "complete") score = 0;
+  }
   makeLevel(levelIndex);
+  overlayKind = "hidden";
   overlay.hidden = true;
+  setPauseBanner(false);
   paused = false;
   running = true;
   pauseBtn.textContent = "Ⅱ";
@@ -589,40 +779,90 @@ function togglePause() {
   paused = !paused;
   pauseBtn.textContent = paused ? "▶" : "Ⅱ";
   if (paused) {
-    showOverlay("已暂停", "当前进度已保留。", "RESUME", `LEVEL ${String(levelIndex + 1).padStart(2, "0")}`);
-  } else {
     overlay.hidden = true;
+    setPauseBanner(true);
+  } else {
+    setPauseBanner(false);
     lastTime = performance.now();
   }
 }
 
-function movePaddle(clientX, source = canvas) {
+function beginPaddleDrag(e, source) {
+  if (!running || paused || !overlay.hidden) return;
   const rect = source.getBoundingClientRect();
-  const x = ((clientX - rect.left) / rect.width) * W;
-  paddle.x = Math.max(0, Math.min(W - paddle.w, x - paddle.w / 2));
+  paddleDrag = {
+    pointerId: e.pointerId,
+    startClientX: e.clientX,
+    startPaddleX: paddle.x,
+    scale: W / rect.width,
+  };
+  source.setPointerCapture?.(e.pointerId);
 }
+
+function continuePaddleDrag(e) {
+  if (!paddleDrag || e.pointerId !== paddleDrag.pointerId) return;
+  const delta = (e.clientX - paddleDrag.startClientX) * paddleDrag.scale;
+  paddle.x = Math.max(0, Math.min(W - paddle.w, paddleDrag.startPaddleX + delta));
+}
+
+function endPaddleDrag(e) {
+  if (!paddleDrag || e.pointerId !== paddleDrag.pointerId) return;
+  paddleDrag = null;
+  if (e.type === "pointerup" && running && !paused) launchHeldBalls();
+}
+
+function blockSystemGesture(e) {
+  e.preventDefault();
+}
+
+function suppressCallout(e) {
+  if (e.target.closest?.("a, button")) return;
+  e.preventDefault();
+}
+
+["contextmenu", "selectstart", "dragstart", "gesturestart", "gesturechange", "gestureend", "dblclick"].forEach((type) => {
+  document.addEventListener(type, blockSystemGesture, { capture: true });
+});
+
+document.addEventListener("selectionchange", () => {
+  const sel = window.getSelection?.();
+  if (sel && sel.rangeCount) sel.removeAllRanges();
+});
+
+document.addEventListener("touchstart", (e) => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { capture: true, passive: false });
+
+for (const el of [wrap, controlZone, overlay, canvas, document.querySelector(".hud"), document.querySelector(".game-top")]) {
+  el?.addEventListener("touchstart", suppressCallout, { passive: false });
+}
+
+window.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+  }
+}, true);
 
 wrap.addEventListener("pointerdown", (e) => {
   if (e.target !== canvas) return;
-  wrap.setPointerCapture?.(e.pointerId);
-  movePaddle(e.clientX);
+  beginPaddleDrag(e, wrap);
 });
-wrap.addEventListener("pointermove", (e) => {
-  if (e.buttons || e.pointerType === "touch") movePaddle(e.clientX);
-});
+wrap.addEventListener("pointermove", continuePaddleDrag);
+wrap.addEventListener("pointerup", endPaddleDrag);
+wrap.addEventListener("pointercancel", endPaddleDrag);
 controlZone.addEventListener("pointerdown", (e) => {
-  controlZone.setPointerCapture?.(e.pointerId);
-  movePaddle(e.clientX, controlZone);
+  beginPaddleDrag(e, controlZone);
 });
-controlZone.addEventListener("pointermove", (e) => {
-  if (e.buttons || e.pointerType === "touch") movePaddle(e.clientX, controlZone);
-});
+controlZone.addEventListener("pointermove", continuePaddleDrag);
+controlZone.addEventListener("pointerup", endPaddleDrag);
+controlZone.addEventListener("pointercancel", endPaddleDrag);
 window.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft") keys.left = true;
   if (e.key === "ArrowRight") keys.right = true;
   if (e.key === " " || e.key.toLowerCase() === "p") {
     e.preventDefault();
-    togglePause();
+    if (isServing()) launchHeldBalls();
+    else togglePause();
   }
 });
 window.addEventListener("keyup", (e) => {
@@ -634,6 +874,7 @@ startBtn.addEventListener("click", () => {
   if (paused && running) {
     paused = false;
     overlay.hidden = true;
+    setPauseBanner(false);
     pauseBtn.textContent = "Ⅱ";
     lastTime = performance.now();
   } else {
@@ -641,11 +882,18 @@ startBtn.addEventListener("click", () => {
   }
 });
 pauseBtn.addEventListener("click", togglePause);
+window.addEventListener("resize", sizeTouchZone);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && running && !paused) togglePause();
 });
 
+sizeTouchZone();
 makeLevel(0);
+overlayKind = "start";
+overlayTitleEl.textContent = pageCopy().serveTitle;
+overlayTextEl.textContent = "";
+startBtn.textContent = pageCopy().start;
+overlay.hidden = false;
 draw();
 cancelAnimationFrame(animationId);
 animationId = requestAnimationFrame(loop);

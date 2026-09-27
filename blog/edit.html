@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#ff2d55">
+  <meta name="theme-color" content="#f2f2f7">
   <title>Blog</title>
   <style>html,body{background:#f2f2f7;margin:0}</style>
   <script>
     (function () {
-      var id = new URLSearchParams(location.search).get("id");
-      location.replace(id ? "/blog/?id=" + encodeURIComponent(id) : "/blog/?new=1");
+      var id = new URLSearchParams(location.search).get("id") || new URLSearchParams(location.search).get("edit");
+      location.replace(id ? "/blog/?edit=" + encodeURIComponent(id) : "/blog/?new=1");
     })();
   </script>
 </head>

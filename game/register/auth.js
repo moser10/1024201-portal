@@ -1,6 +1,9 @@
 import { setUser } from "../js/store.js";
 import { bindNameCheck } from "../onesentence/js/nameCheck.js";
-import { mountAccountChrome } from "/js/accountChrome.js";
+import { mountAccountChrome } from "/js/accountChrome.js?v=4";
+import { getPortalLang } from "/js/langTabs.js";
+import { hallBackLabel } from "/js/navBack.js?v=3";
+import { leaveAuthTo, safeAuthDest } from "/js/authNav.js?v=1";
 
 const API = "";
 const CODE_WINDOW_MS = 60_000;
@@ -59,10 +62,11 @@ function renderShell() {
   app.innerHTML = `
   <div class="auth-page">
     <div class="auth-top">
-      <a href="/" class="btn-secondary btn-small" id="authBackLink">返回门户</a>
+      <a href="/" class="btn-secondary btn-small" id="authBackLink">返回大厅</a>
       <div id="accountChrome"></div>
     </div>
   <div class="card">
+    <img class="auth-logo" src="/icons/apps/logo.svg" alt="">
     <h1>注册账户</h1>
     <p class="sub">一票通</p>
     <div class="tabs">
@@ -103,9 +107,9 @@ function renderShell() {
   </div>
   <div id="verifyModal" class="verify-modal" hidden>
     <div class="verify-modal-card" role="dialog" aria-modal="true">
-      <h2>输入注册码</h2>
+      <h2>输入邮箱验证码</h2>
       <p class="sub" id="verifyModalSub">验证码已发送至您的邮箱</p>
-      <input type="text" id="verifyCodeInput" maxlength="4" autocomplete="one-time-code" inputmode="text" placeholder="4位注册码">
+      <input type="text" id="verifyCodeInput" maxlength="4" autocomplete="one-time-code" inputmode="text" placeholder="4位验证码">
       <p id="verifyCodeErr" class="hint err verify-err" hidden></p>
       <button type="button" id="verifySubmitBtn" class="btn-primary">确认</button>
       <button type="button" id="verifyCancelBtn" class="btn-link">取消</button>
@@ -116,9 +120,8 @@ function renderShell() {
     returnPath: returnTo.replace(/^\//, "") || "",
   });
   const back = document.getElementById("authBackLink");
-  const dest = resolveDest();
-  back.href = dest;
-  back.textContent = dest === "/" || dest === "/index.html" ? "返回门户" : "返回";
+  back.href = "/";
+  back.textContent = hallBackLabel(getPortalLang());
 }
 
 function switchTab(name) {
@@ -142,7 +145,7 @@ function syncRegBtn() {
     return;
   }
   if (awaitingCode && canReopenCodePopup()) {
-    btn.textContent = "请输入注册码";
+    btn.textContent = "请输入验证码";
     btn.disabled = false;
     return;
   }
@@ -155,9 +158,10 @@ function syncRegBtn() {
 
 function showVerifyModal(email) {
   const modal = document.getElementById("verifyModal");
-  document.getElementById("verifyModalSub").textContent = `注册码已发送至 ${email}`;
+  document.getElementById("verifyModalSub").textContent = `邮箱验证码已发送至 ${email}`;
   document.getElementById("verifyCodeInput").value = "";
   hideVerifyError();
+  if (modal.parentNode !== document.body) document.body.appendChild(modal);
   modal.hidden = false;
   document.getElementById("verifyCodeInput").focus();
 }
@@ -196,37 +200,17 @@ function hideVerifyError() {
 }
 
 function resolveDest() {
-  const raw = (returnTo || "").trim();
-  if (!raw || raw === "/game/register/" || raw.includes("/register")) return DEFAULT_HOME;
-  // Portal home (empty path / ".") → site root, not toolbox / game hub
-  if (raw === "/" || raw === "." || raw === "index.html" || raw === "/index.html") return "/";
-  if (raw.startsWith("/")) return raw;
-  return `/${raw}`;
+  return safeAuthDest(returnTo);
 }
 
 function goAfterRegister(user) {
   setUser(user);
-  finishAuthNavigation();
+  leaveAuthTo(resolveDest());
 }
 
 function goAfterLogin(user) {
   setUser(user);
-  finishAuthNavigation();
-}
-
-function finishAuthNavigation() {
-  const dest = resolveDest();
-  try {
-    sessionStorage.setItem("portal_auth_redirect", dest);
-  } catch {
-    /* ignore */
-  }
-  app.innerHTML = `<div class="auth-page"><div class="card"><h1>登录成功</h1><p class="sub">正在进入门户…</p><a class="btn-primary" href="${dest}">继续</a></div></div>`;
-  // replace() avoids a broken standalone-PWA history entry on iOS Safari.
-  requestAnimationFrame(() => window.location.replace(new URL(dest, window.location.origin).href));
-  setTimeout(() => {
-    if (location.pathname.includes("/game/register")) window.location.assign(dest);
-  }, 900);
+  leaveAuthTo(resolveDest());
 }
 
 async function handleRegBtnClick() {
@@ -261,7 +245,7 @@ async function submitVerifyCode() {
   const email = document.getElementById("regEmail").value.trim();
   const code = document.getElementById("verifyCodeInput").value.trim();
   if (!code) {
-    showVerifyError("请输入注册码");
+    showVerifyError("请输入验证码");
     return;
   }
   try {
@@ -283,11 +267,11 @@ async function submitVerifyCode() {
       mailSentAt = null;
       document.getElementById("regSpamHint").hidden = false;
       syncRegBtn();
-      alert("注册码错误次数过多，请重新发送注册邮件");
+      alert("验证码错误次数过多，请重新发送验证邮件");
       return;
     }
     syncRegBtn();
-    showVerifyError(e.message || "注册码错误");
+    showVerifyError(e.message || "验证码错误");
   }
 }
 
@@ -327,6 +311,8 @@ regEmail.addEventListener("input", () => {
   regEmailHint.textContent = "";
   regEmailHint.className = "hint";
   syncRegBtn();
+  // Invitation validity is bound to this exact email, so re-check short names.
+  document.getElementById("regName").dispatchEvent(new Event("input"));
   clearTimeout(emailTimer);
   emailTimer = setTimeout(checkEmailField, 400);
 });

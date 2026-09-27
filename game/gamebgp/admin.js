@@ -96,12 +96,74 @@ function confirmDialog({ title, message, confirmText = "确定", cancelText = "�
   });
 }
 
+function quotaGrantDialog({ username, pdfExtra, lyricsExtra, ftExtra, pdfAllowed, lyricsAllowed }) {
+  return new Promise((resolve) => {
+    const backdrop = document.createElement("div");
+    backdrop.className = "gbp-modal";
+    backdrop.innerHTML = `
+      <div class="gbp-modal-card" role="dialog" aria-modal="true" aria-labelledby="quotaDialogTitle">
+        <h2 id="quotaDialogTitle">增加额度 / 扩容</h2>
+        <p class="gbp-modal-msg">用户：${esc(username)}<br>当前：PDF ${pdfAllowed} 次/日 · 歌词 ${lyricsAllowed} 次/日 · 超快传 ${20 + (Number(ftExtra) || 0)} MB</p>
+        <div class="field">
+          <label>功能</label>
+          <select class="quota-tool">
+            <option value="pdf">PDF 转换（次数）</option>
+            <option value="lyrics">歌词搜索（次数）</option>
+            <option value="ft">超快传（容量 MB）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="quota-extra-label">额外次数（默认每日 5 次；填 0 清除）</label>
+          <input class="quota-extra" type="number" min="0" max="10000" step="1" value="${pdfExtra}">
+        </div>
+        <div class="gbp-modal-actions">
+          <button type="button" class="gbp-btn gbp-btn-cancel">取消</button>
+          <button type="button" class="gbp-btn gbp-btn-primary">保存</button>
+        </div>
+      </div>`;
+    const tool = backdrop.querySelector(".quota-tool");
+    const extra = backdrop.querySelector(".quota-extra");
+    const label = backdrop.querySelector(".quota-extra-label");
+    const paintExtra = () => {
+      if (tool.value === "ft") {
+        label.textContent = "额外容量 MB（叠在 20MB 基础之上；填 0 清除）";
+        extra.value = Number(ftExtra) || 0;
+      } else {
+        label.textContent = "额外次数（默认每日 5 次；填 0 清除）";
+        extra.value = tool.value === "pdf" ? pdfExtra : lyricsExtra;
+      }
+      extra.focus();
+      extra.select();
+    };
+    const close = (value) => {
+      backdrop.remove();
+      resolve(value);
+    };
+    tool.onchange = paintExtra;
+    backdrop.querySelector(".gbp-btn-cancel").onclick = () => close(null);
+    backdrop.querySelector(".gbp-btn-primary").onclick = () => {
+      const n = Number.parseInt(extra.value, 10);
+      if (!Number.isFinite(n) || n < 0 || n > 10000) {
+        extra.setCustomValidity("请输入 0–10000 的整数");
+        extra.reportValidity();
+        return;
+      }
+      close({ tool: tool.value, extra: n });
+    };
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) close(null);
+    });
+    document.body.appendChild(backdrop);
+    paintExtra();
+  });
+}
+
 function renderLogin(errorMsg = "") {
   app.innerHTML = `
     <div class="login-wrap">
       <div class="card login-card">
         <div class="title-row">
-          <img class="site-logo" src="/icons/icon-192.png" width="44" height="44" alt="">
+          <img class="site-logo" src="/icons/apps/logo.svg" width="44" height="44" alt="">
           <h1>管理后台</h1>
         </div>
         <p class="sub">门户与游戏数据管理。会话 12 小时有效。</p>
@@ -218,10 +280,10 @@ function userRowHtml(u, i) {
   const flags = [];
   if (Number(u.must_change_password) === 1) flags.push(`<span class="badge badge-warn">需改密</span>`);
   if (Number(u.has_temp_password) === 1) flags.push(`<span class="badge">临时密码</span>`);
-  const grants = [];
-  if (Number(u.pdf_extra) > 0) grants.push(`PDF+${u.pdf_extra}`);
-  if (Number(u.lyrics_extra) > 0) grants.push(`歌词+${u.lyrics_extra}`);
-  if (Number(u.ft_extra) > 0) grants.push(`超快传+${u.ft_extra}MB`);
+  const pdfAllowed = Number(u.pdf_allowed) || 5;
+  const lyricsAllowed = Number(u.lyrics_allowed) || 5;
+  const ftExtra = Number(u.ft_extra) || 0;
+  const ftMb = 20 + ftExtra;
   return `
     <tr data-user-id="${u.id}">
       <td>${i + 1}</td>
@@ -229,10 +291,14 @@ function userRowHtml(u, i) {
       <td>${esc(u.email)}</td>
       <td>${esc(u.created_at || "—")}</td>
       <td>${flags.join(" ") || `<span class="badge badge-ok">正常</span>`}</td>
-      <td>${grants.length ? esc(grants.join(" · ")) : "—"}</td>
+      <td><span class="quota-count">PDF ${pdfAllowed}</span> <span class="quota-count">歌词 ${lyricsAllowed}</span> <span class="quota-count">超快传 ${ftMb}MB</span></td>
       <td>
         <div class="row-actions">
-          <button type="button" class="btn btn-ghost btn-small grant-user" data-id="${u.id}" data-name="${esc(u.username)}">加额度</button>
+          <button type="button" class="btn btn-ghost btn-small grant-user"
+            data-id="${u.id}" data-name="${esc(u.username)}"
+            data-pdf-extra="${Number(u.pdf_extra) || 0}" data-lyrics-extra="${Number(u.lyrics_extra) || 0}"
+            data-ft-extra="${ftExtra}"
+            data-pdf-allowed="${pdfAllowed}" data-lyrics-allowed="${lyricsAllowed}">增加额度/扩容</button>
           <button type="button" class="btn btn-ghost btn-small reset-user" data-id="${u.id}">重置密码</button>
           <button type="button" class="btn btn-danger btn-small del-user" data-id="${u.id}">删除</button>
         </div>
@@ -274,7 +340,7 @@ function panelUsers() {
   return `
     <div class="card" data-panel="users">
       <h2>注册用户（${state.overview.users ?? state.users.length}）</h2>
-      <p class="panel-hint">可删除用户；「加额度」给 PDF/歌词加次数，给超快传加 MB（叠在 20MB 基础之上）。</p>
+      <p class="panel-hint">可删除用户；「增加额度/扩容」给 PDF/歌词加次数，给超快传加 MB（叠在 20MB 基础之上）。</p>
       <div class="toolbar">
         <input class="search" id="userSearch" type="search" placeholder="搜索用户名 / 邮箱" value="${esc(state.userQ)}">
         <button type="button" class="btn btn-ghost btn-small" id="userSearchBtn">搜索</button>
@@ -283,7 +349,7 @@ function panelUsers() {
         ${
           state.users.length
             ? `<table>
-          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>状态</th><th>额外次数</th><th>操作</th></tr></thead>
+          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>状态</th><th>增加额度/扩容</th><th>操作</th></tr></thead>
           <tbody>${state.users.map((u, i) => userRowHtml(u, i)).join("")}</tbody>
         </table>`
             : `<p class="empty">没有匹配的用户</p>`
@@ -340,7 +406,7 @@ function panelSettings() {
 
     <div class="card">
       <h2>发送注册邀请码</h2>
-      <p class="panel-hint">邀请码仅限指定收件邮箱使用一次；特殊邀请码允许少于 6 个字符的昵称。</p>
+      <p class="panel-hint">邀请码仅限指定收件邮箱使用一次；任何有效邀请码都允许使用少于 6 个字符的昵称。</p>
       <form class="form-grid" id="inviteForm" onsubmit="return false">
         <div class="field">
           <label for="inviteCode">邀请码</label>
@@ -350,10 +416,6 @@ function panelSettings() {
           <label for="inviteEmail">收件邮箱</label>
           <input id="inviteEmail" type="email" autocomplete="email" placeholder="name@example.com">
         </div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#3a3a3c">
-          <input id="inviteSpecial" type="checkbox" style="width:auto;margin:0">
-          特殊邀请码（允许短昵称）
-        </label>
         <button type="button" class="btn" id="sendInviteBtn">发送邀请</button>
       </form>
     </div>
@@ -440,27 +502,27 @@ function bindDashboardEvents() {
   document.querySelectorAll(".grant-user").forEach((btn) => {
     btn.onclick = async () => {
       const name = btn.dataset.name || "";
-      const tool = window.prompt(`给「${name}」加额度（pdf / lyrics 次数，ft 容量MB）`, "ft");
-      if (!tool) return;
-      const t = String(tool).trim().toLowerCase();
-      if (!["pdf", "lyrics", "ft"].includes(t)) {
-        toast("功能仅支持 pdf、lyrics 或 ft");
-        return;
-      }
-      const raw = window.prompt(t === "ft" ? `超快传额外容量（MB，加在 20MB 基础之上，填 0 清除）` : `额外次数（永久叠加在每日免费额度上，填 0 清除）`, t === "ft" ? "20" : "3");
-      if (raw == null) return;
-      const extra = parseInt(raw, 10);
-      if (!Number.isFinite(extra) || extra < 0) {
-        toast("请输入有效数字");
-        return;
-      }
+      const selection = await quotaGrantDialog({
+        username: name,
+        pdfExtra: Number(btn.dataset.pdfExtra) || 0,
+        lyricsExtra: Number(btn.dataset.lyricsExtra) || 0,
+        ftExtra: Number(btn.dataset.ftExtra) || 0,
+        pdfAllowed: Number(btn.dataset.pdfAllowed) || 5,
+        lyricsAllowed: Number(btn.dataset.lyricsAllowed) || 5,
+      });
+      if (!selection) return;
       btn.disabled = true;
       try {
         const data = await api("grant_quota", {
           method: "POST",
-          body: JSON.stringify({ user_id: Number(btn.dataset.id), tool: t, extra }),
+          body: JSON.stringify({
+            user_id: Number(btn.dataset.id),
+            tool: selection.tool,
+            extra: selection.extra,
+          }),
         });
-        toast(`已为 ${data.username} 设置 ${t} 额外 ${data.extra}${t === "ft" ? " MB" : " 次"}`);
+        const unit = data.tool === "ft" ? " MB" : " 次";
+        toast(`已为 ${data.username} 设置 ${data.tool} 额外 ${data.extra}${unit}`);
         await refreshQuiet();
       } catch (e) {
         btn.disabled = false;
@@ -574,7 +636,6 @@ function bindDashboardEvents() {
 async function sendInvitation() {
   const code = document.getElementById("inviteCode")?.value.trim() || "";
   const email = document.getElementById("inviteEmail")?.value.trim() || "";
-  const is_special = !!document.getElementById("inviteSpecial")?.checked;
   const btn = document.getElementById("sendInviteBtn");
   if (!code || !email) {
     toast("请填写邀请码和收件邮箱");
@@ -585,12 +646,11 @@ async function sendInvitation() {
   try {
     await api("send_invitation", {
       method: "POST",
-      body: JSON.stringify({ code, email, is_special }),
+      body: JSON.stringify({ code, email }),
     });
     toast(`邀请码已通过 1024201 发送至 ${email}`);
     document.getElementById("inviteCode").value = "";
     document.getElementById("inviteEmail").value = "";
-    document.getElementById("inviteSpecial").checked = false;
   } catch (e) {
     toast(e.message || "发送失败");
   } finally {
@@ -671,7 +731,7 @@ function paintShell() {
     <div class="wrap">
       <div class="topbar">
         <div class="title-row">
-          <img class="site-logo" src="/icons/icon-192.png" width="48" height="48" alt="">
+          <img class="site-logo" src="/icons/apps/logo.svg" width="48" height="48" alt="">
           <div class="title-text">
             <h1>管理后台</h1>
             <p class="user-line">${esc(state.me.username)}</p>
