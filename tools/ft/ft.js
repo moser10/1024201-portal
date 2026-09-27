@@ -27,7 +27,6 @@ const UI = {
     install: "安装",
     err: "失败",
     full: "容量不够，删几个或让后台扩容",
-    needStore: "超过 5MB 需要先配置 VPS 文件库",
     noUser: "登录态不完整，请回门户重新登录",
   },
   en: {
@@ -48,7 +47,6 @@ const UI = {
     install: "Install",
     err: "Failed",
     full: "Not enough space. Delete a file or ask admin for more MB.",
-    needStore: "Files over 5MB need the VPS file store",
     noUser: "Session is incomplete. Sign in again on the portal.",
   },
   ja: {
@@ -69,7 +67,6 @@ const UI = {
     install: "インストール",
     err: "失敗",
     full: "容量不足です",
-    needStore: "5MB超はVPSファイル庫が必要です",
     noUser: "ログイン情報が不完全です。ポータルで再ログインしてください",
   },
 };
@@ -301,7 +298,7 @@ async function runUpload(file) {
     refreshRemote();
   } catch (err) {
     const code = err.message || "";
-    showErr(code === "storage_full" ? copy.full : code === "need_filestore" ? copy.needStore : code || copy.err);
+    showErr(code === "storage_full" ? copy.full : code || copy.err);
   } finally {
     lab.textContent = copy.upload;
   }
