@@ -89,6 +89,7 @@ body.ft-tv #pageTitle {
   width: 0;
   border-radius: 6px;
   background: #30d158;
+  transition: none;
 }
 .ft-hp[data-level="warn"] .ft-hp-fill { background: #ffd60a; }
 .ft-hp[data-level="low"] .ft-hp-fill { background: #ff3b30; }

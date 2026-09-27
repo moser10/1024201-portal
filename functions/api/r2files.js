@@ -143,16 +143,18 @@ function base64ToBytes(b64) {
 
 async function writeChunks(db, fileId, bytes) {
   const total = bytes.byteLength;
+  const stmts = [];
   let idx = 0;
   for (let offset = 0; offset < total; offset += CHUNK_BYTES) {
     const slice = bytes.subarray(offset, Math.min(offset + CHUNK_BYTES, total));
     const b64 = await bytesToBase64(slice);
-    await db
-      .prepare(`INSERT INTO user_file_chunks (file_id, chunk_idx, data) VALUES (?, ?, ?)`)
-      .bind(fileId, idx, b64)
-      .run();
+    stmts.push(db.prepare(`INSERT INTO user_file_chunks (file_id, chunk_idx, data) VALUES (?, ?, ?)`).bind(fileId, idx, b64));
     idx += 1;
+    if (stmts.length >= 25) {
+      await db.batch(stmts.splice(0, stmts.length));
+    }
   }
+  if (stmts.length) await db.batch(stmts);
 }
 
 async function readChunks(db, fileId) {
@@ -222,10 +224,15 @@ async function deleteFileBody(env, db, row) {
   await deleteChunks(db, row.id);
 }
 
+async function readyFilesDb(db, purpose) {
+  await ensureFilesSchema(db);
+  if (purpose !== "ft") await ensureAppSchema(db);
+}
+
 export async function handleFileUpload(env, request, url) {
   const db = requireDb(env);
-  await ensureAppSchema(db);
-  await ensureFilesSchema(db);
+  const purposeHint = new URL(request.url).searchParams.get("purpose") || "syncnote";
+  await readyFilesDb(db, purposeHint);
 
   const userId = await resolveUserId(request, env, url);
   const auth = await requireRegisteredUser(db, userId);
@@ -387,8 +394,8 @@ export async function handleFileDelete(env, request, url) {
 
 export async function handleFileStorageQuota(env, request, url) {
   const db = requireDb(env);
-  await ensureAppSchema(db);
-  await ensureFilesSchema(db);
+  const purposeHint = url.searchParams.get("purpose") || "syncnote";
+  await readyFilesDb(db, purposeHint);
 
   const userId = await resolveUserId(request, env, url);
   const auth = await requireRegisteredUser(db, userId);
@@ -419,8 +426,8 @@ export async function handleFileStorageQuota(env, request, url) {
 
 export async function handleFileList(env, request, url) {
   const db = requireDb(env);
-  await ensureAppSchema(db);
-  await ensureFilesSchema(db);
+  const purposeHint = url.searchParams.get("purpose") || "syncnote";
+  await readyFilesDb(db, purposeHint);
 
   const userId = await resolveUserId(request, env, url);
   const auth = await requireRegisteredUser(db, userId);

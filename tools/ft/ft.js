@@ -98,15 +98,22 @@ function showErr(msg) {
   box.textContent = msg || "";
 }
 
-function paintHp(used, limit) {
+const DEFAULT_LIMIT = 20 * 1024 * 1024;
+let quota = { used: 0, limit: DEFAULT_LIMIT };
+let filesCache = [];
+
+function paintQuota(used = quota.used, limit = quota.limit) {
+  quota = { used: Number(used) || 0, limit: Number(limit) || DEFAULT_LIMIT };
   const bar = document.getElementById("hpBar");
   const fill = document.getElementById("hpFill");
-  if (!bar || !fill) return;
-  const cap = Number(limit) || 1;
-  const left = Math.max(0, cap - (Number(used) || 0));
-  const pct = Math.max(0, Math.min(100, (left / cap) * 100));
-  fill.style.width = `${pct}%`;
-  bar.dataset.level = pct >= 70 ? "ok" : pct >= 40 ? "warn" : pct > 0 ? "low" : "empty";
+  const space = document.getElementById("spaceLine");
+  if (fill) {
+    const left = Math.max(0, quota.limit - quota.used);
+    const pct = Math.max(0, Math.min(100, (left / quota.limit) * 100));
+    fill.style.width = `${pct}%`;
+    if (bar) bar.dataset.level = pct >= 70 ? "ok" : pct >= 40 ? "warn" : pct > 0 ? "low" : "empty";
+  }
+  if (space) space.textContent = copy.space(quota.used, quota.limit);
 }
 
 let apkMeta = { version: "1.3", file: "ft-tv-debug.apk", download: "ft-tv-1.3.apk" };
@@ -169,25 +176,14 @@ async function login(ident, password) {
   setUser(data.user);
 }
 
-async function loadList() {
-  const uid = userIdOf();
-  if (!uid) return;
-  const [listRes, storage] = await Promise.all([
-    fetch(`/api/portal?action=file_list&purpose=ft&user_id=${encodeURIComponent(uid)}`).then(async (r) => {
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.error || copy.err);
-      return data;
-    }),
-    fetchFileStorage(uid, "ft"),
-  ]);
-  document.getElementById("spaceLine").textContent = copy.space(storage.used, storage.limit);
-  paintHp(storage.used, storage.limit);
-  const files = listRes.files || [];
+function paintFiles(files, uid = userIdOf()) {
+  filesCache = Array.isArray(files) ? files : [];
   const list = document.getElementById("fileList");
   const empty = document.getElementById("emptyBox");
-  empty.hidden = files.length > 0;
+  if (!list || !empty) return;
+  empty.hidden = filesCache.length > 0;
   empty.textContent = copy.empty;
-  list.innerHTML = files
+  list.innerHTML = filesCache
     .map((f) => {
       const apk = /\.apk$/i.test(f.name || "");
       const action = apk ? copy.install : copy.get;
@@ -203,35 +199,60 @@ async function loadList() {
       </li>`;
     })
     .join("");
-  async function takeFile(row) {
-    if (!row) return;
-    try {
-      if (tv) {
-        location.assign(`/api/portal?action=file_get&id=${encodeURIComponent(row.id)}&user_id=${encodeURIComponent(uid)}`);
-        return;
-      }
-      await downloadFileEntry(row, uid, { userGesture: true });
-    } catch (e) {
-      showErr(e.message || copy.err);
-    }
-  }
   list.querySelectorAll(".ft-get").forEach((btn) => {
     btn.onclick = (e) => {
       e.stopPropagation();
-      takeFile(files.find((f) => f.id === btn.closest(".ft-row").dataset.id));
+      const row = filesCache.find((f) => f.id === btn.closest(".ft-row").dataset.id);
+      takeFile(row, uid);
     };
   });
   list.querySelectorAll(".ft-del").forEach((btn) => {
     btn.onclick = async () => {
       const id = btn.closest(".ft-row").dataset.id;
       try {
+        const gone = filesCache.find((f) => f.id === id);
         await deleteFile({ id, userId: uid });
-        await loadList();
+        filesCache = filesCache.filter((f) => f.id !== id);
+        paintFiles(filesCache, uid);
+        paintQuota(Math.max(0, quota.used - (Number(gone?.size) || 0)), quota.limit);
+        refreshRemote();
       } catch (e) {
         showErr(e.message || copy.err);
       }
     };
   });
+}
+
+async function takeFile(row, uid) {
+  if (!row) return;
+  try {
+    if (tv) {
+      location.assign(`/api/portal?action=file_get&id=${encodeURIComponent(row.id)}&user_id=${encodeURIComponent(uid)}`);
+      return;
+    }
+    await downloadFileEntry(row, uid, { userGesture: true });
+  } catch (e) {
+    showErr(e.message || copy.err);
+  }
+}
+
+async function refreshRemote() {
+  const uid = userIdOf();
+  if (!uid) return;
+  const listP = fetch(`/api/portal?action=file_list&purpose=ft&user_id=${encodeURIComponent(uid)}`).then(async (r) => {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || copy.err);
+    return data.files || [];
+  });
+  const storeP = fetchFileStorage(uid, "ft").catch(() => null);
+  try {
+    const files = await listP;
+    paintFiles(files, uid);
+  } catch (e) {
+    showErr(e.message || copy.err);
+  }
+  const storage = await storeP;
+  if (storage) paintQuota(storage.used, storage.limit);
 }
 
 function esc(s) {
@@ -247,7 +268,17 @@ function paintAuth() {
   document.getElementById("tvLoginForm").hidden = loggedIn || !tv;
   document.getElementById("appWrap").hidden = !loggedIn;
   paintToolUser();
-  if (loggedIn) loadList().catch((e) => showErr(e.message || copy.err));
+  if (loggedIn) {
+    paintQuota(quota.used, quota.limit);
+    if (!filesCache.length) {
+      const empty = document.getElementById("emptyBox");
+      if (empty) {
+        empty.hidden = false;
+        empty.textContent = copy.empty;
+      }
+    }
+    refreshRemote();
+  }
 }
 
 async function runUpload(file) {
@@ -261,8 +292,13 @@ async function runUpload(file) {
   showErr("");
   lab.textContent = copy.uploading;
   try {
-    await uploadFile({ file, purpose: "ft", userId: uid });
-    await loadList();
+    const saved = await uploadFile({ file, purpose: "ft", userId: uid });
+    const next = /\.apk$/i.test(saved.name || "")
+      ? [...filesCache.filter((f) => !/\.apk$/i.test(f.name || "")), saved]
+      : [...filesCache.filter((f) => f.id !== saved.id), saved];
+    paintFiles(next, uid);
+    paintQuota(quota.used + (Number(saved.size) || file.size || 0), quota.limit);
+    refreshRemote();
   } catch (err) {
     const code = err.message || "";
     showErr(code === "storage_full" ? copy.full : code === "need_filestore" ? copy.needStore : code || copy.err);
