@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -32,9 +33,14 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
   static final String HOME = "https://1024201.com/tools/ft/?client=tv";
+  static final String PREF = "ft_session";
+  static final String KEY_USER = "osn_user";
+  static final String KEY_IDENT = "ident";
+  static final String KEY_PASS = "password";
   WebView web;
   View busy;
   TextView busyText;
@@ -62,7 +68,7 @@ public class MainActivity extends Activity {
     settings.setDatabaseEnabled(true);
     settings.setAllowFileAccess(false);
     settings.setAllowContentAccess(false);
-    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.5");
+    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.6");
     CookieManager cookies = CookieManager.getInstance();
     cookies.setAcceptCookie(true);
     cookies.setAcceptThirdPartyCookies(web, true);
@@ -89,7 +95,9 @@ public class MainActivity extends Activity {
           String path = uri.getPath() == null ? "" : uri.getPath();
           if (path.startsWith("/tools/ft") && !"tv".equals(uri.getQueryParameter("client"))) {
             view.loadUrl(HOME);
+            return;
           }
+          if (path.startsWith("/tools/ft")) restoreSessionIntoWeb(view);
         }
       }
     );
@@ -148,8 +156,27 @@ public class MainActivity extends Activity {
     );
   }
 
+  SharedPreferences prefs() {
+    return getSharedPreferences(PREF, MODE_PRIVATE);
+  }
+
+  void restoreSessionIntoWeb(WebView view) {
+    String raw = prefs().getString(KEY_USER, "");
+    String js;
+    if (raw != null && !raw.isEmpty()) {
+      js =
+        "(function(){try{localStorage.setItem('osn_user'," +
+        JSONObject.quote(raw) +
+        ");}catch(e){}if(window.ftRestoreSession)window.ftRestoreSession();})()";
+    } else {
+      js = "window.ftRestoreSession&&window.ftRestoreSession()";
+    }
+    view.evaluateJavascript(js, null);
+  }
+
   void startDownload(String url, String mime, String disposition) {
     if (!allowed(Uri.parse(url))) return;
+    prefs().edit().commit();
     showBusy(isApk(url) ? "更新中…" : "下载中…");
     new Thread(() -> saveAndOpen(url, mime, disposition)).start();
   }
@@ -158,6 +185,40 @@ public class MainActivity extends Activity {
     @JavascriptInterface
     public void download(String url) {
       startDownload(url, "", "");
+    }
+
+    @JavascriptInterface
+    public void saveSession(String json) {
+      if (json == null || json.isEmpty()) return;
+      prefs().edit().putString(KEY_USER, json).commit();
+    }
+
+    @JavascriptInterface
+    public void saveLogin(String ident, String password) {
+      SharedPreferences.Editor ed = prefs().edit();
+      if (ident != null) ed.putString(KEY_IDENT, ident);
+      if (password != null) ed.putString(KEY_PASS, password);
+      ed.commit();
+    }
+
+    @JavascriptInterface
+    public void clearSession() {
+      prefs().edit().remove(KEY_USER).remove(KEY_IDENT).remove(KEY_PASS).commit();
+    }
+
+    @JavascriptInterface
+    public String getSession() {
+      return prefs().getString(KEY_USER, "");
+    }
+
+    @JavascriptInterface
+    public String getLoginIdent() {
+      return prefs().getString(KEY_IDENT, "");
+    }
+
+    @JavascriptInterface
+    public String getLoginPass() {
+      return prefs().getString(KEY_PASS, "");
     }
   }
 

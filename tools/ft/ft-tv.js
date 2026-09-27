@@ -6,7 +6,7 @@
   var DEFAULT_LIMIT = 20 * 1024 * 1024;
   var filesCache = [];
   var quota = { used: 0, limit: DEFAULT_LIMIT };
-  var apkMeta = { version: "1.5", file: "ft-tv-debug.apk", download: "ft-tv-1.5.apk" };
+  var apkMeta = { version: "1.6", file: "ft-tv-debug.apk", download: "ft-tv-1.6.apk" };
 
   function $(id) {
     return document.getElementById(id);
@@ -20,12 +20,38 @@
     }
   }
 
+  function hasShell() {
+    return typeof window.FtShell !== "undefined" && window.FtShell;
+  }
+
+  function persistNative(user, ident, password) {
+    if (!hasShell()) return;
+    if (user && typeof window.FtShell.saveSession === "function") {
+      window.FtShell.saveSession(JSON.stringify(user));
+    }
+    if (ident && password && typeof window.FtShell.saveLogin === "function") {
+      window.FtShell.saveLogin(ident, password);
+    }
+  }
+
+  function restoreNative() {
+    if (!hasShell() || typeof window.FtShell.getSession !== "function") return;
+    var raw = window.FtShell.getSession();
+    if (!raw) return;
+    try {
+      var user = JSON.parse(raw);
+      if (user && (user.id || user.user_id)) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } catch (e) {}
+  }
+
   function setUser(user) {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    persistNative(user);
   }
 
   function clearUser() {
     localStorage.removeItem(USER_KEY);
+    if (hasShell() && typeof window.FtShell.clearSession === "function") window.FtShell.clearSession();
   }
 
   function userIdOf() {
@@ -75,7 +101,7 @@
 
   function officialHref() {
     var file = apkMeta.file || "ft-tv-debug.apk";
-    var v = apkMeta.version || "1.5";
+    var v = apkMeta.version || "1.6";
     return "https://1024201.com/tools/ft/dist/" + file + "?v=" + encodeURIComponent(v);
   }
 
@@ -89,6 +115,8 @@
   }
 
   function takeOfficial() {
+    var user = getUser();
+    if (user) persistNative(user);
     startDownload(officialHref(), "更新中…");
   }
 
@@ -269,9 +297,45 @@
         if (!res.ok) throw new Error((data && data.error) || "失败");
         if (!data || !data.user) throw new Error("登录态不完整");
         setUser(data.user);
+        persistNative(data.user, ident, password);
       });
     });
   }
+
+  function trySilentLogin(done) {
+    if (userIdOf()) {
+      done();
+      return;
+    }
+    if (!hasShell() || typeof window.FtShell.getLoginIdent !== "function") {
+      done();
+      return;
+    }
+    var ident = window.FtShell.getLoginIdent();
+    var password = window.FtShell.getLoginPass ? window.FtShell.getLoginPass() : "";
+    if (!ident || !password) {
+      done();
+      return;
+    }
+    login(ident, password)
+      .then(function () {
+        done();
+      })
+      .catch(function () {
+        done();
+      });
+  }
+
+  window.ftRestoreSession = function () {
+    restoreNative();
+    if (userIdOf()) {
+      paintAuth();
+      return;
+    }
+    trySilentLogin(function () {
+      paintAuth();
+    });
+  };
 
   function boot() {
     var title = $("pageTitle");
@@ -296,6 +360,7 @@
         var password = ($("passIn") && $("passIn").value) || "";
         login(ident, password)
           .then(function () {
+            persistNative(getUser(), ident, password);
             paintAuth();
           })
           .catch(function (err) {
@@ -312,7 +377,15 @@
         paintAuth();
       };
     }
-    paintAuth();
+    restoreNative();
+    if (userIdOf()) {
+      persistNative(getUser());
+      paintAuth();
+    } else {
+      trySilentLogin(function () {
+        paintAuth();
+      });
+    }
   }
 
   if (document.readyState === "loading") {
