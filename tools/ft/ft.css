@@ -191,12 +191,39 @@ body.ft-tv .ft-row-hit {
   text-align: left;
   white-space: normal;
 }
-body.ft-tv .ft-row-official {
+.ft-update-wrap {
+  display: none;
+}
+html.ft-tv .ft-update-wrap,
+body.ft-tv .ft-update-wrap {
+  display: block;
   margin-top: 28px;
 }
-body.ft-tv .ft-row-official .ft-row-hit {
-  background: #e07a3d;
-  color: #f4efe4;
+html.ft-tv .ft-update-wrap[hidden],
+body.ft-tv .ft-update-wrap[hidden] {
+  display: none !important;
+}
+.ft-update-btn {
+  width: 100%;
+  min-height: 56px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.ft-update-btn.is-on {
+  background: #30d158;
+  color: #fff;
+}
+.ft-update-btn.is-off,
+.ft-update-btn:disabled {
+  background: #c7c7cc;
+  color: #8e8e93;
+}
+.ft-update-sub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #8e8e93;
 }
 .ft-busy {
   position: fixed;

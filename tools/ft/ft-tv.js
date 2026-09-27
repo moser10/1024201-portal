@@ -6,7 +6,8 @@
   var DEFAULT_LIMIT = 20 * 1024 * 1024;
   var filesCache = [];
   var quota = { used: 0, limit: DEFAULT_LIMIT };
-  var apkMeta = { version: "1.7", file: "ft-tv-debug.apk", download: "ft-tv-1.7.apk" };
+  var apkMeta = { versionCode: 9, file: "ft-tv-debug.apk", download: "ft-tv.apk", notes: "" };
+  var updateOpen = false;
 
   function $(id) {
     return document.getElementById(id);
@@ -61,6 +62,36 @@
     return isFinite(n) && n > 0 ? n : 0;
   }
 
+  function installedCode() {
+    if (!hasShell() || typeof window.FtShell.versionCode !== "function") return 0;
+    try {
+      return Number(window.FtShell.versionCode()) || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function hasUpdate() {
+    var remote = Number(apkMeta.versionCode) || 0;
+    var local = installedCode();
+    if (!remote) return false;
+    if (!local) return true;
+    return remote > local;
+  }
+
+  function syncSurvive() {
+    if (!hasShell()) return;
+    if (hasUpdate()) {
+      if (typeof window.FtShell.keepAcrossUninstall === "function") window.FtShell.keepAcrossUninstall();
+    } else if (typeof window.FtShell.dropAcrossUninstall === "function") {
+      window.FtShell.dropAcrossUninstall();
+    }
+  }
+
+  function pageReady() {
+    if (hasShell() && typeof window.FtShell.ready === "function") window.FtShell.ready();
+  }
+
   function formatStorageMb(bytes) {
     var mb = Number(bytes || 0) / (1024 * 1024);
     if (mb >= 100) return Math.round(mb) + " MB";
@@ -85,7 +116,7 @@
   function showBusy(text) {
     var box = $("ftBusy");
     var line = $("ftBusyText");
-    if (line) line.textContent = text || "更新中…";
+    if (line) line.textContent = text || "下载中…";
     if (box) box.hidden = false;
   }
 
@@ -95,44 +126,60 @@
   }
 
   window.ftDownloadDone = hideBusy;
-  document.addEventListener("visibilitychange", function () {
-    if (!document.hidden) hideBusy();
-  });
 
   function officialHref() {
     var file = apkMeta.file || "ft-tv-debug.apk";
-    var v = apkMeta.version || "1.7";
-    return "https://1024201.com/tools/ft/dist/" + file + "?v=" + encodeURIComponent(v);
+    return "https://1024201.com/tools/ft/dist/" + file + "?v=" + encodeURIComponent(apkMeta.versionCode || Date.now());
   }
 
-  function startDownload(url, text, filename) {
+  function askManual() {
+    hideBusy();
+    if (hasShell() && typeof window.FtShell.needManual === "function") {
+      window.FtShell.needManual();
+      return;
+    }
+    window.alert("请卸载后重新安装");
+  }
+
+  function startDownload(url, text, filename, official) {
     showBusy(text || "下载中…");
-    if (window.FtShell && typeof window.FtShell.download === "function") {
-      window.FtShell.download(url, filename || "");
+    if (official && hasShell() && typeof window.FtShell.keepAcrossUninstall === "function") {
+      window.FtShell.keepAcrossUninstall();
+    }
+    try {
+      if (hasShell() && typeof window.FtShell.pull === "function") {
+        window.FtShell.pull(JSON.stringify({ url: url, name: filename || "" }));
+        return;
+      }
+    } catch (e) {
+      if (official) askManual();
+      else hideBusy();
+      return;
+    }
+    if (official) {
+      askManual();
       return;
     }
     location.assign(url);
   }
 
   function takeOfficial() {
+    if (!hasUpdate()) return;
     var user = getUser();
     if (user) persistNative(user);
-    startDownload(officialHref(), "更新中…", apkMeta.download || "ft-tv.apk");
+    startDownload(officialHref(), "更新中…", apkMeta.download || "ft-tv.apk", true);
   }
 
   function takeFile(row, uid) {
     if (!row) return;
-    if (row.official) {
-      takeOfficial();
-      return;
-    }
     startDownload(
       "https://1024201.com/api/portal?action=file_get&id=" +
         encodeURIComponent(row.id) +
         "&user_id=" +
         encodeURIComponent(uid),
       "下载中…",
-      row.name || ""
+      row.name || "",
+      false
     );
   }
 
@@ -171,6 +218,24 @@
     el.hidden = false;
   }
 
+  function paintUpdate() {
+    var wrap = $("ftUpdateWrap");
+    var btn = $("ftUpdateBtn");
+    var sub = $("ftUpdateSub");
+    if (!wrap || !btn || !sub) return;
+    wrap.hidden = false;
+    updateOpen = hasUpdate();
+    btn.disabled = !updateOpen;
+    btn.className = "ft-update-btn" + (updateOpen ? " is-on" : " is-off");
+    btn.textContent = updateOpen ? "有更新可用" : "暂无更新";
+    sub.textContent = updateOpen ? apkMeta.notes || "有更新可用" : "暂无更新";
+    btn.onclick = function () {
+      if (!updateOpen) return;
+      takeOfficial();
+    };
+    syncSurvive();
+  }
+
   function paintFiles(files, uid) {
     filesCache = files && files.length ? files : [];
     var list = $("fileList");
@@ -193,23 +258,12 @@
           "</button></li>"
       );
     }
-    html.push(
-      '<li class="ft-row ft-row-btn ft-row-official" data-id="official-ft">' +
-        '<button type="button" class="btn-primary ft-get ft-row-hit" data-official="1">' +
-        "更新超快传 " +
-        esc(apkMeta.version || "") +
-        " · 安装</button></li>"
-    );
     list.innerHTML = html.join("");
     empty.hidden = filesCache.length > 0;
     empty.textContent = "还没有文件";
     var buttons = list.querySelectorAll(".ft-get");
     for (i = 0; i < buttons.length; i++) {
       buttons[i].onclick = function () {
-        if (this.getAttribute("data-official") === "1") {
-          takeOfficial();
-          return;
-        }
         var rowEl = this.closest ? this.closest(".ft-row") : this.parentNode;
         var id = rowEl ? rowEl.getAttribute("data-id") : "";
         var row = null;
@@ -223,6 +277,7 @@
         takeFile(row, uid);
       };
     }
+    paintUpdate();
   }
 
   function loadApkMeta() {
@@ -231,8 +286,8 @@
         return r.json();
       })
       .then(function (data) {
-        if (data && data.version) apkMeta = data;
-        if (userIdOf()) paintFiles(filesCache, userIdOf());
+        if (data) apkMeta = data;
+        paintUpdate();
       })
       .catch(function () {});
   }
@@ -280,6 +335,7 @@
       paintFiles(filesCache, userIdOf());
       refreshRemote();
     }
+    pageReady();
   }
 
   function login(ident, password) {
@@ -351,6 +407,7 @@
 
     var form = $("tvLoginForm");
     if (form) {
+      form.hidden = true;
       form.onsubmit = function (e) {
         if (e && e.preventDefault) e.preventDefault();
         showErr("");

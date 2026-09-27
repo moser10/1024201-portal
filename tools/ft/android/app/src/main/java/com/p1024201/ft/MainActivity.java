@@ -1,13 +1,16 @@
 package com.p1024201.ft;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.Gravity;
@@ -31,6 +34,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.core.content.FileProvider;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -45,6 +49,7 @@ public class MainActivity extends Activity {
   static final String KEY_IDENT = "ident";
   static final String KEY_PASS = "password";
   static final String APK_MIME = "application/vnd.android.package-archive";
+  static final int REQ_STORAGE = 31;
   WebView web;
   View busy;
   View splash;
@@ -76,13 +81,15 @@ public class MainActivity extends Activity {
       new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
     );
     setContentView(root);
+    adoptSurvive();
+    askStorage();
     WebSettings settings = web.getSettings();
     settings.setJavaScriptEnabled(true);
     settings.setDomStorageEnabled(true);
     settings.setDatabaseEnabled(true);
     settings.setAllowFileAccess(false);
     settings.setAllowContentAccess(false);
-    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.7");
+    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.8");
     CookieManager cookies = CookieManager.getInstance();
     cookies.setAcceptCookie(true);
     cookies.setAcceptThirdPartyCookies(web, true);
@@ -111,10 +118,7 @@ public class MainActivity extends Activity {
             view.loadUrl(HOME);
             return;
           }
-          if (path.startsWith("/tools/ft")) {
-            restoreSessionIntoWeb(view);
-            hideSplash();
-          }
+          if (path.startsWith("/tools/ft")) restoreSessionIntoWeb(view);
         }
       }
     );
@@ -126,6 +130,7 @@ public class MainActivity extends Activity {
         }
       }
     );
+    web.postDelayed(this::hideSplash, 20000);
     web.loadUrl(HOME);
   }
 
@@ -171,6 +176,79 @@ public class MainActivity extends Activity {
     );
   }
 
+  void askStorage() {
+    if (Build.VERSION.SDK_INT < 23) return;
+    if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+      return;
+    }
+    requestPermissions(
+      new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE },
+      REQ_STORAGE
+    );
+  }
+
+  File surviveFile() {
+    File dir = new File(Environment.getExternalStorageDirectory(), ".1024201-ft");
+    return new File(dir, "session.json");
+  }
+
+  void writeSurvive() {
+    try {
+      JSONObject o = new JSONObject();
+      o.put("user", prefs().getString(KEY_USER, ""));
+      o.put("ident", prefs().getString(KEY_IDENT, ""));
+      o.put("pass", prefs().getString(KEY_PASS, ""));
+      if (o.optString("user").isEmpty()) return;
+      File f = surviveFile();
+      File parent = f.getParentFile();
+      if (parent != null) parent.mkdirs();
+      FileOutputStream fos = new FileOutputStream(f);
+      fos.write(o.toString().getBytes("UTF-8"));
+      fos.close();
+    } catch (Exception ignored) {
+      /* keep in-app prefs */
+    }
+  }
+
+  JSONObject readSurvive() {
+    try {
+      File f = surviveFile();
+      if (!f.exists()) return null;
+      FileInputStream in = new FileInputStream(f);
+      byte[] buf = new byte[(int) f.length()];
+      int n = in.read(buf);
+      in.close();
+      if (n <= 0) return null;
+      return new JSONObject(new String(buf, 0, n, "UTF-8"));
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  void dropSurvive() {
+    try {
+      File f = surviveFile();
+      if (f.exists()) f.delete();
+    } catch (Exception ignored) {
+      /* ignore */
+    }
+  }
+
+  void adoptSurvive() {
+    String have = prefs().getString(KEY_USER, "");
+    if (have != null && !have.isEmpty()) return;
+    JSONObject o = readSurvive();
+    if (o == null) return;
+    String user = o.optString("user", "");
+    if (user.isEmpty()) return;
+    prefs()
+      .edit()
+      .putString(KEY_USER, user)
+      .putString(KEY_IDENT, o.optString("ident", ""))
+      .putString(KEY_PASS, o.optString("pass", ""))
+      .commit();
+  }
+
   boolean looksApk(String... parts) {
     for (String part : parts) {
       if (part == null) continue;
@@ -185,8 +263,7 @@ public class MainActivity extends Activity {
     String name = raw.replace('\\', '/');
     int slash = name.lastIndexOf('/');
     if (slash >= 0) name = name.substring(slash + 1);
-    name = name.replaceAll("[\\u0000-\\u001f]", "").trim();
-    return name;
+    return name.replaceAll("[\\u0000-\\u001f]", "").trim();
   }
 
   String fromDisposition(String d) {
@@ -224,7 +301,8 @@ public class MainActivity extends Activity {
       String name = sanitizeName(c);
       if (!name.isEmpty() && !name.equals("downloadfile") && !name.equals("portal")) return name;
     }
-    String guessed = sanitizeName(URLUtil.guessFileName(src, headerDisp != null ? headerDisp : disposition, headerMime != null ? headerMime : mime));
+    String guessed =
+      sanitizeName(URLUtil.guessFileName(src, headerDisp != null ? headerDisp : disposition, headerMime != null ? headerMime : mime));
     if (!guessed.isEmpty() && !guessed.equals("downloadfile") && !guessed.equals("portal")) return guessed;
     return looksApk(given, src, mime, headerMime, headerDisp) ? "file.apk" : "download.bin";
   }
@@ -249,11 +327,25 @@ public class MainActivity extends Activity {
     );
   }
 
+  void showManualDialog() {
+    runOnUiThread(
+      () -> {
+        hideBusy();
+        new AlertDialog.Builder(this)
+          .setMessage("请卸载后重新安装")
+          .setPositiveButton("确定", (DialogInterface d, int w) -> {})
+          .setCancelable(true)
+          .show();
+      }
+    );
+  }
+
   SharedPreferences prefs() {
     return getSharedPreferences(PREF, MODE_PRIVATE);
   }
 
   void restoreSessionIntoWeb(WebView view) {
+    adoptSurvive();
     String raw = prefs().getString(KEY_USER, "");
     String js;
     if (raw != null && !raw.isEmpty()) {
@@ -268,17 +360,51 @@ public class MainActivity extends Activity {
   }
 
   void startDownload(String url, String mime, String disposition, String filename) {
-    if (!allowed(Uri.parse(url))) return;
+    if (url == null || !allowed(Uri.parse(url))) {
+      showManualDialog();
+      return;
+    }
     prefs().edit().commit();
-    boolean official = url != null && url.contains("/tools/ft/dist/");
+    boolean official = url.contains("/tools/ft/dist/");
+    if (official) writeSurvive();
     showBusy(official ? "更新中…" : "下载中…");
-    new Thread(() -> saveAndOpen(url, mime, disposition, filename)).start();
+    new Thread(() -> saveAndOpen(url, mime, disposition, filename, official)).start();
   }
 
   public class FtShell {
     @JavascriptInterface
-    public void download(String url, String name) {
-      startDownload(url, "", "", name == null ? "" : name);
+    public void pull(String spec) {
+      try {
+        JSONObject o = new JSONObject(spec == null ? "{}" : spec);
+        startDownload(o.optString("url", ""), "", "", o.optString("name", ""));
+      } catch (Exception e) {
+        showManualDialog();
+      }
+    }
+
+    @JavascriptInterface
+    public void ready() {
+      hideSplash();
+    }
+
+    @JavascriptInterface
+    public int versionCode() {
+      return BuildConfig.VERSION_CODE;
+    }
+
+    @JavascriptInterface
+    public void keepAcrossUninstall() {
+      writeSurvive();
+    }
+
+    @JavascriptInterface
+    public void dropAcrossUninstall() {
+      dropSurvive();
+    }
+
+    @JavascriptInterface
+    public void needManual() {
+      showManualDialog();
     }
 
     @JavascriptInterface
@@ -298,20 +424,24 @@ public class MainActivity extends Activity {
     @JavascriptInterface
     public void clearSession() {
       prefs().edit().remove(KEY_USER).remove(KEY_IDENT).remove(KEY_PASS).commit();
+      dropSurvive();
     }
 
     @JavascriptInterface
     public String getSession() {
+      adoptSurvive();
       return prefs().getString(KEY_USER, "");
     }
 
     @JavascriptInterface
     public String getLoginIdent() {
+      adoptSurvive();
       return prefs().getString(KEY_IDENT, "");
     }
 
     @JavascriptInterface
     public String getLoginPass() {
+      adoptSurvive();
       return prefs().getString(KEY_PASS, "");
     }
   }
@@ -404,23 +534,21 @@ public class MainActivity extends Activity {
     startActivity(install);
   }
 
-  void saveAndOpen(String src, String mime, String disposition, String givenName) {
+  void saveAndOpen(String src, String mime, String disposition, String givenName, boolean official) {
     try {
       URL url = new URL(src);
       HttpURLConnection c = (HttpURLConnection) url.openConnection();
       String cookie = CookieManager.getInstance().getCookie(src);
       if (cookie != null && !cookie.isEmpty()) c.setRequestProperty("Cookie", cookie);
       c.connect();
+      if (c.getResponseCode() >= 400) throw new RuntimeException("http");
       String headerDisp = c.getHeaderField("Content-Disposition");
       String headerMime = c.getContentType();
       String name = pickName(givenName, disposition, headerDisp, src, mime, headerMime);
       boolean apk = looksApk(name, src, mime, headerMime, givenName);
       if (apk && !name.toLowerCase().endsWith(".apk")) name = name + ".apk";
       File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-      if (dir == null) {
-        runOnUiThread(() -> Toast.makeText(this, "失败", Toast.LENGTH_SHORT).show());
-        return;
-      }
+      if (dir == null) throw new RuntimeException("dir");
       dir.mkdirs();
       File out = new File(dir, name);
       InputStream in = c.getInputStream();
@@ -430,11 +558,13 @@ public class MainActivity extends Activity {
       while ((n = in.read(buf)) > 0) fos.write(buf, 0, n);
       fos.close();
       in.close();
+      if (out.length() < 64) throw new RuntimeException("empty");
       Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", out);
       String type = apk ? APK_MIME : (headerMime != null && !headerMime.isEmpty() ? headerMime : "application/octet-stream");
       openFile(uri, type, apk);
     } catch (Exception e) {
-      runOnUiThread(() -> Toast.makeText(this, "失败", Toast.LENGTH_SHORT).show());
+      if (official) writeSurvive();
+      showManualDialog();
     } finally {
       hideBusy();
     }

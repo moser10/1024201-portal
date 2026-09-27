@@ -29,6 +29,8 @@ function published(meta) {
   }
   const stable = join(dist, "ft-tv-debug.apk");
   copyFileSync(built, stable);
+  const notesFile = join(android, "update-notes.txt");
+  const notes = existsSync(notesFile) ? readFileSync(notesFile, "utf8").trim() : "";
   writeFileSync(
     join(dist, "ft-tv.json"),
     `${JSON.stringify(
@@ -37,6 +39,7 @@ function published(meta) {
         versionCode: meta.versionCode,
         file: "ft-tv-debug.apk",
         download: `ft-tv-${meta.version}.apk`,
+        notes,
         builtAt: new Date().toISOString(),
       },
       null,

@@ -9,7 +9,7 @@
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="ft.css?v=13">
+  <link rel="stylesheet" href="ft.css?v=14">
   <script>
     (function () {
       var tv = /(?:\?|&)client=tv(?:&|$)/.test(location.search) || /1024201-FT-TV/i.test(navigator.userAgent || "");
@@ -25,7 +25,7 @@
           sub.hidden = true;
         }
         var form = document.getElementById("tvLoginForm");
-        if (form) form.removeAttribute("hidden");
+        if (form) form.setAttribute("hidden", "");
         var top = document.getElementById("ftTop");
         var apk = document.getElementById("apkLink");
         if (top) top.remove();
@@ -76,9 +76,13 @@
             </div>
             <ul class="ft-list" id="fileList"></ul>
             <p class="ft-empty" id="emptyBox" hidden></p>
+            <div class="ft-update-wrap" id="ftUpdateWrap" hidden>
+              <button type="button" class="ft-update-btn is-off" id="ftUpdateBtn" disabled>暂无更新</button>
+              <p class="ft-update-sub" id="ftUpdateSub">暂无更新</p>
+            </div>
           </div>
 
-          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk?v=1.7" download="ft-tv-1.7.apk">Download projector/TV APK 1.7</a>
+          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk?v=1.8" download="ft-tv-1.8.apk">Download projector/TV APK 1.8</a>
         </div>
       </div>
     </div>
@@ -97,7 +101,7 @@
       }
       var s = document.createElement("script");
       if (tv) {
-        s.src = "ft-tv.js?v=5";
+        s.src = "ft-tv.js?v=6";
       } else {
         s.type = "module";
         s.src = "ft.js?v=13";

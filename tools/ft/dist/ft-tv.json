@@ -1,7 +1,8 @@
 {
-  "version": "1.7",
-  "versionCode": 8,
+  "version": "1.8",
+  "versionCode": 9,
   "file": "ft-tv-debug.apk",
-  "download": "ft-tv-1.7.apk",
-  "builtAt": "2026-09-27T18:36:19.815Z"
+  "download": "ft-tv-1.8.apk",
+  "notes": "修复列表安装与启动显示",
+  "builtAt": "2026-09-27T18:51:13.235Z"
 }
