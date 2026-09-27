@@ -9,7 +9,7 @@
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="ft.css?v=3">
+  <link rel="stylesheet" href="ft.css?v=4">
 </head>
 <body class="feature-page" data-tool="ft">
   <div class="feature-shell">
@@ -27,7 +27,6 @@
 
         <div class="ft-workspace feature-scroll-panel" id="ftWorkspace">
           <div class="login-panel" id="gatePanel" hidden>
-            <p id="gateDesc"></p>
             <a class="btn-primary btn-link" id="gateLogin" href="/game/register/">Sign in</a>
           </div>
 
@@ -49,12 +48,14 @@
             <ul class="ft-list" id="fileList"></ul>
             <p class="ft-empty" id="emptyBox" hidden></p>
           </div>
+
+          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk" download>Download APK</a>
         </div>
         <p class="err" id="errBox" hidden></p>
       </div>
     </div>
   </div>
   <script src="/js/edgeBack.js"></script>
-  <script type="module" src="ft.js?v=3"></script>
+  <script type="module" src="ft.js?v=4"></script>
 </body>
 </html>

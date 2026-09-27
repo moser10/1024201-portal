@@ -5,7 +5,7 @@
   "scripts": {
     "predeploy": "node scripts/predeploy-check.mjs",
     "weapons": "node scripts/rasterize-weapons.mjs",
-    "deploy": "npm run predeploy && wrangler deploy && node scripts/post-deploy.mjs",
+    "deploy": "npm run predeploy && wrangler deploy && node scripts/record-deploy.mjs && node scripts/post-deploy.mjs",
     "deploy:worker": "wrangler deploy",
     "postdeploy": "node scripts/post-deploy.mjs",
     "check": "node scripts/predeploy-check.mjs",

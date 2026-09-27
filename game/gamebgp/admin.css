@@ -302,6 +302,41 @@ code {
 }
 .gbp-toast[hidden] { display: none; }
 
+.dep-versions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dep-ver {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fafafa;
+}
+.dep-ver-now { border-color: #248a3d; background: #f3faf4; }
+.dep-ver-k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.dep-ver-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; margin: 6px 0 4px; word-break: break-all; }
+.dep-ver-m { font-size: 12px; color: var(--muted); }
+.dep-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.dep-map { display: flex; flex-wrap: wrap; gap: 10px; }
+.dep-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  font-size: 12px;
+  font-weight: 650;
+}
+.dep-chip .dep-sha { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 500; opacity: 0.8; }
+.dep-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.dep-green { background: #d8f3dc; color: #1b4332; }
+.dep-blue { background: #d7e3fc; color: #1d4ed8; }
+.dep-red { background: #ffd6d6; color: #9b1c1c; }
+.dep-chip.is-hot { border-color: #f5c518; box-shadow: 0 0 0 1px #f5c518; }
+
 @media (max-width: 640px) {
   .stats { grid-template-columns: 1fr; }
   .toolbar .search { max-width: none; }

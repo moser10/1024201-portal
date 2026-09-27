@@ -16,6 +16,8 @@ let state = {
   userQ: "",
   roomQ: "",
   loadError: "",
+  deployMap: null,
+  deployError: "",
 };
 
 async function api(action, options = {}) {
@@ -276,6 +278,59 @@ async function loadAll() {
   await Promise.all(jobs);
 }
 
+async function loadDeployMap() {
+  state.deployError = "";
+  try {
+    state.deployMap = await api("deploy_map");
+  } catch (e) {
+    state.deployMap = null;
+    state.deployError = e.message;
+  }
+}
+
+function panelDeploy() {
+  const map = state.deployMap;
+  if (!map && !state.deployError) {
+    return `<div class="card" data-panel="deploy"><h2>部署</h2><p class="panel-hint">正在读取分支与版本…</p></div>`;
+  }
+  if (state.deployError) {
+    return `<div class="card" data-panel="deploy"><h2>部署</h2><p class="banner">${esc(state.deployError)}</p></div>`;
+  }
+  const chips = (map.branches || [])
+    .map((b) => {
+      const tip = `${esc(b.name)} · ${esc(b.sha)} · ${esc((b.updatedAt || "").replace("T", " ").slice(0, 16))}`;
+      return `<div class="dep-chip dep-${esc(b.color)}${b.hot ? " is-hot" : ""}" title="${tip}">
+        <span class="dep-dot"></span>
+        <span class="dep-name">${esc(b.name)}</span>
+        <span class="dep-sha">${esc(b.sha)}</span>
+      </div>`;
+    })
+    .join("");
+  return `
+    <div class="card" data-panel="deploy">
+      <h2>部署</h2>
+      <div class="dep-versions">
+        <div class="dep-ver dep-ver-now">
+          <div class="dep-ver-k">当前部署</div>
+          <div class="dep-ver-id">${esc(map.currentVersion || "—")}</div>
+          <div class="dep-ver-m">分支 ${esc(map.currentBranch || "—")}</div>
+        </div>
+        <div class="dep-ver">
+          <div class="dep-ver-k">上一版本</div>
+          <div class="dep-ver-id">${esc(map.previousVersion || "—")}</div>
+        </div>
+      </div>
+      <p class="panel-hint">绿 = 当前部署分支 · 蓝 = 保留 · 红 = 可删（已合进当前分支）· 黄边 = 24 小时内有提交</p>
+      <div class="dep-legend">
+        <span class="dep-chip dep-green"><span class="dep-dot"></span>当前</span>
+        <span class="dep-chip dep-blue"><span class="dep-dot"></span>其他</span>
+        <span class="dep-chip dep-red"><span class="dep-dot"></span>可删</span>
+        <span class="dep-chip dep-blue is-hot"><span class="dep-dot"></span>24h 有改</span>
+      </div>
+      <div class="dep-map">${chips}</div>
+    </div>`;
+}
+
 function userRowHtml(u, i) {
   const flags = [];
   if (Number(u.must_change_password) === 1) flags.push(`<span class="badge badge-warn">需改密</span>`);
@@ -443,9 +498,13 @@ function panelSettings() {
 function bindDashboardEvents() {
   document.getElementById("logoutBtn").onclick = logoutAdmin;
   document.querySelectorAll(".tab").forEach((tab) => {
-    tab.onclick = () => {
+    tab.onclick = async () => {
       state.tab = tab.dataset.tab;
       paintShell();
+      if (state.tab === "deploy" && !state.deployMap) {
+        await loadDeployMap();
+        if (state.tab === "deploy") paintShell();
+      }
     };
   });
 
@@ -726,7 +785,13 @@ async function savePassword() {
 
 function paintShell() {
   const panel =
-    state.tab === "rooms" ? panelRooms() : state.tab === "settings" ? panelSettings() : panelUsers();
+    state.tab === "rooms"
+      ? panelRooms()
+      : state.tab === "settings"
+        ? panelSettings()
+        : state.tab === "deploy"
+          ? panelDeploy()
+          : panelUsers();
   app.innerHTML = `
     <div class="wrap">
       <div class="topbar">
@@ -760,6 +825,7 @@ function paintShell() {
         <button type="button" class="tab ${state.tab === "users" ? "active" : ""}" data-tab="users">用户</button>
         <button type="button" class="tab ${state.tab === "rooms" ? "active" : ""}" data-tab="rooms">房间</button>
         <button type="button" class="tab ${state.tab === "settings" ? "active" : ""}" data-tab="settings">设置</button>
+        <button type="button" class="tab ${state.tab === "deploy" ? "active" : ""}" data-tab="deploy">部署</button>
       </div>
 
       ${panel}

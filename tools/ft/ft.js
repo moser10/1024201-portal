@@ -9,9 +9,8 @@ import { hallBackLabel } from "/js/navBack.js?v=3";
 const UI = {
   zh: {
     title: "超快传",
-    sub: "投屏安装包 · 同账号取文件",
-    gate: "请先登录门户账号后再使用超快传。",
-    gateBtn: "登录 / 注册",
+    sub: "同一门户账号：电脑上传 APK，投影装壳后打开即可下载安装。默认 20MB，后台可扩容。首次把壳 APK 用 U 盘装到投影上。",
+    guestBtn: "去门户登录",
     account: "用户名或邮箱",
     password: "密码",
     login: "登录",
@@ -19,6 +18,7 @@ const UI = {
     exit: "退出",
     empty: "还没有文件",
     space: (used, limit) => `已用 ${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
+    apk: "下载投影壳 APK",
     del: "删除",
     get: "下载",
     install: "安装",
@@ -27,9 +27,8 @@ const UI = {
   },
   en: {
     title: "Fast Transfer",
-    sub: "Drop APKs here · pick them up on the projector",
-    gate: "Sign in with your portal account to use Fast Transfer.",
-    gateBtn: "Sign in / Register",
+    sub: "Same portal account: upload on a computer, open the kiosk app on the projector to install. 20MB default. First time: USB-install the shell APK.",
+    guestBtn: "Sign in on the portal",
     account: "Username or email",
     password: "Password",
     login: "Sign in",
@@ -37,6 +36,7 @@ const UI = {
     exit: "Exit",
     empty: "No files yet",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)} used`,
+    apk: "Download projector APK",
     del: "Delete",
     get: "Download",
     install: "Install",
@@ -45,9 +45,8 @@ const UI = {
   },
   ja: {
     title: "超速転送",
-    sub: "APKを置いてプロジェクターで取る",
-    gate: "ポータルアカウントでログインしてください。",
-    gateBtn: "ログイン / 登録",
+    sub: "同じアカウントでPCから上げ、プロジェクターの専用アプリで受け取る。初期20MB。初回はシェルAPKをUSBで入れる。",
+    guestBtn: "ポータルでログイン",
     account: "ユーザー名またはメール",
     password: "パスワード",
     login: "ログイン",
@@ -55,6 +54,7 @@ const UI = {
     exit: "戻る",
     empty: "ファイルなし",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
+    apk: "プロジェクター用APK",
     del: "削除",
     get: "ダウンロード",
     install: "インストール",
@@ -85,9 +85,9 @@ function applyChrome() {
   document.getElementById("pageSub").textContent = ui.sub;
   document.getElementById("backLink").textContent = hallBackLabel(lang);
   document.getElementById("backLink").href = "/";
-  document.getElementById("gateDesc").textContent = ui.gate;
-  document.getElementById("gateLogin").textContent = ui.gateBtn;
+  document.getElementById("gateLogin").textContent = ui.guestBtn;
   document.getElementById("gateLogin").href = loginHref("/tools/ft/");
+  document.getElementById("apkLink").textContent = ui.apk;
   document.getElementById("lblAccount").textContent = ui.account;
   document.getElementById("lblPass").textContent = ui.password;
   document.getElementById("loginBtn").textContent = ui.login;
@@ -178,7 +178,7 @@ function esc(s) {
 
 function paintAuth() {
   const user = getUser();
-  const loggedIn = !!user?.id;
+  const loggedIn = !!(user && (user.id || user.username));
   document.getElementById("gatePanel").hidden = loggedIn || tv;
   document.getElementById("tvLoginForm").hidden = loggedIn || !tv;
   document.getElementById("appWrap").hidden = !loggedIn;

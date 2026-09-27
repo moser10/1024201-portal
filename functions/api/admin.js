@@ -1,4 +1,5 @@
 import { corsHeaders, json, requireDb, ensureAppSchema } from "./_shared.js";
+import { buildDeployMap } from "./deployMap.js";
 import { hashPassword, verifyPassword } from "./_crypto.js";
 import { SYSTEM_MAIL_FROM, sendSystemMail, accountClosedMailHtml } from "./_mail.js";
 
@@ -438,6 +439,45 @@ export async function onRequest(context) {
       return json({ success: true, code, email, is_special: !!special });
     }
 
+    if (request.method === "GET" && action === "deploy_map") {
+      const recRow = await db.prepare("SELECT value, updated_at FROM portal_stats WHERE key = 'deploy_record'").first();
+      let recorded = null;
+      try {
+        recorded = recRow?.value ? JSON.parse(recRow.value) : null;
+      } catch {
+        recorded = null;
+      }
+      const cacheRow = await db.prepare("SELECT value, updated_at FROM portal_stats WHERE key = 'deploy_map_cache'").first();
+      if (cacheRow?.value && cacheRow.updated_at) {
+        const age = Date.parse(String(cacheRow.updated_at).replace(" ", "T") + "Z");
+        if (Number.isFinite(age) && Date.now() - age < 3 * 60 * 1000) {
+          try {
+            return json({ ...JSON.parse(cacheRow.value), cached: true });
+          } catch {
+            /* rebuild */
+          }
+        }
+      }
+      let deployments = [];
+      if (env.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_ACCOUNT_ID) {
+        const res = await fetch(
+          `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/1024201-portal/deployments`,
+          { headers: { Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` } }
+        );
+        const data = await res.json().catch(() => ({}));
+        deployments = data.result || data.deployments || [];
+      }
+      const map = await buildDeployMap({ recorded, deployments });
+      await db
+        .prepare(
+          `INSERT INTO portal_stats (key, value, updated_at) VALUES ('deploy_map_cache', ?, datetime('now'))
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+        )
+        .bind(JSON.stringify(map))
+        .run();
+      return json(map);
+    }
+
     if (request.method === "GET" && action === "overview") {
       const users = await db.prepare("SELECT COUNT(*) AS n FROM users").first();
       const rooms = await db
@@ -486,7 +526,7 @@ export async function onRequest(context) {
                     CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra,
-COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'ft'), 0) AS ft_extra,
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'ft'), 0) AS ft_extra,
                     5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_allowed,
                     5 + COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_allowed
              FROM users u ORDER BY u.id DESC LIMIT 200`

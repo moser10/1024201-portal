@@ -5,6 +5,11 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
+.ft-form[hidden],
+.login-panel[hidden],
+#appWrap[hidden],
+.ft-empty[hidden],
+.err[hidden] { display: none !important; }
 .ft-form,
 .ft-actions {
   display: flex;
@@ -89,6 +94,10 @@
   justify-content: center;
   text-decoration: none;
   box-sizing: border-box;
+}
+.ft-apk {
+  width: 100%;
+  margin-top: 8px;
 }
 .err {
   color: #ff3b30;
