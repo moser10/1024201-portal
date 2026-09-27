@@ -8,6 +8,7 @@
     "deploy": "npm run predeploy && wrangler deploy && node scripts/record-deploy.mjs && node scripts/post-deploy.mjs",
     "deploy:worker": "wrangler deploy",
     "postdeploy": "node scripts/post-deploy.mjs",
+    "apk:ft": "node scripts/build-ft-apk.mjs",
     "check": "node scripts/predeploy-check.mjs",
     "setup": "npm install && npm link ./cli",
     "cli": "node cli/bin/1024.js",

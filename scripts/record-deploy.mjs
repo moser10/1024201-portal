@@ -26,6 +26,33 @@ function ghJson(path) {
   return JSON.parse(execSync(`gh api ${JSON.stringify(path)}`, { cwd: root, encoding: "utf8" }));
 }
 
+const BRANCH_PURPOSE = {
+  main: "门户主干，线上稳定基线",
+  production: "生产发布线",
+};
+
+function firstLine(text) {
+  return String(text || "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find((l) => l && !l.startsWith("#")) || "";
+}
+
+function branchSummary(repo, name, detail) {
+  if (BRANCH_PURPOSE[name]) return BRANCH_PURPOSE[name];
+  try {
+    const pulls = ghJson(`repos/${repo}/pulls?head=${repo.split("/")[0]}:${encodeURIComponent(name)}&state=all&per_page=1`);
+    const title = firstLine(pulls?.[0]?.title);
+    if (title) return title;
+  } catch {
+    /* commit fallback */
+  }
+  const msg = firstLine(detail?.commit?.commit?.message);
+  if (msg) return msg;
+  return "功能说明待补充";
+}
+
 function snapshotBranches(currentBranch) {
   const repo = repoSlug();
   const branches = ghJson(`repos/${repo}/branches?per_page=100`);
@@ -35,10 +62,12 @@ function snapshotBranches(currentBranch) {
     let updatedAt = "";
     let compareStatus = "unknown";
     let sha = String(b.commit?.sha || "").slice(0, 7);
+    let summary = BRANCH_PURPOSE[name] || "";
     try {
       const detail = ghJson(`repos/${repo}/branches/${encodeURIComponent(name)}`);
       updatedAt = detail?.commit?.commit?.committer?.date || detail?.commit?.commit?.author?.date || "";
       sha = String(detail?.commit?.sha || b.commit?.sha || "").slice(0, 7);
+      summary = branchSummary(repo, name, detail);
       if (name === currentBranch) compareStatus = "identical";
       else {
         const cmp = ghJson(`repos/${repo}/compare/${encodeURIComponent(currentBranch)}...${encodeURIComponent(name)}`);
@@ -46,8 +75,9 @@ function snapshotBranches(currentBranch) {
       }
     } catch {
       compareStatus = "unknown";
+      if (!summary) summary = "功能说明待补充";
     }
-    rows.push({ name, sha, updatedAt, compareStatus });
+    rows.push({ name, sha, updatedAt, compareStatus, summary });
   }
   return { currentBranch, source: "snapshot", at: new Date().toISOString(), branches: rows };
 }

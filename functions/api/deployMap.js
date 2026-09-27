@@ -30,10 +30,25 @@ export function paintBranchItems(rows, currentBranch, now = Date.now()) {
     name: r.name,
     sha: String(r.sha || "").slice(0, 7),
     updatedAt: r.updatedAt || "",
+    summary: String(r.summary || "").trim(),
     hot: isHot(r.updatedAt, now),
     color: classifyBranch({ name: r.name, compareStatus: r.compareStatus || "unknown", currentBranch }),
     compareStatus: r.compareStatus || "unknown",
   }));
+}
+
+export function layoutVersionTree({ branches = [], currentVersion = "", previousVersion = "", currentBranch = "" }) {
+  const items = [...branches];
+  const trunk = items.find((b) => b.name === "main") || items.find((b) => b.name === currentBranch) || items[0] || null;
+  const limbs = items.filter((b) => b && b !== trunk);
+  return {
+    worker: {
+      current: { id: currentVersion, branch: currentBranch },
+      previous: { id: previousVersion },
+    },
+    trunk,
+    limbs,
+  };
 }
 
 export function fallbackBranchRows(recorded) {
@@ -44,10 +59,11 @@ export function fallbackBranchRows(recorded) {
       sha: recorded?.sha || "",
       updatedAt: recorded?.at || "",
       compareStatus: "identical",
+      summary: recorded?.summary || "",
     },
   ];
   if (currentBranch !== "main") {
-    rows.push({ name: "main", sha: "", updatedAt: "", compareStatus: "unknown" });
+    rows.push({ name: "main", sha: "", updatedAt: "", compareStatus: "unknown", summary: "门户主干" });
   }
   return rows;
 }
@@ -89,7 +105,7 @@ export async function fetchGithubBranchRows({ token, repo = DEFAULT_REPO, curren
     } catch {
       compareStatus = "unknown";
     }
-    rows.push({ name, sha, updatedAt, compareStatus });
+    rows.push({ name, sha, updatedAt, compareStatus, summary: "" });
   }
   return rows;
 }
@@ -138,5 +154,6 @@ export async function buildDeployMap({ recorded, deployments, githubToken, snaps
     source,
     githubError,
     branches: items,
+    tree: layoutVersionTree({ branches: items, currentVersion, previousVersion, currentBranch }),
   };
 }

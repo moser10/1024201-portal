@@ -1,7 +1,7 @@
 /**
  * Pre-deploy checks — run before wrangler deploy.
  */
-import { readFileSync, statSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, statSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { buildAddressSeedStatements } from "./address-seed-sql.mjs";
 import { cleanLyricsText } from "../functions/api/lyricsClean.js";
@@ -90,6 +90,36 @@ function checkWranglerToml() {
   }
 }
 
+function checkFtApkButton() {
+  const gradle = readFileSync(join(root, "tools/ft/android/app/build.gradle"), "utf8");
+  const version = gradle.match(/versionName\s+"([^"]+)"/)?.[1];
+  const code = Number(gradle.match(/versionCode\s+(\d+)/)?.[1] || 0);
+  const apk = join(root, "tools/ft/dist/ft-tv-debug.apk");
+  const metaPath = join(root, "tools/ft/dist/ft-tv.json");
+  if (!version) {
+    fail("FT APK versionName missing");
+    return;
+  }
+  if (!existsSync(apk)) {
+    fail("tools/ft/dist/ft-tv-debug.apk missing — run npm run apk:ft");
+    return;
+  }
+  let meta = {};
+  try {
+    meta = JSON.parse(readFileSync(metaPath, "utf8"));
+  } catch {
+    fail("tools/ft/dist/ft-tv.json missing — run npm run apk:ft");
+    return;
+  }
+  if (meta.version !== version || Number(meta.versionCode) !== code) {
+    fail(`FT download button is ${meta.version || "?"} but gradle is ${version} — run npm run apk:ft`);
+  }
+  const html = readFileSync(join(root, "tools/ft/index.html"), "utf8");
+  if (!html.includes(`ft-tv-debug.apk?v=${version}`) || !html.includes(`ft-tv-${version}.apk`)) {
+    fail(`tools/ft/index.html download button must advertise APK ${version}`);
+  }
+}
+
 function checkLyricsClean() {
   const raw = "[00:12.00]海鸥飞过\n吉他：张三\n未经著作权人许可不得翻唱\n天空很蓝";
   const out = cleanLyricsText(raw);
@@ -108,6 +138,7 @@ function main() {
   checkWranglerToml();
   checkAddressSeedSql();
   checkLyricsClean();
+  checkFtApkButton();
 
   if (errors.length) {
     console.error("predeploy-check FAILED:");

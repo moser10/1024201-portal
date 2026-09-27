@@ -11,7 +11,7 @@
 
 ## 投影仪 / 电视 APK
 
-已编好的投影壳：`/tools/ft/dist/ft-tv-debug.apk`（部署后也可从门户下载）。源码在 `android/`；本机可用 Android Studio 或 `gradle assembleDebug` 重编。
+已编好的投影壳：`/tools/ft/dist/ft-tv-debug.apk`（门户按钮读 `ft-tv.json` 的版本号）。源码在 `android/`。以后只走 `npm run apk:ft` 再部署：脚本会重编、覆盖按钮文件、删掉 `dist` 里旧 APK。用户列表里再传新的 `.apk` 会自动删掉同账号旧 APK。
 
 锁定主页：`https://1024201.com/tools/ft/?client=tv`（不能上网冲浪）。电视端只登录、列表、点文件下载/安装，没有上传和删除。
 

@@ -308,6 +308,23 @@ export async function handleFileUpload(env, request, url) {
     return json({ error: "storage_failed" }, 500);
   }
 
+  if (purpose === "ft" && /\.apk$/i.test(name)) {
+    const { results: oldApks } = await db
+      .prepare(
+        `SELECT * FROM user_files WHERE user_id = ? AND purpose = 'ft' AND id != ? AND lower(name) LIKE '%.apk'`
+      )
+      .bind(userId, id)
+      .all();
+    for (const old of oldApks || []) {
+      try {
+        await deleteFileBody(env, db, old);
+      } catch {
+        /* still drop the row */
+      }
+      await db.prepare("DELETE FROM user_files WHERE id = ?").bind(old.id).run();
+    }
+  }
+
   const saved = await db.prepare("SELECT * FROM user_files WHERE id = ?").bind(id).first();
   return json({ ok: true, file: fileRow(saved), backend });
 }

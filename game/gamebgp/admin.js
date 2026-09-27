@@ -288,48 +288,56 @@ async function loadDeployMap() {
   }
 }
 
+function shortVer(id) {
+  const s = String(id || "").trim();
+  return s ? s.slice(0, 8) : "—";
+}
+
+function treeNode(b, extra = "") {
+  if (!b) return "";
+  const why = b.summary || "功能说明待补充";
+  return `<div class="dep-node dep-${esc(b.color || "blue")}${b.hot ? " is-hot" : ""} ${extra}">
+    <div class="dep-node-top">
+      <span class="dep-dot"></span>
+      <span class="dep-name">${esc(b.name)}</span>
+      <span class="dep-sha">${esc(b.sha || "")}</span>
+    </div>
+    <p class="dep-why">${esc(why)}</p>
+  </div>`;
+}
+
 function panelDeploy() {
   const map = state.deployMap;
   if (!map && !state.deployError) {
-    return `<div class="card" data-panel="deploy"><h2>部署</h2><p class="panel-hint">正在读取分支与版本…</p></div>`;
+    return `<div class="card" data-panel="deploy"><h2>部署</h2><div class="dep-tree is-loading"><div class="dep-node dep-blue"><div class="dep-node-top"><span class="dep-dot"></span></div></div></div></div>`;
   }
   if (state.deployError) {
     return `<div class="card" data-panel="deploy"><h2>部署</h2><p class="banner">${esc(state.deployError)}</p></div>`;
   }
-  const chips = (map.branches || [])
-    .map((b) => {
-      const tip = `${esc(b.name)} · ${esc(b.sha)} · ${esc((b.updatedAt || "").replace("T", " ").slice(0, 16))}`;
-      return `<div class="dep-chip dep-${esc(b.color)}${b.hot ? " is-hot" : ""}" title="${tip}">
-        <span class="dep-dot"></span>
-        <span class="dep-name">${esc(b.name)}</span>
-        <span class="dep-sha">${esc(b.sha)}</span>
-      </div>`;
-    })
+  const tree = map.tree || { worker: { current: {}, previous: {} }, trunk: null, limbs: map.branches || [] };
+  const limbs = (tree.limbs || [])
+    .map((b) => `<div class="dep-limb">${treeNode(b)}</div>`)
     .join("");
   return `
     <div class="card" data-panel="deploy">
       <h2>部署</h2>
-      <div class="dep-versions">
-        <div class="dep-ver dep-ver-now">
-          <div class="dep-ver-k">当前部署</div>
-          <div class="dep-ver-id">${esc(map.currentVersion || "—")}</div>
-          <div class="dep-ver-m">分支 ${esc(map.currentBranch || "—")}</div>
+      <div class="dep-tree">
+        <div class="dep-rail">
+          <div class="dep-node dep-green dep-worker">
+            <div class="dep-node-top"><span class="dep-dot"></span><span class="dep-name">当前</span></div>
+            <div class="dep-ver-id">${esc(shortVer(tree.worker?.current?.id || map.currentVersion))}</div>
+          </div>
+          <div class="dep-edge"></div>
+          <div class="dep-node dep-blue dep-worker">
+            <div class="dep-node-top"><span class="dep-dot"></span><span class="dep-name">上一</span></div>
+            <div class="dep-ver-id">${esc(shortVer(tree.worker?.previous?.id || map.previousVersion))}</div>
+          </div>
         </div>
-        <div class="dep-ver">
-          <div class="dep-ver-k">上一版本</div>
-          <div class="dep-ver-id">${esc(map.previousVersion || "—")}</div>
+        <div class="dep-git">
+          ${treeNode(tree.trunk, "is-trunk")}
+          <div class="dep-kids">${limbs}</div>
         </div>
       </div>
-      <p class="panel-hint">绿 = 当前部署分支 · 蓝 = 保留 · 红 = 可删（已合进当前分支）· 黄边 = 24 小时内有提交${
-        map.source === "snapshot" ? " · 分支来自最近一次部署快照" : map.source === "fallback" ? " · 仅显示已记录的部署分支" : ""
-      }</p>
-      <div class="dep-legend">
-        <span class="dep-chip dep-green"><span class="dep-dot"></span>当前</span>
-        <span class="dep-chip dep-blue"><span class="dep-dot"></span>其他</span>
-        <span class="dep-chip dep-red"><span class="dep-dot"></span>可删</span>
-        <span class="dep-chip dep-blue is-hot"><span class="dep-dot"></span>24h 有改</span>
-      </div>
-      <div class="dep-map">${chips}</div>
     </div>`;
 }
 

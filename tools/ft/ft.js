@@ -21,7 +21,7 @@ const UI = {
     exit: "退出",
     empty: "还没有文件",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
-    apk: "下载投影仪/电视机 APK",
+    apk: (v) => `下载投影仪/电视机 APK ${v}`,
     del: "删除",
     get: "下载",
     install: "安装",
@@ -42,7 +42,7 @@ const UI = {
     exit: "Exit",
     empty: "No files yet",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
-    apk: "Download projector/TV APK",
+    apk: (v) => `Download projector/TV APK ${v}`,
     del: "Delete",
     get: "Download",
     install: "Install",
@@ -63,7 +63,7 @@ const UI = {
     exit: "戻る",
     empty: "ファイルなし",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
-    apk: "プロジェクター/テレビ用APKをダウンロード",
+    apk: (v) => `プロジェクター/テレビ用APK ${v} をダウンロード`,
     del: "削除",
     get: "ダウンロード",
     install: "インストール",
@@ -106,6 +106,27 @@ function paintHp(used, limit) {
   bar.dataset.level = pct >= 70 ? "ok" : pct >= 40 ? "warn" : pct > 0 ? "low" : "empty";
 }
 
+let apkMeta = { version: "1.2", file: "ft-tv-debug.apk", download: "ft-tv-1.2.apk" };
+
+async function loadApkMeta() {
+  try {
+    const data = await fetch(`/tools/ft/dist/ft-tv.json?v=${Date.now()}`, { cache: "no-store" }).then((r) => r.json());
+    if (data?.version) apkMeta = data;
+  } catch {
+    /* keep last */
+  }
+}
+
+function paintApkButton(ui) {
+  const apk = document.getElementById("apkLink");
+  if (!apk) return;
+  const v = apkMeta.version || "1.2";
+  const file = apkMeta.file || "ft-tv-debug.apk";
+  apk.textContent = typeof ui.apk === "function" ? ui.apk(v) : `${ui.apk} ${v}`;
+  apk.href = `/tools/ft/dist/${file}?v=${encodeURIComponent(v)}`;
+  apk.setAttribute("download", apkMeta.download || `ft-tv-${v}.apk`);
+}
+
 function applyChrome() {
   const ui = t();
   document.getElementById("pageTitle").textContent = tv ? TRI_TITLE : ui.title;
@@ -117,8 +138,7 @@ function applyChrome() {
   }
   document.getElementById("gateLogin").textContent = ui.guestBtn;
   document.getElementById("gateLogin").href = loginHref("/tools/ft/");
-  const apk = document.getElementById("apkLink");
-  if (apk) apk.textContent = ui.apk;
+  paintApkButton(ui);
   document.getElementById("lblAccount").textContent = ui.account;
   document.getElementById("lblPass").textContent = ui.password;
   document.getElementById("loginBtn").textContent = ui.login;
@@ -253,6 +273,7 @@ function boot() {
     location.replace(`https://1024201.com/tools/ft/${location.search}${location.hash}`);
     return;
   }
+  loadApkMeta().then(() => paintApkButton(copy)).catch(() => {});
   applyChrome();
   if (!tv) {
     mountLangTabs(document.getElementById("langSlot"), {

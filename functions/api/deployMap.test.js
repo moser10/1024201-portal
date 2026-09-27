@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyBranch, fallbackBranchRows, githubHeaders, isHot, paintBranchItems, pickDeployPair } from "./deployMap.js";
+import { classifyBranch, fallbackBranchRows, githubHeaders, isHot, layoutVersionTree, paintBranchItems, pickDeployPair } from "./deployMap.js";
 
 test("live branch is green", () => {
   assert.equal(classifyBranch({ name: "cursor/ft", compareStatus: "ahead", currentBranch: "cursor/ft" }), "green");
@@ -40,4 +40,24 @@ test("fallback keeps the live branch green even without GitHub", () => {
   const items = paintBranchItems(rows, "cursor/ft");
   assert.equal(items.find((b) => b.name === "cursor/ft").color, "green");
   assert.equal(items.find((b) => b.name === "main").color, "blue");
+});
+
+test("version tree hangs other branches off main", () => {
+  const tree = layoutVersionTree({
+    currentVersion: "aaa-bbb",
+    previousVersion: "ccc-ddd",
+    currentBranch: "cursor/ft",
+    branches: paintBranchItems(
+      [
+        { name: "main", sha: "111", compareStatus: "behind", summary: "主干" },
+        { name: "cursor/ft", sha: "222", compareStatus: "identical", summary: "超快传" },
+        { name: "old", sha: "333", compareStatus: "behind", summary: "已合入" },
+      ],
+      "cursor/ft"
+    ),
+  });
+  assert.equal(tree.trunk.name, "main");
+  assert.equal(tree.limbs.length, 2);
+  assert.equal(tree.worker.current.id, "aaa-bbb");
+  assert.ok(tree.limbs.every((b) => b.summary));
 });
