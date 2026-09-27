@@ -6,60 +6,68 @@ import { uploadFile, deleteFile, downloadFileEntry } from "../js/attachGrid.js";
 import { fetchFileStorage, formatStorageMb } from "../js/storageQuota.js";
 import { hallBackLabel } from "/js/navBack.js?v=3";
 
+const TRI_TITLE = "超快传 / Fast Transfer / 超速転送";
+
 const UI = {
   zh: {
-    title: "超快传",
-    sub: "同一门户账号：电脑上传 APK，投影装壳后打开即可下载安装。默认 20MB，后台可扩容。首次把壳 APK 用 U 盘装到投影上。",
+    sub: "同一门户账号：电脑上传 APK，投影/电视装壳后打开即可下载安装。默认 20MB，后台可扩容。首次把壳 APK 用 U 盘装到设备上。",
     guestBtn: "去门户登录",
     account: "用户名或邮箱",
     password: "密码",
     login: "登录",
     upload: "上传",
+    uploading: "上传中…",
     exit: "退出",
     empty: "还没有文件",
-    space: (used, limit) => `已用 ${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
-    apk: "下载投影壳 APK",
+    space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
+    apk: "下载投影仪/电视机 APK",
     del: "删除",
     get: "下载",
     install: "安装",
     err: "失败",
     full: "容量不够，删几个或让后台扩容",
+    needStore: "超过 5MB 需要先配置 VPS 文件库",
+    noUser: "登录态不完整，请回门户重新登录",
   },
   en: {
-    title: "Fast Transfer",
-    sub: "Same portal account: upload on a computer, open the kiosk app on the projector to install. 20MB default. First time: USB-install the shell APK.",
+    sub: "Same portal account: upload on a computer, open the kiosk app on the projector/TV to install. 20MB default. First time: USB-install the shell APK.",
     guestBtn: "Sign in on the portal",
     account: "Username or email",
     password: "Password",
     login: "Sign in",
     upload: "Upload",
+    uploading: "Uploading…",
     exit: "Exit",
     empty: "No files yet",
-    space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)} used`,
-    apk: "Download projector APK",
+    space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
+    apk: "Download projector/TV APK",
     del: "Delete",
     get: "Download",
     install: "Install",
     err: "Failed",
     full: "Not enough space. Delete a file or ask admin for more MB.",
+    needStore: "Files over 5MB need the VPS file store",
+    noUser: "Session is incomplete. Sign in again on the portal.",
   },
   ja: {
-    title: "超速転送",
-    sub: "同じアカウントでPCから上げ、プロジェクターの専用アプリで受け取る。初期20MB。初回はシェルAPKをUSBで入れる。",
+    sub: "同じアカウントでPCから上げ、プロジェクター/テレビの専用アプリで受け取る。初期20MB。初回はシェルAPKをUSBで入れる。",
     guestBtn: "ポータルでログイン",
     account: "ユーザー名またはメール",
     password: "パスワード",
     login: "ログイン",
     upload: "アップロード",
+    uploading: "送信中…",
     exit: "戻る",
     empty: "ファイルなし",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
-    apk: "プロジェクター用APK",
+    apk: "プロジェクター/テレビ用APKをダウンロード",
     del: "削除",
     get: "ダウンロード",
     install: "インストール",
     err: "失敗",
     full: "容量不足です",
+    needStore: "5MB超はVPSファイル庫が必要です",
+    noUser: "ログイン情報が不完全です。ポータルで再ログインしてください",
   },
 };
 
@@ -73,28 +81,54 @@ function t() {
   return copy;
 }
 
+function userIdOf(user = getUser()) {
+  const n = Number(user?.id ?? user?.user_id);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 function showErr(msg) {
   const box = document.getElementById("errBox");
   box.hidden = !msg;
   box.textContent = msg || "";
 }
 
+function paintHp(used, limit) {
+  const bar = document.getElementById("hpBar");
+  if (!bar) return;
+  const cap = Number(limit) || 1;
+  const left = Math.max(0, cap - (Number(used) || 0)) / cap;
+  bar.querySelector('[data-seg="g"]').classList.toggle("is-on", left > 0);
+  bar.querySelector('[data-seg="y"]').classList.toggle("is-on", left > 1 / 3);
+  bar.querySelector('[data-seg="r"]').classList.toggle("is-on", left > 2 / 3);
+  bar.dataset.level = left > 2 / 3 ? "ok" : left > 1 / 3 ? "warn" : "low";
+}
+
 function applyChrome() {
   const ui = t();
-  document.getElementById("pageTitle").textContent = ui.title;
+  document.getElementById("pageTitle").textContent = TRI_TITLE;
   document.getElementById("pageSub").textContent = ui.sub;
-  document.getElementById("backLink").textContent = hallBackLabel(lang);
-  document.getElementById("backLink").href = "/";
+  const back = document.getElementById("backLink");
+  if (back) {
+    back.textContent = hallBackLabel(lang);
+    back.href = "/";
+  }
   document.getElementById("gateLogin").textContent = ui.guestBtn;
   document.getElementById("gateLogin").href = loginHref("/tools/ft/");
-  document.getElementById("apkLink").textContent = ui.apk;
+  const apk = document.getElementById("apkLink");
+  if (apk) apk.textContent = ui.apk;
   document.getElementById("lblAccount").textContent = ui.account;
   document.getElementById("lblPass").textContent = ui.password;
   document.getElementById("loginBtn").textContent = ui.login;
-  document.getElementById("uploadBtn").textContent = ui.upload;
+  document.getElementById("uploadLabText").textContent = ui.upload;
   document.getElementById("exitBtn").textContent = ui.exit;
-  document.title = `${ui.title} | 1024201`;
+  document.title = `${TRI_TITLE} | 1024201`;
   document.body.classList.toggle("ft-tv", tv);
+  if (tv) {
+    const back = document.getElementById("backLink");
+    const apk = document.getElementById("apkLink");
+    if (back) back.remove();
+    if (apk) apk.remove();
+  }
   paintToolUser();
 }
 
@@ -110,13 +144,14 @@ async function login(ident, password) {
 }
 
 async function loadList() {
-  const user = getUser();
-  if (!user?.id) return;
+  const uid = userIdOf();
+  if (!uid) return;
   const [listRes, storage] = await Promise.all([
-    fetch(`/api/portal?action=file_list&purpose=ft&user_id=${encodeURIComponent(user.id)}`).then((r) => r.json()),
-    fetchFileStorage(user.id, "ft"),
+    fetch(`/api/portal?action=file_list&purpose=ft&user_id=${encodeURIComponent(uid)}`).then((r) => r.json()),
+    fetchFileStorage(uid, "ft"),
   ]);
   document.getElementById("spaceLine").textContent = copy.space(storage.used, storage.limit);
+  paintHp(storage.used, storage.limit);
   const files = listRes.files || [];
   const list = document.getElementById("fileList");
   const empty = document.getElementById("emptyBox");
@@ -125,10 +160,16 @@ async function loadList() {
   list.innerHTML = files
     .map((f) => {
       const apk = /\.apk$/i.test(f.name || "");
+      const action = apk ? copy.install : copy.get;
+      if (tv) {
+        return `<li class="ft-row ft-row-btn" data-id="${esc(f.id)}">
+          <button type="button" class="btn-primary ft-get ft-row-hit">${esc(f.name)} · ${formatStorageMb(f.size)} · ${esc(action)}</button>
+        </li>`;
+      }
       return `<li class="ft-row" data-id="${esc(f.id)}">
         <div class="ft-row-name">${esc(f.name)}<span class="ft-row-meta">${formatStorageMb(f.size)}</span></div>
-        <button type="button" class="btn-primary ft-get">${esc(apk ? copy.install : copy.get)}</button>
-        ${tv ? "" : `<button type="button" class="btn-danger ft-del">${esc(copy.del)}</button>`}
+        <button type="button" class="btn-primary ft-get">${esc(action)}</button>
+        <button type="button" class="btn-danger ft-del">${esc(copy.del)}</button>
       </li>`;
     })
     .join("");
@@ -136,20 +177,14 @@ async function loadList() {
     if (!row) return;
     try {
       if (tv) {
-        location.assign(
-          `/api/portal?action=file_get&id=${encodeURIComponent(row.id)}&user_id=${encodeURIComponent(user.id)}`
-        );
+        location.assign(`/api/portal?action=file_get&id=${encodeURIComponent(row.id)}&user_id=${encodeURIComponent(uid)}`);
         return;
       }
-      await downloadFileEntry(row, user.id, { userGesture: true });
+      await downloadFileEntry(row, uid, { userGesture: true });
     } catch (e) {
       showErr(e.message || copy.err);
     }
   }
-  list.querySelectorAll(".ft-row").forEach((li) => {
-    if (!tv) return;
-    li.onclick = () => takeFile(files.find((f) => f.id === li.dataset.id));
-  });
   list.querySelectorAll(".ft-get").forEach((btn) => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -160,7 +195,7 @@ async function loadList() {
     btn.onclick = async () => {
       const id = btn.closest(".ft-row").dataset.id;
       try {
-        await deleteFile({ id, userId: user.id });
+        await deleteFile({ id, userId: uid });
         await loadList();
       } catch (e) {
         showErr(e.message || copy.err);
@@ -177,8 +212,7 @@ function esc(s) {
 }
 
 function paintAuth() {
-  const user = getUser();
-  const loggedIn = !!(user && (user.id || user.username));
+  const loggedIn = !!userIdOf();
   document.getElementById("gatePanel").hidden = loggedIn || tv;
   document.getElementById("tvLoginForm").hidden = loggedIn || !tv;
   document.getElementById("appWrap").hidden = !loggedIn;
@@ -186,13 +220,32 @@ function paintAuth() {
   if (loggedIn) loadList().catch((e) => showErr(e.message || copy.err));
 }
 
+async function runUpload(file) {
+  const uid = userIdOf();
+  if (!file) return;
+  if (!uid) {
+    showErr(copy.noUser);
+    return;
+  }
+  const lab = document.getElementById("uploadLabText");
+  showErr("");
+  lab.textContent = copy.uploading;
+  try {
+    await uploadFile({ file, purpose: "ft", userId: uid });
+    await loadList();
+  } catch (err) {
+    const code = err.message || "";
+    showErr(code === "storage_full" ? copy.full : code === "need_filestore" ? copy.needStore : code || copy.err);
+  } finally {
+    lab.textContent = copy.upload;
+  }
+}
+
 function boot() {
-  // Share portal localStorage: never stay on ft.* host for the desk UI.
   if (!tv && location.hostname.toLowerCase() === "ft.1024201.com") {
     location.replace(`https://1024201.com/tools/ft/${location.search}${location.hash}`);
     return;
   }
-  if (tv) document.getElementById("uploadBtn").hidden = true;
   applyChrome();
   if (!tv) {
     mountLangTabs(document.getElementById("langSlot"), {
@@ -213,19 +266,10 @@ function boot() {
       showErr(err.message || copy.err);
     }
   };
-  document.getElementById("uploadBtn").onclick = () => document.getElementById("fileIn").click();
   document.getElementById("fileIn").onchange = async () => {
     const file = document.getElementById("fileIn").files?.[0];
     document.getElementById("fileIn").value = "";
-    const user = getUser();
-    if (!file || !user?.id) return;
-    showErr("");
-    try {
-      await uploadFile({ file, purpose: "ft", userId: user.id });
-      await loadList();
-    } catch (err) {
-      showErr(err.message === "storage_full" ? copy.full : err.message || copy.err);
-    }
+    await runUpload(file);
   };
   document.getElementById("exitBtn").onclick = () => {
     if (tv) {

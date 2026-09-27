@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#ff9f0a">
-  <title>超快传 FT | 1024201</title>
+  <title>超快传 Fast Transfer 超速転送 | 1024201</title>
   <style>html,body{background:#f2f2f7}</style>
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="ft.css?v=4">
+  <link rel="stylesheet" href="ft.css?v=6">
 </head>
 <body class="feature-page" data-tool="ft">
   <div class="feature-shell">
@@ -20,7 +20,7 @@
       </div>
       <div class="feature-card ft-card">
         <div class="feature-card-head">
-          <h1 id="pageTitle">超快传</h1>
+          <h1 id="pageTitle" class="ft-title-tri">超快传 / Fast Transfer / 超速転送</h1>
           <p class="sub" id="pageSub"></p>
           <p class="tool-user" id="userLine" hidden></p>
         </div>
@@ -39,12 +39,19 @@
           </form>
 
           <div id="appWrap" hidden>
+            <div class="ft-hp" id="hpBar" aria-hidden="true">
+              <span class="ft-hp-seg is-g" data-seg="g"></span>
+              <span class="ft-hp-seg is-y" data-seg="y"></span>
+              <span class="ft-hp-seg is-r" data-seg="r"></span>
+            </div>
             <p class="ft-space" id="spaceLine"></p>
             <div class="ft-actions" id="deskActions">
-              <button type="button" class="btn-primary" id="uploadBtn">Upload</button>
+              <label class="btn-primary ft-upload-lab" id="uploadLab">
+                <span id="uploadLabText">Upload</span>
+                <input type="file" id="fileIn" />
+              </label>
               <button type="button" class="btn-secondary" id="exitBtn">Exit</button>
             </div>
-            <input type="file" id="fileIn" hidden />
             <ul class="ft-list" id="fileList"></ul>
             <p class="ft-empty" id="emptyBox" hidden></p>
           </div>
@@ -56,6 +63,6 @@
     </div>
   </div>
   <script src="/js/edgeBack.js"></script>
-  <script type="module" src="ft.js?v=4"></script>
+  <script type="module" src="ft.js?v=6"></script>
 </body>
 </html>

@@ -1,4 +1,21 @@
 .ft-card { background: #fff; }
+.ft-title-tri {
+  font-size: clamp(13px, 3.4vw, 18px);
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.ft-upload-lab {
+  position: relative;
+  overflow: hidden;
+}
+#fileIn {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
 .ft-workspace {
   flex: 1;
   min-height: 0;
@@ -43,10 +60,29 @@
   border-radius: 10px;
   font-size: 16px;
 }
+.ft-hp {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  height: 12px;
+  margin: 0 0 8px;
+}
+.ft-hp-seg {
+  border-radius: 6px;
+  background: #e5e5ea;
+}
+.ft-hp-seg.is-g.is-on { background: #30d158; }
+.ft-hp-seg.is-y.is-on { background: #ffd60a; }
+.ft-hp-seg.is-r.is-on { background: #ff3b30; }
 .ft-space {
   font-size: 13px;
   color: #8e8e93;
   margin: 0 0 10px;
+}
+.ft-upload-lab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .ft-list {
   list-style: none;
@@ -104,11 +140,14 @@
   font-size: 13px;
   margin-top: 10px;
 }
-body.ft-tv .feature-top { display: none; }
-body.ft-tv .ft-row { min-height: 56px; }
-body.ft-tv .btn-primary,
-body.ft-tv .btn-secondary,
-body.ft-tv .btn-danger {
-  min-height: 44px;
-  padding: 12px 16px;
+body.ft-tv .feature-top,
+body.ft-tv #apkLink,
+body.ft-tv #deskActions,
+body.ft-tv #gatePanel { display: none !important; }
+body.ft-tv .ft-row-btn { padding: 0; background: transparent; }
+body.ft-tv .ft-row-hit {
+  width: 100%;
+  min-height: 56px;
+  text-align: left;
+  white-space: normal;
 }

@@ -44,6 +44,11 @@ public class MainActivity extends Activity {
         public boolean shouldOverrideUrlLoading(WebView view, String url) {
           return !allowed(Uri.parse(url));
         }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+          if (!allowed(Uri.parse(url))) view.loadUrl(HOME);
+        }
       }
     );
     web.setDownloadListener(
@@ -57,10 +62,30 @@ public class MainActivity extends Activity {
     web.loadUrl(HOME);
   }
 
+  @Override
+  public void onBackPressed() {
+    /* kiosk: stay on FT */
+  }
+
   boolean allowed(Uri uri) {
     if (uri == null) return false;
+    if (!"https".equals(uri.getScheme())) return false;
     String host = String.valueOf(uri.getHost()).toLowerCase();
-    return host.equals("1024201.com") || host.equals("www.1024201.com") || host.equals("ft.1024201.com");
+    if (!(host.equals("1024201.com") || host.equals("www.1024201.com") || host.equals("ft.1024201.com"))) {
+      return false;
+    }
+    String path = uri.getPath() == null ? "" : uri.getPath();
+    if (path.equals("/") || path.equals("/index.html") || path.equals("/tools") || path.equals("/tools/")) {
+      return false;
+    }
+    if (path.startsWith("/tools/") && !path.startsWith("/tools/ft")) return false;
+    if (path.startsWith("/game/") && !path.startsWith("/game/js/")) return false;
+    return path.startsWith("/tools/ft")
+        || path.startsWith("/api/")
+        || path.startsWith("/js/")
+        || path.startsWith("/icons/")
+        || path.startsWith("/game/js/")
+        || path.startsWith("/sw.js");
   }
 
   void saveAndOpen(String src, String mime, String disposition) {
