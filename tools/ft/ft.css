@@ -1,4 +1,13 @@
 .ft-card { background: #fff; }
+html.ft-tv .feature-top,
+html.ft-tv #apkLink,
+html.ft-tv #deskActions,
+html.ft-tv #gatePanel,
+body.ft-tv .feature-top,
+body.ft-tv #apkLink,
+body.ft-tv #deskActions,
+body.ft-tv #gatePanel { display: none !important; }
+html.ft-tv #pageTitle,
 body.ft-tv #pageTitle {
   font-size: clamp(13px, 3.4vw, 18px);
   line-height: 1.35;
@@ -152,10 +161,6 @@ body.ft-tv #pageTitle {
   font-size: 13px;
   margin-top: 10px;
 }
-body.ft-tv .feature-top,
-body.ft-tv #apkLink,
-body.ft-tv #deskActions,
-body.ft-tv #gatePanel { display: none !important; }
 body.ft-tv .ft-row-btn { padding: 0; background: transparent; }
 body.ft-tv .ft-row-hit {
   width: 100%;

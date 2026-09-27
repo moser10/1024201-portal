@@ -74,7 +74,10 @@ const UI = {
   },
 };
 
-const tv = new URLSearchParams(location.search).get("client") === "tv";
+function isFtTv() {
+  return new URLSearchParams(location.search).get("client") === "tv" || /1024201-FT-TV/i.test(navigator.userAgent || "");
+}
+const tv = isFtTv();
 let lang = getPortalLang();
 let copy = UI[lang] || UI.en;
 
@@ -106,7 +109,7 @@ function paintHp(used, limit) {
   bar.dataset.level = pct >= 70 ? "ok" : pct >= 40 ? "warn" : pct > 0 ? "low" : "empty";
 }
 
-let apkMeta = { version: "1.2", file: "ft-tv-debug.apk", download: "ft-tv-1.2.apk" };
+let apkMeta = { version: "1.3", file: "ft-tv-debug.apk", download: "ft-tv-1.3.apk" };
 
 async function loadApkMeta() {
   try {

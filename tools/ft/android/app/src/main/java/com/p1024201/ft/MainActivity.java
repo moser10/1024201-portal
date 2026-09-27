@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
     settings.setDomStorageEnabled(true);
     settings.setAllowFileAccess(false);
     settings.setAllowContentAccess(false);
+    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.3");
     CookieManager.getInstance().setAcceptCookie(true);
     web.setWebViewClient(
       new WebViewClient() {
@@ -47,7 +48,15 @@ public class MainActivity extends Activity {
 
         @Override
         public void onPageFinished(WebView view, String url) {
-          if (!allowed(Uri.parse(url))) view.loadUrl(HOME);
+          Uri uri = Uri.parse(url);
+          if (!allowed(uri)) {
+            view.loadUrl(HOME);
+            return;
+          }
+          String path = uri.getPath() == null ? "" : uri.getPath();
+          if (path.startsWith("/tools/ft") && !"tv".equals(uri.getQueryParameter("client"))) {
+            view.loadUrl(HOME);
+          }
         }
       }
     );
@@ -78,6 +87,7 @@ public class MainActivity extends Activity {
     if (path.equals("/") || path.equals("/index.html") || path.equals("/tools") || path.equals("/tools/")) {
       return false;
     }
+    if (path.startsWith("/tools/js/")) return true;
     if (path.startsWith("/tools/") && !path.startsWith("/tools/ft")) return false;
     if (path.startsWith("/game/") && !path.startsWith("/game/js/")) return false;
     return path.startsWith("/tools/ft")

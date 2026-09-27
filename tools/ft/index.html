@@ -9,7 +9,23 @@
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="ft.css?v=8">
+  <link rel="stylesheet" href="ft.css?v=9">
+  <script>
+    (function () {
+      var tv = /(?:\?|&)client=tv(?:&|$)/.test(location.search) || /1024201-FT-TV/i.test(navigator.userAgent || "");
+      if (!tv) return;
+      document.documentElement.classList.add("ft-tv");
+      document.addEventListener("DOMContentLoaded", function () {
+        document.body.classList.add("ft-tv");
+        var t = document.getElementById("pageTitle");
+        if (t) t.textContent = "超快传 / Fast Transfer / 超速転送";
+        var top = document.getElementById("ftTop");
+        var apk = document.getElementById("apkLink");
+        if (top) top.remove();
+        if (apk) apk.remove();
+      });
+    })();
+  </script>
 </head>
 <body class="feature-page" data-tool="ft">
   <div class="feature-shell">
@@ -54,13 +70,13 @@
             <p class="ft-empty" id="emptyBox" hidden></p>
           </div>
 
-          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk?v=1.2" download="ft-tv-1.2.apk">Download projector/TV APK 1.2</a>
+          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk?v=1.3" download="ft-tv-1.3.apk">Download projector/TV APK 1.3</a>
         </div>
         <p class="err" id="errBox" hidden></p>
       </div>
     </div>
   </div>
   <script src="/js/edgeBack.js"></script>
-  <script type="module" src="ft.js?v=8"></script>
+  <script type="module" src="ft.js?v=9"></script>
 </body>
 </html>
