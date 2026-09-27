@@ -7,8 +7,8 @@ android {
     applicationId "com.p1024201.ft"
     minSdk 21
     targetSdk 28
-    versionCode 7
-    versionName "1.6"
+    versionCode 8
+    versionName "1.7"
   }
   buildTypes { release { minifyEnabled false } }
 }

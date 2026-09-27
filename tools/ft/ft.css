@@ -191,6 +191,9 @@ body.ft-tv .ft-row-hit {
   text-align: left;
   white-space: normal;
 }
+body.ft-tv .ft-row-official {
+  margin-top: 28px;
+}
 body.ft-tv .ft-row-official .ft-row-hit {
   background: #e07a3d;
   color: #f4efe4;

@@ -24,15 +24,18 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.core.content.FileProvider;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
 import org.json.JSONObject;
 
 public class MainActivity extends Activity {
@@ -41,17 +44,23 @@ public class MainActivity extends Activity {
   static final String KEY_USER = "osn_user";
   static final String KEY_IDENT = "ident";
   static final String KEY_PASS = "password";
+  static final String APK_MIME = "application/vnd.android.package-archive";
   WebView web;
   View busy;
+  View splash;
   TextView busyText;
   AlertDialog exitDialog;
   boolean exitPromptOpen;
+  boolean splashGone;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    getWindow().getDecorView().setBackgroundColor(0xFF2B3054);
     FrameLayout root = new FrameLayout(this);
+    root.setBackgroundColor(0xFF2B3054);
     web = new WebView(this);
+    web.setBackgroundColor(0xFF2B3054);
     root.addView(
       web,
       new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -61,6 +70,11 @@ public class MainActivity extends Activity {
       busy,
       new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
     );
+    splash = buildSplash();
+    root.addView(
+      splash,
+      new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+    );
     setContentView(root);
     WebSettings settings = web.getSettings();
     settings.setJavaScriptEnabled(true);
@@ -68,7 +82,7 @@ public class MainActivity extends Activity {
     settings.setDatabaseEnabled(true);
     settings.setAllowFileAccess(false);
     settings.setAllowContentAccess(false);
-    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.6");
+    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.7");
     CookieManager cookies = CookieManager.getInstance();
     cookies.setAcceptCookie(true);
     cookies.setAcceptThirdPartyCookies(web, true);
@@ -97,7 +111,10 @@ public class MainActivity extends Activity {
             view.loadUrl(HOME);
             return;
           }
-          if (path.startsWith("/tools/ft")) restoreSessionIntoWeb(view);
+          if (path.startsWith("/tools/ft")) {
+            restoreSessionIntoWeb(view);
+            hideSplash();
+          }
         }
       }
     );
@@ -105,11 +122,24 @@ public class MainActivity extends Activity {
       new DownloadListener() {
         @Override
         public void onDownloadStart(String url, String userAgent, String contentDisposition, String mime, long len) {
-          startDownload(url, mime, contentDisposition);
+          startDownload(url, mime, contentDisposition, "");
         }
       }
     );
     web.loadUrl(HOME);
+  }
+
+  LinearLayout buildSplash() {
+    LinearLayout box = new LinearLayout(this);
+    box.setOrientation(LinearLayout.VERTICAL);
+    box.setGravity(Gravity.CENTER);
+    box.setBackgroundColor(0xFF2B3054);
+    box.setClickable(true);
+    ImageView mark = new ImageView(this);
+    mark.setImageResource(R.mipmap.ic_launcher);
+    int size = (int) (96 * getResources().getDisplayMetrics().density);
+    box.addView(mark, new LinearLayout.LayoutParams(size, size));
+    return box;
   }
 
   LinearLayout buildBusy() {
@@ -121,7 +151,7 @@ public class MainActivity extends Activity {
     box.setVisibility(View.GONE);
     ProgressBar spin = new ProgressBar(this);
     busyText = new TextView(this);
-    busyText.setText("更新中…");
+    busyText.setText("下载中…");
     busyText.setTextColor(Color.WHITE);
     busyText.setTextSize(18);
     busyText.setTypeface(Typeface.DEFAULT_BOLD);
@@ -131,9 +161,72 @@ public class MainActivity extends Activity {
     return box;
   }
 
-  boolean isApk(String src) {
-    String s = src == null ? "" : src.toLowerCase();
-    return s.contains(".apk") || s.contains("ft-tv");
+  void hideSplash() {
+    if (splashGone) return;
+    splashGone = true;
+    runOnUiThread(
+      () -> {
+        if (splash != null) splash.setVisibility(View.GONE);
+      }
+    );
+  }
+
+  boolean looksApk(String... parts) {
+    for (String part : parts) {
+      if (part == null) continue;
+      String s = part.toLowerCase();
+      if (s.contains(".apk") || s.contains("ft-tv") || s.contains("android.package")) return true;
+    }
+    return false;
+  }
+
+  String sanitizeName(String raw) {
+    if (raw == null) return "";
+    String name = raw.replace('\\', '/');
+    int slash = name.lastIndexOf('/');
+    if (slash >= 0) name = name.substring(slash + 1);
+    name = name.replaceAll("[\\u0000-\\u001f]", "").trim();
+    return name;
+  }
+
+  String fromDisposition(String d) {
+    if (d == null || d.isEmpty()) return "";
+    String lower = d.toLowerCase();
+    int star = lower.indexOf("filename*=");
+    int plain = lower.indexOf("filename=");
+    String rest = "";
+    if (star >= 0) {
+      rest = d.substring(star + 10).trim();
+      int enc = rest.indexOf("''");
+      if (enc >= 0) rest = rest.substring(enc + 2);
+    } else if (plain >= 0) {
+      rest = d.substring(plain + 9).trim();
+    } else {
+      return "";
+    }
+    if (rest.startsWith("\"")) {
+      int end = rest.indexOf('"', 1);
+      rest = end > 0 ? rest.substring(1, end) : rest.substring(1);
+    } else {
+      int semi = rest.indexOf(';');
+      if (semi >= 0) rest = rest.substring(0, semi);
+    }
+    try {
+      return URLDecoder.decode(rest, "UTF-8");
+    } catch (Exception e) {
+      return rest;
+    }
+  }
+
+  String pickName(String given, String disposition, String headerDisp, String src, String mime, String headerMime) {
+    String[] candidates = new String[] { given, fromDisposition(disposition), fromDisposition(headerDisp) };
+    for (String c : candidates) {
+      String name = sanitizeName(c);
+      if (!name.isEmpty() && !name.equals("downloadfile") && !name.equals("portal")) return name;
+    }
+    String guessed = sanitizeName(URLUtil.guessFileName(src, headerDisp != null ? headerDisp : disposition, headerMime != null ? headerMime : mime));
+    if (!guessed.isEmpty() && !guessed.equals("downloadfile") && !guessed.equals("portal")) return guessed;
+    return looksApk(given, src, mime, headerMime, headerDisp) ? "file.apk" : "download.bin";
   }
 
   void showBusy(String text) {
@@ -174,17 +267,18 @@ public class MainActivity extends Activity {
     view.evaluateJavascript(js, null);
   }
 
-  void startDownload(String url, String mime, String disposition) {
+  void startDownload(String url, String mime, String disposition, String filename) {
     if (!allowed(Uri.parse(url))) return;
     prefs().edit().commit();
-    showBusy(isApk(url) ? "更新中…" : "下载中…");
-    new Thread(() -> saveAndOpen(url, mime, disposition)).start();
+    boolean official = url != null && url.contains("/tools/ft/dist/");
+    showBusy(official ? "更新中…" : "下载中…");
+    new Thread(() -> saveAndOpen(url, mime, disposition, filename)).start();
   }
 
   public class FtShell {
     @JavascriptInterface
-    public void download(String url) {
-      startDownload(url, "", "");
+    public void download(String url, String name) {
+      startDownload(url, "", "", name == null ? "" : name);
     }
 
     @JavascriptInterface
@@ -292,19 +386,41 @@ public class MainActivity extends Activity {
         || path.startsWith("/sw.js");
   }
 
-  void saveAndOpen(String src, String mime, String disposition) {
+  void openFile(Uri uri, String type, boolean apk) {
+    Intent view = new Intent(Intent.ACTION_VIEW);
+    view.setDataAndType(uri, type);
+    view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+    try {
+      startActivity(view);
+      return;
+    } catch (Exception ignored) {
+      /* try install */
+    }
+    if (!apk) throw new RuntimeException("open_failed");
+    Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+    install.setDataAndType(uri, APK_MIME);
+    install.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+    install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+    startActivity(install);
+  }
+
+  void saveAndOpen(String src, String mime, String disposition, String givenName) {
     try {
       URL url = new URL(src);
       HttpURLConnection c = (HttpURLConnection) url.openConnection();
       String cookie = CookieManager.getInstance().getCookie(src);
       if (cookie != null && !cookie.isEmpty()) c.setRequestProperty("Cookie", cookie);
       c.connect();
-      String name = URLUtil.guessFileName(src, disposition, mime);
-      if (name == null || name.isEmpty() || name.equals("downloadfile")) {
-        name = isApk(src) ? "ft-tv.apk" : "download.bin";
-      }
+      String headerDisp = c.getHeaderField("Content-Disposition");
+      String headerMime = c.getContentType();
+      String name = pickName(givenName, disposition, headerDisp, src, mime, headerMime);
+      boolean apk = looksApk(name, src, mime, headerMime, givenName);
+      if (apk && !name.toLowerCase().endsWith(".apk")) name = name + ".apk";
       File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-      if (dir == null) return;
+      if (dir == null) {
+        runOnUiThread(() -> Toast.makeText(this, "失败", Toast.LENGTH_SHORT).show());
+        return;
+      }
       dir.mkdirs();
       File out = new File(dir, name);
       InputStream in = c.getInputStream();
@@ -315,12 +431,10 @@ public class MainActivity extends Activity {
       fos.close();
       in.close();
       Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", out);
-      Intent intent = new Intent(Intent.ACTION_VIEW);
-      intent.setDataAndType(uri, name.toLowerCase().endsWith(".apk") ? "application/vnd.android.package-archive" : mime);
-      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-      startActivity(intent);
-    } catch (Exception ignored) {
-      /* stay on the locked page */
+      String type = apk ? APK_MIME : (headerMime != null && !headerMime.isEmpty() ? headerMime : "application/octet-stream");
+      openFile(uri, type, apk);
+    } catch (Exception e) {
+      runOnUiThread(() -> Toast.makeText(this, "失败", Toast.LENGTH_SHORT).show());
     } finally {
       hideBusy();
     }

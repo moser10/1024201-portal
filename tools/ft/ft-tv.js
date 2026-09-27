@@ -6,7 +6,7 @@
   var DEFAULT_LIMIT = 20 * 1024 * 1024;
   var filesCache = [];
   var quota = { used: 0, limit: DEFAULT_LIMIT };
-  var apkMeta = { version: "1.6", file: "ft-tv-debug.apk", download: "ft-tv-1.6.apk" };
+  var apkMeta = { version: "1.7", file: "ft-tv-debug.apk", download: "ft-tv-1.7.apk" };
 
   function $(id) {
     return document.getElementById(id);
@@ -101,14 +101,14 @@
 
   function officialHref() {
     var file = apkMeta.file || "ft-tv-debug.apk";
-    var v = apkMeta.version || "1.6";
+    var v = apkMeta.version || "1.7";
     return "https://1024201.com/tools/ft/dist/" + file + "?v=" + encodeURIComponent(v);
   }
 
-  function startDownload(url, text) {
-    showBusy(text || "更新中…");
+  function startDownload(url, text, filename) {
+    showBusy(text || "下载中…");
     if (window.FtShell && typeof window.FtShell.download === "function") {
-      window.FtShell.download(url);
+      window.FtShell.download(url, filename || "");
       return;
     }
     location.assign(url);
@@ -117,7 +117,7 @@
   function takeOfficial() {
     var user = getUser();
     if (user) persistNative(user);
-    startDownload(officialHref(), "更新中…");
+    startDownload(officialHref(), "更新中…", apkMeta.download || "ft-tv.apk");
   }
 
   function takeFile(row, uid) {
@@ -131,7 +131,8 @@
         encodeURIComponent(row.id) +
         "&user_id=" +
         encodeURIComponent(uid),
-      "下载中…"
+      "下载中…",
+      row.name || ""
     );
   }
 
@@ -176,13 +177,6 @@
     var empty = $("emptyBox");
     if (!list || !empty) return;
     var html = [];
-    html.push(
-      '<li class="ft-row ft-row-btn ft-row-official" data-id="official-ft">' +
-        '<button type="button" class="btn-primary ft-get ft-row-hit" data-official="1">' +
-        "更新超快传 " +
-        esc(apkMeta.version || "") +
-        " · 安装</button></li>"
-    );
     var i;
     for (i = 0; i < filesCache.length; i++) {
       var f = filesCache[i];
@@ -199,6 +193,13 @@
           "</button></li>"
       );
     }
+    html.push(
+      '<li class="ft-row ft-row-btn ft-row-official" data-id="official-ft">' +
+        '<button type="button" class="btn-primary ft-get ft-row-hit" data-official="1">' +
+        "更新超快传 " +
+        esc(apkMeta.version || "") +
+        " · 安装</button></li>"
+    );
     list.innerHTML = html.join("");
     empty.hidden = filesCache.length > 0;
     empty.textContent = "还没有文件";
