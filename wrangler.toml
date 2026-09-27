@@ -64,6 +64,8 @@ crons = ["0 14 * * *"]
 [assets]
 directory = "."
 binding = "ASSETS"
+# 子域根路径要先走 Worker（301 到 /tools/ft/ 等），否则会直接吐出站点 index.html
+run_worker_first = ["/", "/index.html"]
 
 # D1：database_id 是绑定关键；database_name 填控制台显示的数据库名
 [[d1_databases]]
