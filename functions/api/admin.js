@@ -467,7 +467,19 @@ export async function onRequest(context) {
         const data = await res.json().catch(() => ({}));
         deployments = data.result || data.deployments || [];
       }
-      const map = await buildDeployMap({ recorded, deployments });
+      let snapshot = null;
+      const snapRow = await db.prepare("SELECT value FROM portal_stats WHERE key = 'deploy_branch_snapshot'").first();
+      try {
+        snapshot = snapRow?.value ? JSON.parse(snapRow.value) : null;
+      } catch {
+        snapshot = null;
+      }
+      const map = await buildDeployMap({
+        recorded,
+        deployments,
+        snapshot,
+        githubToken: env.GITHUB_TOKEN || env.GH_TOKEN || "",
+      });
       await db
         .prepare(
           `INSERT INTO portal_stats (key, value, updated_at) VALUES ('deploy_map_cache', ?, datetime('now'))

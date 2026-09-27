@@ -1,4 +1,5 @@
 export const KEEP_BRANCHES = new Set(["main", "production"]);
+export const DEFAULT_REPO = "moser10/1024201-portal";
 
 export function isHot(iso, now = Date.now()) {
   const t = Date.parse(iso || "");
@@ -24,52 +25,106 @@ export function pickDeployPair(deployments) {
   };
 }
 
-async function gh(path) {
-  const res = await fetch(`https://api.github.com${path}`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "User-Agent": "1024201-portal-admin",
+export function paintBranchItems(rows, currentBranch, now = Date.now()) {
+  return (rows || []).map((r) => ({
+    name: r.name,
+    sha: String(r.sha || "").slice(0, 7),
+    updatedAt: r.updatedAt || "",
+    hot: isHot(r.updatedAt, now),
+    color: classifyBranch({ name: r.name, compareStatus: r.compareStatus || "unknown", currentBranch }),
+    compareStatus: r.compareStatus || "unknown",
+  }));
+}
+
+export function fallbackBranchRows(recorded) {
+  const currentBranch = recorded?.branch || "main";
+  const rows = [
+    {
+      name: currentBranch,
+      sha: recorded?.sha || "",
+      updatedAt: recorded?.at || "",
+      compareStatus: "identical",
     },
-  });
+  ];
+  if (currentBranch !== "main") {
+    rows.push({ name: "main", sha: "", updatedAt: "", compareStatus: "unknown" });
+  }
+  return rows;
+}
+
+export function githubHeaders(token) {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "1024201-portal-admin",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+async function gh(path, token) {
+  const res = await fetch(`https://api.github.com${path}`, { headers: githubHeaders(token) });
   if (!res.ok) throw new Error(`github_${res.status}`);
   return res.json();
 }
 
-export async function buildDeployMap({ recorded, deployments }) {
-  const pair = pickDeployPair(deployments);
-  const currentBranch = recorded?.branch || "cursor/cloud-agent-1783569938677-9euo1";
-  const currentVersion = recorded?.versionId || pair.current?.versionId || "";
-  const previousVersion = recorded?.previousVersionId || pair.previous?.versionId || "";
-
-  const branches = await gh("/repos/moser10/1024201-portal/branches?per_page=100");
-  const now = Date.now();
-  const items = [];
+export async function fetchGithubBranchRows({ token, repo = DEFAULT_REPO, currentBranch }) {
+  if (!token) throw new Error("github_no_token");
+  const branches = await gh(`/repos/${repo}/branches?per_page=100`, token);
+  const rows = [];
   for (const b of branches) {
     const name = b.name;
     let updatedAt = "";
     let compareStatus = "diverged";
+    let sha = (b.commit?.sha || "").slice(0, 7);
     try {
       const [detail, cmp] = await Promise.all([
-        gh(`/repos/moser10/1024201-portal/branches/${encodeURIComponent(name)}`),
+        gh(`/repos/${repo}/branches/${encodeURIComponent(name)}`, token),
         name === currentBranch
           ? Promise.resolve({ status: "identical" })
-          : gh(`/repos/moser10/1024201-portal/compare/${encodeURIComponent(currentBranch)}...${encodeURIComponent(name)}`),
+          : gh(`/repos/${repo}/compare/${encodeURIComponent(currentBranch)}...${encodeURIComponent(name)}`, token),
       ]);
       updatedAt = detail?.commit?.commit?.committer?.date || detail?.commit?.commit?.author?.date || "";
       compareStatus = cmp?.status || "diverged";
+      sha = (detail?.commit?.sha || b.commit?.sha || "").slice(0, 7);
     } catch {
       compareStatus = "unknown";
     }
-    items.push({
-      name,
-      sha: (b.commit?.sha || "").slice(0, 7),
-      updatedAt,
-      hot: isHot(updatedAt, now),
-      color: classifyBranch({ name, compareStatus, currentBranch }),
-      compareStatus,
-    });
+    rows.push({ name, sha, updatedAt, compareStatus });
+  }
+  return rows;
+}
+
+export async function buildDeployMap({ recorded, deployments, githubToken, snapshot, repo = DEFAULT_REPO }) {
+  const pair = pickDeployPair(deployments);
+  const currentBranch = recorded?.branch || snapshot?.currentBranch || "main";
+  const currentVersion = recorded?.versionId || pair.current?.versionId || "";
+  const previousVersion = recorded?.previousVersionId || pair.previous?.versionId || "";
+  const now = Date.now();
+
+  let rows = [];
+  let source = "fallback";
+  let githubError = "";
+
+  if (githubToken) {
+    try {
+      rows = await fetchGithubBranchRows({ token: githubToken, repo, currentBranch });
+      source = "github";
+    } catch (e) {
+      githubError = e.message || "github_failed";
+    }
   }
 
+  if (!rows.length && snapshot?.branches?.length) {
+    rows = snapshot.branches;
+    source = snapshot.source || "snapshot";
+  }
+
+  if (!rows.length) {
+    rows = fallbackBranchRows(recorded);
+    source = "fallback";
+  }
+
+  const items = paintBranchItems(rows, currentBranch, now);
   items.sort((a, b) => {
     const rank = { green: 0, blue: 1, red: 2 };
     return (rank[a.color] ?? 9) - (rank[b.color] ?? 9) || String(b.updatedAt).localeCompare(String(a.updatedAt));
@@ -80,6 +135,8 @@ export async function buildDeployMap({ recorded, deployments }) {
     previousVersion,
     currentBranch,
     recordedAt: recorded?.at || pair.current?.createdOn || "",
+    source,
+    githubError,
     branches: items,
   };
 }

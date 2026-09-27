@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyBranch, isHot, pickDeployPair } from "./deployMap.js";
+import { classifyBranch, fallbackBranchRows, githubHeaders, isHot, paintBranchItems, pickDeployPair } from "./deployMap.js";
 
 test("live branch is green", () => {
   assert.equal(classifyBranch({ name: "cursor/ft", compareStatus: "ahead", currentBranch: "cursor/ft" }), "green");
@@ -28,4 +28,16 @@ test("pickDeployPair uses newest two", () => {
   ]);
   assert.equal(pair.current.versionId, "new");
   assert.equal(pair.previous.versionId, "mid");
+});
+
+test("github headers stay anonymous without a token", () => {
+  assert.equal(githubHeaders("").Authorization, undefined);
+  assert.equal(githubHeaders("ghp_x").Authorization, "Bearer ghp_x");
+});
+
+test("fallback keeps the live branch green even without GitHub", () => {
+  const rows = fallbackBranchRows({ branch: "cursor/ft", sha: "abc1234", at: "2026-09-27T16:00:00Z" });
+  const items = paintBranchItems(rows, "cursor/ft");
+  assert.equal(items.find((b) => b.name === "cursor/ft").color, "green");
+  assert.equal(items.find((b) => b.name === "main").color, "blue");
 });

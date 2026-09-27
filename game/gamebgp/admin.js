@@ -320,7 +320,9 @@ function panelDeploy() {
           <div class="dep-ver-id">${esc(map.previousVersion || "—")}</div>
         </div>
       </div>
-      <p class="panel-hint">绿 = 当前部署分支 · 蓝 = 保留 · 红 = 可删（已合进当前分支）· 黄边 = 24 小时内有提交</p>
+      <p class="panel-hint">绿 = 当前部署分支 · 蓝 = 保留 · 红 = 可删（已合进当前分支）· 黄边 = 24 小时内有提交${
+        map.source === "snapshot" ? " · 分支来自最近一次部署快照" : map.source === "fallback" ? " · 仅显示已记录的部署分支" : ""
+      }</p>
       <div class="dep-legend">
         <span class="dep-chip dep-green"><span class="dep-dot"></span>当前</span>
         <span class="dep-chip dep-blue"><span class="dep-dot"></span>其他</span>
