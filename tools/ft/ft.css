@@ -252,3 +252,9 @@ body.ft-tv .ft-update-wrap[hidden] {
 @keyframes ft-busy-spin {
   to { transform: rotate(360deg); }
 }
+html.ft-tv .ft-tv-pick,
+body.ft-tv .ft-tv-pick {
+  outline: 3px solid #ff9f0a;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px rgba(255, 159, 10, 0.28);
+}

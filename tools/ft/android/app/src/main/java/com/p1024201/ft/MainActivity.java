@@ -31,7 +31,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.core.content.FileProvider;
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,6 +39,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import org.json.JSONObject;
 
 public class MainActivity extends Activity {
@@ -57,6 +57,9 @@ public class MainActivity extends Activity {
   AlertDialog exitDialog;
   boolean exitPromptOpen;
   boolean splashGone;
+  boolean paused;
+  boolean wantManualAfterResume;
+  boolean tvEditing;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -89,7 +92,7 @@ public class MainActivity extends Activity {
     settings.setDatabaseEnabled(true);
     settings.setAllowFileAccess(false);
     settings.setAllowContentAccess(false);
-    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.8");
+    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.9");
     CookieManager cookies = CookieManager.getInstance();
     cookies.setAcceptCookie(true);
     cookies.setAcceptThirdPartyCookies(web, true);
@@ -134,6 +137,22 @@ public class MainActivity extends Activity {
     web.loadUrl(HOME);
   }
 
+  @Override
+  protected void onPause() {
+    paused = true;
+    super.onPause();
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    paused = false;
+    if (wantManualAfterResume) {
+      wantManualAfterResume = false;
+      showManualDialog();
+    }
+  }
+
   LinearLayout buildSplash() {
     LinearLayout box = new LinearLayout(this);
     box.setOrientation(LinearLayout.VERTICAL);
@@ -176,20 +195,39 @@ public class MainActivity extends Activity {
     );
   }
 
+  boolean storageOk() {
+    if (Build.VERSION.SDK_INT < 23) return true;
+    return checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        || checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+  }
+
   void askStorage() {
     if (Build.VERSION.SDK_INT < 23) return;
-    if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-      return;
-    }
+    if (storageOk()) return;
     requestPermissions(
       new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE },
       REQ_STORAGE
     );
   }
 
-  File surviveFile() {
-    File dir = new File(Environment.getExternalStorageDirectory(), ".1024201-ft");
-    return new File(dir, "session.json");
+  @Override
+  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    if (requestCode != REQ_STORAGE) return;
+    adoptSurvive();
+    writeSurvive();
+    if (web != null) restoreSessionIntoWeb(web);
+  }
+
+  File[] surviveFiles() {
+    ArrayList<File> out = new ArrayList<>();
+    File root = Environment.getExternalStorageDirectory();
+    if (root != null) {
+      out.add(new File(new File(root, ".1024201-ft"), "session.json"));
+      out.add(new File(new File(root, "Download"), ".1024201-ft-session.json"));
+    }
+    File pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+    if (pub != null) out.add(new File(pub, ".1024201-ft-session.json"));
+    return out.toArray(new File[0]);
   }
 
   void writeSurvive() {
@@ -198,55 +236,67 @@ public class MainActivity extends Activity {
       o.put("user", prefs().getString(KEY_USER, ""));
       o.put("ident", prefs().getString(KEY_IDENT, ""));
       o.put("pass", prefs().getString(KEY_PASS, ""));
-      if (o.optString("user").isEmpty()) return;
-      File f = surviveFile();
-      File parent = f.getParentFile();
-      if (parent != null) parent.mkdirs();
-      FileOutputStream fos = new FileOutputStream(f);
-      fos.write(o.toString().getBytes("UTF-8"));
-      fos.close();
+      if (o.optString("user").isEmpty() && o.optString("ident").isEmpty()) return;
+      byte[] bytes = o.toString().getBytes("UTF-8");
+      for (File f : surviveFiles()) {
+        try {
+          File parent = f.getParentFile();
+          if (parent != null) parent.mkdirs();
+          FileOutputStream fos = new FileOutputStream(f);
+          fos.write(bytes);
+          fos.close();
+          f.setReadable(true, false);
+          f.setWritable(true, false);
+        } catch (Exception ignored) {
+          /* try next path */
+        }
+      }
     } catch (Exception ignored) {
       /* keep in-app prefs */
     }
   }
 
   JSONObject readSurvive() {
-    try {
-      File f = surviveFile();
-      if (!f.exists()) return null;
-      FileInputStream in = new FileInputStream(f);
-      byte[] buf = new byte[(int) f.length()];
-      int n = in.read(buf);
-      in.close();
-      if (n <= 0) return null;
-      return new JSONObject(new String(buf, 0, n, "UTF-8"));
-    } catch (Exception e) {
-      return null;
+    for (File f : surviveFiles()) {
+      try {
+        if (f == null || !f.exists()) continue;
+        FileInputStream in = new FileInputStream(f);
+        byte[] buf = new byte[(int) f.length()];
+        int n = in.read(buf);
+        in.close();
+        if (n <= 0) continue;
+        return new JSONObject(new String(buf, 0, n, "UTF-8"));
+      } catch (Exception ignored) {
+        /* try next path */
+      }
     }
+    return null;
   }
 
   void dropSurvive() {
-    try {
-      File f = surviveFile();
-      if (f.exists()) f.delete();
-    } catch (Exception ignored) {
-      /* ignore */
+    for (File f : surviveFiles()) {
+      try {
+        if (f != null && f.exists()) f.delete();
+      } catch (Exception ignored) {
+        /* ignore */
+      }
     }
   }
 
   void adoptSurvive() {
     String have = prefs().getString(KEY_USER, "");
-    if (have != null && !have.isEmpty()) return;
+    String ident = prefs().getString(KEY_IDENT, "");
+    if (have != null && !have.isEmpty() && ident != null && !ident.isEmpty()) return;
     JSONObject o = readSurvive();
     if (o == null) return;
+    SharedPreferences.Editor ed = prefs().edit();
     String user = o.optString("user", "");
-    if (user.isEmpty()) return;
-    prefs()
-      .edit()
-      .putString(KEY_USER, user)
-      .putString(KEY_IDENT, o.optString("ident", ""))
-      .putString(KEY_PASS, o.optString("pass", ""))
-      .commit();
+    String id = o.optString("ident", "");
+    String pass = o.optString("pass", "");
+    if (!user.isEmpty()) ed.putString(KEY_USER, user);
+    if (!id.isEmpty()) ed.putString(KEY_IDENT, id);
+    if (!pass.isEmpty()) ed.putString(KEY_PASS, pass);
+    ed.commit();
   }
 
   boolean looksApk(String... parts) {
@@ -331,6 +381,7 @@ public class MainActivity extends Activity {
     runOnUiThread(
       () -> {
         hideBusy();
+        wantManualAfterResume = false;
         new AlertDialog.Builder(this)
           .setMessage("请卸载后重新安装")
           .setPositiveButton("确定", (DialogInterface d, int w) -> {})
@@ -366,7 +417,10 @@ public class MainActivity extends Activity {
     }
     prefs().edit().commit();
     boolean official = url.contains("/tools/ft/dist/");
-    if (official) writeSurvive();
+    if (official) {
+      askStorage();
+      writeSurvive();
+    }
     showBusy(official ? "更新中…" : "下载中…");
     new Thread(() -> saveAndOpen(url, mime, disposition, filename, official)).start();
   }
@@ -398,6 +452,16 @@ public class MainActivity extends Activity {
     }
 
     @JavascriptInterface
+    public void keepLogin(String ident, String password, String userJson) {
+      SharedPreferences.Editor ed = prefs().edit();
+      if (userJson != null && !userJson.isEmpty()) ed.putString(KEY_USER, userJson);
+      if (ident != null && !ident.isEmpty()) ed.putString(KEY_IDENT, ident);
+      if (password != null && !password.isEmpty()) ed.putString(KEY_PASS, password);
+      ed.commit();
+      writeSurvive();
+    }
+
+    @JavascriptInterface
     public void dropAcrossUninstall() {
       dropSurvive();
     }
@@ -405,6 +469,11 @@ public class MainActivity extends Activity {
     @JavascriptInterface
     public void needManual() {
       showManualDialog();
+    }
+
+    @JavascriptInterface
+    public void setEditing(boolean on) {
+      tvEditing = on;
     }
 
     @JavascriptInterface
@@ -446,17 +515,55 @@ public class MainActivity extends Activity {
     }
   }
 
+  boolean consumeNavKey(int keyCode) {
+    return keyCode == KeyEvent.KEYCODE_BACK
+        || keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+        || keyCode == KeyEvent.KEYCODE_BUTTON_A
+        || keyCode == KeyEvent.KEYCODE_ENTER
+        || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER;
+  }
+
+  void runTvNav(String fn, boolean exitIfMissing) {
+    if (web == null) {
+      if (exitIfMissing) confirmExit();
+      return;
+    }
+    web.evaluateJavascript(
+      "(function(){try{if(!window.ftTvNav||!window.ftTvNav." +
+        fn +
+        ")return " +
+        (exitIfMissing ? "'exit'" : "'skip'") +
+        ";return String(window.ftTvNav." +
+        fn +
+        "());}catch(e){return " +
+        (exitIfMissing ? "'exit'" : "'skip'") +
+        ";}})()",
+      (String v) -> {
+        if (exitIfMissing && v != null && v.indexOf("exit") >= 0) confirmExit();
+      }
+    );
+  }
+
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-    if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-      if (busy != null && busy.getVisibility() == View.VISIBLE) {
-        return true;
-      }
+    if (event.getRepeatCount() != 0) return super.onKeyDown(keyCode, event);
+    if (busy != null && busy.getVisibility() == View.VISIBLE) {
+      return keyCode == KeyEvent.KEYCODE_BACK || consumeNavKey(keyCode);
+    }
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
       if (exitPromptOpen && exitDialog != null && exitDialog.isShowing()) {
         exitDialog.dismiss();
         return true;
       }
-      confirmExit();
+      runTvNav("back", true);
+      return true;
+    }
+    if (consumeNavKey(keyCode)) {
+      if (exitPromptOpen && exitDialog != null && exitDialog.isShowing()) {
+        return super.onKeyDown(keyCode, event);
+      }
+      if (tvEditing) return super.onKeyDown(keyCode, event);
+      runTvNav("ok", false);
       return true;
     }
     return super.onKeyDown(keyCode, event);
@@ -465,7 +572,11 @@ public class MainActivity extends Activity {
   @Override
   public void onBackPressed() {
     if (busy != null && busy.getVisibility() == View.VISIBLE) return;
-    confirmExit();
+    if (exitPromptOpen && exitDialog != null && exitDialog.isShowing()) {
+      exitDialog.dismiss();
+      return;
+    }
+    runTvNav("back", true);
   }
 
   void confirmExit() {
@@ -517,21 +628,65 @@ public class MainActivity extends Activity {
   }
 
   void openFile(Uri uri, String type, boolean apk) {
+    if (apk) {
+      Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+      install.setDataAndType(uri, APK_MIME);
+      install.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+      install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+      try {
+        startActivity(install);
+        return;
+      } catch (Exception ignored) {
+        /* try view */
+      }
+    }
     Intent view = new Intent(Intent.ACTION_VIEW);
     view.setDataAndType(uri, type);
     view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+    startActivity(view);
+  }
+
+  File copyPublic(File src, String name) {
     try {
-      startActivity(view);
-      return;
-    } catch (Exception ignored) {
-      /* try install */
+      File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+      if (dir == null) return null;
+      dir.mkdirs();
+      File dest = new File(dir, name);
+      FileInputStream in = new FileInputStream(src);
+      FileOutputStream fos = new FileOutputStream(dest);
+      byte[] buf = new byte[8192];
+      int n;
+      while ((n = in.read(buf)) > 0) fos.write(buf, 0, n);
+      fos.close();
+      in.close();
+      dest.setReadable(true, false);
+      return dest;
+    } catch (Exception e) {
+      return null;
     }
-    if (!apk) throw new RuntimeException("open_failed");
-    Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
-    install.setDataAndType(uri, APK_MIME);
-    install.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
-    install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-    startActivity(install);
+  }
+
+  void afterOfficialOpen() {
+    writeSurvive();
+    runOnUiThread(
+      () -> {
+        wantManualAfterResume = true;
+        if (web != null) {
+          web.postDelayed(
+            () -> {
+              if (isFinishing()) return;
+              if (!paused) {
+                wantManualAfterResume = false;
+                showManualDialog();
+              }
+            },
+            1200
+          );
+        } else if (!paused) {
+          showManualDialog();
+        }
+      }
+    );
   }
 
   void saveAndOpen(String src, String mime, String disposition, String givenName, boolean official) {
@@ -559,9 +714,24 @@ public class MainActivity extends Activity {
       fos.close();
       in.close();
       if (out.length() < 64) throw new RuntimeException("empty");
+      if (official) {
+        writeSurvive();
+        File pub = copyPublic(out, name);
+        if (pub != null) out = pub;
+      }
       Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", out);
       String type = apk ? APK_MIME : (headerMime != null && !headerMime.isEmpty() ? headerMime : "application/octet-stream");
-      openFile(uri, type, apk);
+      try {
+        openFile(uri, type, apk);
+      } catch (Exception openErr) {
+        if (official) {
+          writeSurvive();
+          showManualDialog();
+          return;
+        }
+        throw openErr;
+      }
+      if (official) afterOfficialOpen();
     } catch (Exception e) {
       if (official) writeSurvive();
       showManualDialog();
