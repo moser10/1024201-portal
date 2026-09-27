@@ -466,7 +466,8 @@ export async function onRequest(context) {
                     u.must_change_password,
                     CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
-                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra,
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'ft'), 0) AS ft_extra
              FROM users u
              WHERE u.username LIKE ? OR u.email LIKE ?
              ORDER BY u.id DESC
@@ -481,7 +482,8 @@ export async function onRequest(context) {
                     u.must_change_password,
                     CASE WHEN u.temp_password IS NOT NULL THEN 1 ELSE 0 END AS has_temp_password,
                     COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'pdf'), 0) AS pdf_extra,
-                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'lyrics'), 0) AS lyrics_extra,
+                    COALESCE((SELECT extra FROM user_quota_grants g WHERE g.user_id = u.id AND g.tool = 'ft'), 0) AS ft_extra
              FROM users u ORDER BY u.id DESC LIMIT 200`
           )
           .all());
@@ -495,7 +497,7 @@ export async function onRequest(context) {
       const tool = String(body?.tool || "pdf").trim().toLowerCase();
       const extra = Math.max(0, Math.min(10000, parseInt(body?.extra, 10) || 0));
       if (!Number.isFinite(uid)) return json({ error: "无效用户 ID" }, 400);
-      if (!["pdf", "lyrics"].includes(tool)) return json({ error: "不支持的功能" }, 400);
+      if (!["pdf", "lyrics", "ft"].includes(tool)) return json({ error: "不支持的功能" }, 400);
       const user = await db.prepare("SELECT id, username FROM users WHERE id = ?").bind(uid).first();
       if (!user) return json({ error: "用户不存在" }, 404);
       await db

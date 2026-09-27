@@ -11,7 +11,7 @@ import path from "node:path";
 const PORT = parseInt(process.env.FILE_STORE_PORT || "3921", 10);
 const SECRET = process.env.FILE_STORE_SECRET || "";
 const DATA_DIR = process.env.FILE_STORE_DIR || "/var/lib/1024-files";
-const MAX_BYTES = parseInt(process.env.FILE_STORE_MAX_BYTES || String(5 * 1024 * 1024), 10);
+const MAX_BYTES = parseInt(process.env.FILE_STORE_MAX_BYTES || String(32 * 1024 * 1024), 10);
 const HOST = process.env.FILE_STORE_HOST || "127.0.0.1";
 
 if (!SECRET || SECRET.length < 16) {

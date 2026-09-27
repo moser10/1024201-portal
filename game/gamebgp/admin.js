@@ -221,6 +221,7 @@ function userRowHtml(u, i) {
   const grants = [];
   if (Number(u.pdf_extra) > 0) grants.push(`PDF+${u.pdf_extra}`);
   if (Number(u.lyrics_extra) > 0) grants.push(`歌词+${u.lyrics_extra}`);
+  if (Number(u.ft_extra) > 0) grants.push(`超快传+${u.ft_extra}MB`);
   return `
     <tr data-user-id="${u.id}">
       <td>${i + 1}</td>
@@ -231,7 +232,7 @@ function userRowHtml(u, i) {
       <td>${grants.length ? esc(grants.join(" · ")) : "—"}</td>
       <td>
         <div class="row-actions">
-          <button type="button" class="btn btn-ghost btn-small grant-user" data-id="${u.id}" data-name="${esc(u.username)}">加次数</button>
+          <button type="button" class="btn btn-ghost btn-small grant-user" data-id="${u.id}" data-name="${esc(u.username)}">加额度</button>
           <button type="button" class="btn btn-ghost btn-small reset-user" data-id="${u.id}">重置密码</button>
           <button type="button" class="btn btn-danger btn-small del-user" data-id="${u.id}">删除</button>
         </div>
@@ -273,7 +274,7 @@ function panelUsers() {
   return `
     <div class="card" data-panel="users">
       <h2>注册用户（${state.overview.users ?? state.users.length}）</h2>
-      <p class="panel-hint">可删除用户；「加次数」为指定功能增加额外可用次数（永久叠加在每日免费额度上）。</p>
+      <p class="panel-hint">可删除用户；「加额度」给 PDF/歌词加次数，给超快传加 MB（叠在 20MB 基础之上）。</p>
       <div class="toolbar">
         <input class="search" id="userSearch" type="search" placeholder="搜索用户名 / 邮箱" value="${esc(state.userQ)}">
         <button type="button" class="btn btn-ghost btn-small" id="userSearchBtn">搜索</button>
@@ -439,14 +440,14 @@ function bindDashboardEvents() {
   document.querySelectorAll(".grant-user").forEach((btn) => {
     btn.onclick = async () => {
       const name = btn.dataset.name || "";
-      const tool = window.prompt(`给「${name}」增加次数的功能（pdf / lyrics）`, "pdf");
+      const tool = window.prompt(`给「${name}」加额度（pdf / lyrics 次数，ft 容量MB）`, "ft");
       if (!tool) return;
       const t = String(tool).trim().toLowerCase();
-      if (!["pdf", "lyrics"].includes(t)) {
-        toast("功能仅支持 pdf 或 lyrics");
+      if (!["pdf", "lyrics", "ft"].includes(t)) {
+        toast("功能仅支持 pdf、lyrics 或 ft");
         return;
       }
-      const raw = window.prompt(`额外次数（永久叠加在每日免费额度上，填 0 清除）`, "3");
+      const raw = window.prompt(t === "ft" ? `超快传额外容量（MB，加在 20MB 基础之上，填 0 清除）` : `额外次数（永久叠加在每日免费额度上，填 0 清除）`, t === "ft" ? "20" : "3");
       if (raw == null) return;
       const extra = parseInt(raw, 10);
       if (!Number.isFinite(extra) || extra < 0) {
@@ -459,7 +460,7 @@ function bindDashboardEvents() {
           method: "POST",
           body: JSON.stringify({ user_id: Number(btn.dataset.id), tool: t, extra }),
         });
-        toast(`已为 ${data.username} 设置 ${t} 额外 ${data.extra} 次`);
+        toast(`已为 ${data.username} 设置 ${t} 额外 ${data.extra}${t === "ft" ? " MB" : " 次"}`);
         await refreshQuiet();
       } catch (e) {
         btn.disabled = false;

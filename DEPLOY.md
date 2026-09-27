@@ -19,6 +19,7 @@ Cloudflare Worker：`1024201-portal`
 | `www.1024201.com` | **1024201-portal** | 门户首页 `/` |
 | `1024201.com` | **1024201-portal** | 门户首页 `/`（与 www 相同） |
 | `game.1024201.com` | **1024201-portal** | `/` → 301 → `/game/` 游戏大厅 |
+| `ft.1024201.com` | **1024201-portal** | `/` → 301 → `/tools/ft/` 超快传（DNS：CNAME → 1024201.com，代理开启） |
 
 ### DNS 与 SSL（子域名打不开时必查）
 

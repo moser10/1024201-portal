@@ -136,6 +136,24 @@ async function findUserByEmail(db, email) {
     .first();
 }
 
+async function findUserByUsername(db, username) {
+  return db
+    .prepare(
+      `SELECT id, email, username, password_hash, password_plain, temp_password, temp_password_expires,
+              must_change_password, email_verified
+       FROM users WHERE username = ?`
+    )
+    .bind(username)
+    .first();
+}
+
+async function findUserForLogin(db, ident) {
+  const raw = String(ident || "").trim();
+  if (!raw) return null;
+  if (raw.includes("@")) return findUserByEmail(db, raw);
+  return (await findUserByUsername(db, raw)) || findUserByEmail(db, raw);
+}
+
 async function emailTaken(db, email) {
   return !!(await db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first());
 }
@@ -334,13 +352,13 @@ export async function onRequest(context) {
     }
 
     if (request.method === "POST" && action === "login") {
-      const { email, password } = await request.json();
-      const mail = email?.trim();
-      const pass = password?.trim();
-      if (!mail || !pass) return json({ error: "邮箱和密码不能为空" }, 400);
+      const body = await request.json();
+      const ident = String(body.email || body.username || "").trim();
+      const pass = String(body.password || "").trim();
+      if (!ident || !pass) return json({ error: "账号和密码不能为空" }, 400);
 
-      const user = await findUserByEmail(db, mail);
-      if (!user) return json({ error: "该邮箱尚未注册" }, 404);
+      const user = await findUserForLogin(db, ident);
+      if (!user) return json({ error: "账号尚未注册" }, 404);
       if (!(await verifyUserPassword(user, pass))) return json({ error: "密码错误" }, 401);
 
       if (user.temp_password && pass === user.temp_password) {

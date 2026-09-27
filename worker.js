@@ -113,6 +113,7 @@ const SUBDOMAIN_ROOT = {
   "address.1024201.com": "/tools/address/",
   "showcase.1024201.com": "/tools/showcase/",
   "blog.1024201.com": "/blog/",
+  "ft.1024201.com": "/tools/ft/",
 };
 
 function maybeSubdomainRootRedirect(request) {

@@ -68,6 +68,14 @@ const TOOLS = [
     gradient: "linear-gradient(135deg, #34c759 0%, #30b0c7 100%)",
     icon: `<span class="tool-icon-block">ADDR</span>`,
   },
+  {
+    id: "ft",
+    title: { zh: "超快传", en: "Fast Transfer", ja: "超速転送" },
+    sub: { zh: "投屏取文件 · 免 U 盘", en: "Drop files · skip the USB stick", ja: "USBなしで受け渡し" },
+    href: "ft/",
+    gradient: "linear-gradient(135deg, #ff9f0a 0%, #ff375f 100%)",
+    icon: `<span class="tool-icon-block">FT</span>`,
+  },
 ];
 
 const HUB_I18N = {

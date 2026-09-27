@@ -1,5 +1,6 @@
 import { json, requireDb, ensureAppSchema, resolveUserId } from "./_shared.js";
 import { vpsStoreEnabled, vpsPut, vpsGet, vpsDelete } from "./vpsStore.js";
+import { ftLimitBytes, readFtExtraMb } from "./ftQuota.js";
 
 /** D1 免费存储：单文件上限（整库免费约 5GB，不宜过大） */
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -246,6 +247,10 @@ export async function handleFileUpload(env, request, url) {
       return json({ error: "too_many_files", max: BLOG_MAX_IMAGES * 20 }, 413);
     }
   }
+  if (purpose === "ft") {
+    const existing = await listUserFiles(db, userId, "ft");
+    if (existing.length >= 40) return json({ error: "too_many_files", max: 40 }, 413);
+  }
 
   const form = await request.formData();
   const file = form.get("file");
@@ -263,7 +268,20 @@ export async function handleFileUpload(env, request, url) {
   }
 
   const size = file.size || 0;
-  if (size <= 0 || size > MAX_FILE_BYTES) {
+  if (purpose === "ft" && size > MAX_FILE_BYTES && !vpsStoreEnabled(env)) {
+    return json({ error: "need_filestore", maxMb: MAX_FILE_BYTES / (1024 * 1024) }, 413);
+  }
+  if (purpose === "ft") {
+    const limit = await ftLimitBytes(db, userId);
+    const usedRow = await db
+      .prepare(`SELECT COALESCE(SUM(size), 0) AS used FROM user_files WHERE user_id = ? AND purpose = 'ft'`)
+      .bind(userId)
+      .first();
+    const used = Number(usedRow?.used) || 0;
+    if (size <= 0 || used + size > limit) {
+      return json({ error: "storage_full", used, limit, remaining: Math.max(0, limit - used) }, 413);
+    }
+  } else if (size <= 0 || size > MAX_FILE_BYTES) {
     return json({ error: "file_too_large", maxMb: MAX_FILE_BYTES / (1024 * 1024) }, 413);
   }
 
@@ -314,12 +332,16 @@ export async function handleFileGet(env, request, url) {
 
   const cache =
     row.purpose === "showcase" || row.purpose === "blog" ? "public, max-age=86400" : "private, max-age=3600";
+  const apk = /\.apk$/i.test(row.name || "") || String(row.mime || "").includes("android.package");
+  const mime = apk ? "application/vnd.android.package-archive" : row.mime;
+  const disposition = apk || row.purpose === "ft" ? "attachment" : "inline";
+  const safeName = String(row.name || "file").replace(/"/g, "");
   return new Response(body, {
     headers: {
-      "Content-Type": row.mime,
+      "Content-Type": mime,
       "Content-Length": String(body.byteLength),
       "Cache-Control": cache,
-      "Content-Disposition": `inline; filename="${encodeURIComponent(row.name)}"`,
+      "Content-Disposition": `${disposition}; filename="${encodeURIComponent(safeName)}"`,
     },
   });
 }
@@ -356,14 +378,17 @@ export async function handleFileStorageQuota(env, request, url) {
   if (!auth.ok) return json(auth.body, auth.status);
 
   const purpose = url.searchParams.get("purpose") || "syncnote";
+  const extraMb = purpose === "ft" ? await readFtExtraMb(db, userId) : 0;
   const limit =
-    purpose === "showcase"
-      ? SHOWCASE_STORAGE_BYTES
-      : purpose === "blog"
-        ? BLOG_STORAGE_BYTES
-        : purpose === "syncnote"
-          ? SYNCNOTE_STORAGE_BYTES
-          : MAX_FILE_BYTES;
+    purpose === "ft"
+      ? await ftLimitBytes(db, userId)
+      : purpose === "showcase"
+        ? SHOWCASE_STORAGE_BYTES
+        : purpose === "blog"
+          ? BLOG_STORAGE_BYTES
+          : purpose === "syncnote"
+            ? SYNCNOTE_STORAGE_BYTES
+            : MAX_FILE_BYTES;
 
   const row = await db
     .prepare(`SELECT COALESCE(SUM(size), 0) AS used FROM user_files WHERE user_id = ? AND purpose = ?`)
@@ -372,7 +397,7 @@ export async function handleFileStorageQuota(env, request, url) {
   const used = row?.used || 0;
   const remaining = Math.max(0, limit - used);
 
-  return json({ purpose, used, limit, remaining });
+  return json({ purpose, used, limit, remaining, extraMb });
 }
 
 export async function handleFileList(env, request, url) {

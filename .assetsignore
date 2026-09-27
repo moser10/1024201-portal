@@ -15,3 +15,4 @@ install.sh
 .nvmrc
 DEPLOY.md
 .assetsignore
+tools/ft/android/**

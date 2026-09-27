@@ -53,7 +53,8 @@ curl -s https://1024201.com/api/health
 
 | 项目 | 限制 |
 |------|------|
-| 单文件 | **5 MB** |
+| 单文件 | **32 MB**（超快传默认池 **20 MB**，后台可加 MB） |
+| 超快传 | 账号池 20MB + `user_quota_grants.tool=ft`；APK 体积建议走 VPS，未配 VPS 时单文件仍限 5MB |
 | 中转站附件 | 每用户最多 **3** 张图片 |
 | VPS 目录 | 默认 `/var/lib/1024-files` |
 
