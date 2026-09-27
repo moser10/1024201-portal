@@ -9,7 +9,7 @@
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="ft.css?v=10">
+  <link rel="stylesheet" href="ft.css?v=11">
   <script>
     (function () {
       var tv = /(?:\?|&)client=tv(?:&|$)/.test(location.search) || /1024201-FT-TV/i.test(navigator.userAgent || "");
@@ -19,6 +19,10 @@
         document.body.classList.add("ft-tv");
         var t = document.getElementById("pageTitle");
         if (t) t.textContent = "超快传 / Fast Transfer / 超速転送";
+        var sub = document.getElementById("pageSub");
+        if (sub) sub.textContent = "登录后显示可下载文件";
+        var form = document.getElementById("tvLoginForm");
+        if (form) form.removeAttribute("hidden");
         var top = document.getElementById("ftTop");
         var apk = document.getElementById("apkLink");
         if (top) top.remove();
@@ -53,6 +57,7 @@
             <input class="ft-input" id="passIn" type="password" autocomplete="current-password" required />
             <button type="submit" class="btn-primary" id="loginBtn">Sign in</button>
           </form>
+          <p class="err" id="errBox" hidden></p>
 
           <div id="appWrap" hidden>
             <div class="ft-quota">
@@ -66,17 +71,32 @@
               </label>
               <button type="button" class="btn-secondary" id="exitBtn">Exit</button>
             </div>
-            <p class="err" id="errBox" hidden></p>
             <ul class="ft-list" id="fileList"></ul>
             <p class="ft-empty" id="emptyBox" hidden></p>
           </div>
 
-          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk?v=1.3" download="ft-tv-1.3.apk">Download projector/TV APK 1.3</a>
+          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk?v=1.4" download="ft-tv-1.4.apk">Download projector/TV APK 1.4</a>
         </div>
       </div>
     </div>
   </div>
-  <script src="/js/edgeBack.js"></script>
-  <script type="module" src="ft.js?v=11"></script>
+  <script>
+    (function () {
+      var tv = document.documentElement.classList.contains("ft-tv");
+      if (!tv) {
+        var edge = document.createElement("script");
+        edge.src = "/js/edgeBack.js";
+        document.body.appendChild(edge);
+      }
+      var s = document.createElement("script");
+      if (tv) {
+        s.src = "ft-tv.js?v=1";
+      } else {
+        s.type = "module";
+        s.src = "ft.js?v=12";
+      }
+      document.body.appendChild(s);
+    })();
+  </script>
 </body>
 </html>

@@ -113,7 +113,7 @@ function paintQuota(used = quota.used, limit = quota.limit) {
   if (space) space.textContent = copy.space(quota.used, quota.limit);
 }
 
-let apkMeta = { version: "1.3", file: "ft-tv-debug.apk", download: "ft-tv-1.3.apk" };
+let apkMeta = { version: "1.4", file: "ft-tv-debug.apk", download: "ft-tv-1.4.apk" };
 
 async function loadApkMeta() {
   try {

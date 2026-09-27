@@ -13,6 +13,28 @@ body.ft-tv #pageTitle {
   line-height: 1.35;
   white-space: nowrap;
 }
+html.ft-tv .feature-shell,
+body.ft-tv .feature-shell {
+  height: 100%;
+  height: 100vh;
+  max-height: 100%;
+  max-height: 100vh;
+}
+html.ft-tv .ft-form,
+body.ft-tv .ft-form {
+  display: flex;
+}
+html.ft-tv .ft-form[hidden],
+body.ft-tv .ft-form[hidden] {
+  display: none !important;
+}
+html.ft-tv .ft-input,
+body.ft-tv .ft-input,
+html.ft-tv .ft-form .btn-primary,
+body.ft-tv .ft-form .btn-primary {
+  min-height: 48px;
+  font-size: 18px;
+}
 .ft-upload-lab {
   position: relative;
   overflow: hidden;

@@ -1,10 +1,13 @@
 package com.p1024201.ft;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.view.KeyEvent;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.URLUtil;
@@ -12,6 +15,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Button;
 import androidx.core.content.FileProvider;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -21,19 +25,25 @@ import java.net.URL;
 
 public class MainActivity extends Activity {
   static final String HOME = "https://1024201.com/tools/ft/?client=tv";
+  WebView web;
+  AlertDialog exitDialog;
+  boolean exitPromptOpen;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    WebView web = new WebView(this);
+    web = new WebView(this);
     setContentView(web);
     WebSettings settings = web.getSettings();
     settings.setJavaScriptEnabled(true);
     settings.setDomStorageEnabled(true);
+    settings.setDatabaseEnabled(true);
     settings.setAllowFileAccess(false);
     settings.setAllowContentAccess(false);
-    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.3");
-    CookieManager.getInstance().setAcceptCookie(true);
+    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.4");
+    CookieManager cookies = CookieManager.getInstance();
+    cookies.setAcceptCookie(true);
+    cookies.setAcceptThirdPartyCookies(web, true);
     web.setWebViewClient(
       new WebViewClient() {
         @Override
@@ -72,8 +82,47 @@ public class MainActivity extends Activity {
   }
 
   @Override
+  public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
+      if (exitPromptOpen && exitDialog != null && exitDialog.isShowing()) {
+        exitDialog.dismiss();
+        return true;
+      }
+      confirmExit();
+      return true;
+    }
+    return super.onKeyDown(keyCode, event);
+  }
+
+  @Override
   public void onBackPressed() {
-    /* kiosk: stay on FT */
+    confirmExit();
+  }
+
+  void confirmExit() {
+    if (exitPromptOpen && exitDialog != null && exitDialog.isShowing()) return;
+    exitPromptOpen = true;
+    exitDialog =
+      new AlertDialog.Builder(this)
+        .setMessage("要退出超快传吗？")
+        .setNegativeButton("否", (DialogInterface d, int w) -> {})
+        .setPositiveButton("是", (DialogInterface d, int w) -> finish())
+        .setCancelable(true)
+        .setOnDismissListener((DialogInterface d) -> {
+          exitPromptOpen = false;
+        })
+        .create();
+    exitDialog.setOnShowListener(
+      (DialogInterface d) -> {
+        Button no = exitDialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        if (no != null) {
+          no.setFocusable(true);
+          no.setFocusableInTouchMode(true);
+          no.requestFocus();
+        }
+      }
+    );
+    exitDialog.show();
   }
 
   boolean allowed(Uri uri) {
