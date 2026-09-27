@@ -9,7 +9,7 @@
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=7">
-  <link rel="stylesheet" href="ft.css?v=11">
+  <link rel="stylesheet" href="ft.css?v=12">
   <script>
     (function () {
       var tv = /(?:\?|&)client=tv(?:&|$)/.test(location.search) || /1024201-FT-TV/i.test(navigator.userAgent || "");
@@ -75,10 +75,14 @@
             <p class="ft-empty" id="emptyBox" hidden></p>
           </div>
 
-          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk?v=1.4" download="ft-tv-1.4.apk">Download projector/TV APK 1.4</a>
+          <a class="btn-secondary btn-link ft-apk" id="apkLink" href="/tools/ft/dist/ft-tv-debug.apk?v=1.5" download="ft-tv-1.5.apk">Download projector/TV APK 1.5</a>
         </div>
       </div>
     </div>
+  </div>
+  <div id="ftBusy" class="ft-busy" hidden>
+    <img class="ft-busy-icon" src="/icons/apps/ft.svg?v=2" alt="">
+    <p id="ftBusyText">更新中…</p>
   </div>
   <script>
     (function () {
@@ -90,7 +94,7 @@
       }
       var s = document.createElement("script");
       if (tv) {
-        s.src = "ft-tv.js?v=1";
+        s.src = "ft-tv.js?v=2";
       } else {
         s.type = "module";
         s.src = "ft.js?v=12";

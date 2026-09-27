@@ -191,3 +191,34 @@ body.ft-tv .ft-row-hit {
   text-align: left;
   white-space: normal;
 }
+body.ft-tv .ft-row-official .ft-row-hit {
+  background: #e07a3d;
+  color: #f4efe4;
+}
+.ft-busy {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(43, 48, 84, 0.78);
+}
+.ft-busy[hidden] { display: none !important; }
+.ft-busy-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  animation: ft-busy-spin 1s linear infinite;
+}
+.ft-busy p {
+  margin: 0;
+  color: #f4efe4;
+  font-size: 18px;
+  font-weight: 700;
+}
+@keyframes ft-busy-spin {
+  to { transform: rotate(360deg); }
+}

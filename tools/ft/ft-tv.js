@@ -6,6 +6,7 @@
   var DEFAULT_LIMIT = 20 * 1024 * 1024;
   var filesCache = [];
   var quota = { used: 0, limit: DEFAULT_LIMIT };
+  var apkMeta = { version: "1.5", file: "ft-tv-debug.apk", download: "ft-tv-1.5.apk" };
 
   function $(id) {
     return document.getElementById(id);
@@ -55,6 +56,57 @@
     box.textContent = msg || "";
   }
 
+  function showBusy(text) {
+    var box = $("ftBusy");
+    var line = $("ftBusyText");
+    if (line) line.textContent = text || "更新中…";
+    if (box) box.hidden = false;
+  }
+
+  function hideBusy() {
+    var box = $("ftBusy");
+    if (box) box.hidden = true;
+  }
+
+  window.ftDownloadDone = hideBusy;
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) hideBusy();
+  });
+
+  function officialHref() {
+    var file = apkMeta.file || "ft-tv-debug.apk";
+    var v = apkMeta.version || "1.5";
+    return "https://1024201.com/tools/ft/dist/" + file + "?v=" + encodeURIComponent(v);
+  }
+
+  function startDownload(url, text) {
+    showBusy(text || "更新中…");
+    if (window.FtShell && typeof window.FtShell.download === "function") {
+      window.FtShell.download(url);
+      return;
+    }
+    location.assign(url);
+  }
+
+  function takeOfficial() {
+    startDownload(officialHref(), "更新中…");
+  }
+
+  function takeFile(row, uid) {
+    if (!row) return;
+    if (row.official) {
+      takeOfficial();
+      return;
+    }
+    startDownload(
+      "https://1024201.com/api/portal?action=file_get&id=" +
+        encodeURIComponent(row.id) +
+        "&user_id=" +
+        encodeURIComponent(uid),
+      "下载中…"
+    );
+  }
+
   function paintQuota(used, limit) {
     quota = {
       used: Number(used) || 0,
@@ -90,29 +142,31 @@
     el.hidden = false;
   }
 
-  function takeFile(row, uid) {
-    if (!row) return;
-    location.assign(
-      "/api/portal?action=file_get&id=" +
-        encodeURIComponent(row.id) +
-        "&user_id=" +
-        encodeURIComponent(uid)
-    );
+  function userFilesOnly(files) {
+    var out = [];
+    var i;
+    for (i = 0; i < (files || []).length; i++) {
+      if (!/\.apk$/i.test(files[i].name || "")) out.push(files[i]);
+    }
+    return out;
   }
 
   function paintFiles(files, uid) {
-    filesCache = files && files.length ? files : [];
+    filesCache = userFilesOnly(files);
     var list = $("fileList");
     var empty = $("emptyBox");
     if (!list || !empty) return;
-    empty.hidden = filesCache.length > 0;
-    empty.textContent = "还没有文件";
     var html = [];
+    html.push(
+      '<li class="ft-row ft-row-btn ft-row-official" data-id="official-ft">' +
+        '<button type="button" class="btn-primary ft-get ft-row-hit" data-official="1">' +
+        "更新超快传 " +
+        esc(apkMeta.version || "") +
+        " · 安装</button></li>"
+    );
     var i;
     for (i = 0; i < filesCache.length; i++) {
       var f = filesCache[i];
-      var apk = /\.apk$/i.test(f.name || "");
-      var action = apk ? "安装" : "下载";
       html.push(
         '<li class="ft-row ft-row-btn" data-id="' +
           esc(f.id) +
@@ -120,15 +174,19 @@
           esc(f.name) +
           " · " +
           formatStorageMb(f.size) +
-          " · " +
-          esc(action) +
-          "</button></li>"
+          " · 下载</button></li>"
       );
     }
     list.innerHTML = html.join("");
+    empty.hidden = filesCache.length > 0;
+    empty.textContent = "还没有自己的文件（官方安装包不占容量）";
     var buttons = list.querySelectorAll(".ft-get");
     for (i = 0; i < buttons.length; i++) {
       buttons[i].onclick = function () {
+        if (this.getAttribute("data-official") === "1") {
+          takeOfficial();
+          return;
+        }
         var rowEl = this.closest ? this.closest(".ft-row") : this.parentNode;
         var id = rowEl ? rowEl.getAttribute("data-id") : "";
         var row = null;
@@ -144,9 +202,22 @@
     }
   }
 
+  function loadApkMeta() {
+    fetch("/tools/ft/dist/ft-tv.json?v=" + Date.now())
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (data && data.version) apkMeta = data;
+        if (userIdOf()) paintFiles(filesCache, userIdOf());
+      })
+      .catch(function () {});
+  }
+
   function refreshRemote() {
     var uid = userIdOf();
     if (!uid) return;
+    paintFiles(filesCache, uid);
     fetch("/api/portal?action=file_list&purpose=ft&user_id=" + encodeURIComponent(uid))
       .then(function (r) {
         return r.json().then(function (data) {
@@ -183,13 +254,7 @@
     paintUser();
     if (loggedIn) {
       paintQuota(quota.used, quota.limit);
-      if (!filesCache.length) {
-        var empty = $("emptyBox");
-        if (empty) {
-          empty.hidden = false;
-          empty.textContent = "还没有文件";
-        }
-      }
+      paintFiles(filesCache, userIdOf());
       refreshRemote();
     }
   }
@@ -220,6 +285,7 @@
     if (lblP) lblP.textContent = "密码";
     if (btn) btn.textContent = "登录";
     document.title = "超快传 / Fast Transfer / 超速転送 | 1024201";
+    loadApkMeta();
 
     var form = $("tvLoginForm");
     if (form) {
