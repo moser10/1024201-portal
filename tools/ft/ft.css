@@ -1,5 +1,5 @@
 .ft-card { background: #fff; }
-.ft-title-tri {
+body.ft-tv #pageTitle {
   font-size: clamp(13px, 3.4vw, 18px);
   line-height: 1.35;
   white-space: nowrap;
@@ -60,24 +60,36 @@
   border-radius: 10px;
   font-size: 16px;
 }
-.ft-hp {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
-  height: 12px;
-  margin: 0 0 8px;
+.ft-quota {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
 }
-.ft-hp-seg {
+.ft-hp {
+  flex: 0 0 66%;
+  max-width: 66%;
+  height: 12px;
   border-radius: 6px;
   background: #e5e5ea;
+  overflow: hidden;
 }
-.ft-hp-seg.is-g.is-on { background: #30d158; }
-.ft-hp-seg.is-y.is-on { background: #ffd60a; }
-.ft-hp-seg.is-r.is-on { background: #ff3b30; }
+.ft-hp-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 6px;
+  background: #30d158;
+}
+.ft-hp[data-level="warn"] .ft-hp-fill { background: #ffd60a; }
+.ft-hp[data-level="low"] .ft-hp-fill { background: #ff3b30; }
+.ft-hp[data-level="empty"] .ft-hp-fill { background: transparent; width: 0 !important; }
 .ft-space {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   color: #8e8e93;
-  margin: 0 0 10px;
+  margin: 0;
 }
 .ft-upload-lab {
   display: inline-flex;

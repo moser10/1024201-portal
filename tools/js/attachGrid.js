@@ -124,8 +124,9 @@ export async function uploadFile({ file, purpose, slot, userId, meta }) {
   const q = new URLSearchParams({ action: "file_upload", purpose, user_id: String(userId) });
   if (slot !== undefined && slot !== null) q.set("slot", String(slot));
   const res = await fetch(`/api/portal?${q}`, { method: "POST", body: fd });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "upload_failed");
+  if (!data.file?.id) throw new Error(data.error || "upload_failed");
   return data.file;
 }
 

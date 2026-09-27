@@ -267,7 +267,8 @@ export async function handleFileUpload(env, request, url) {
     return json({ error: "images_only" }, 400);
   }
 
-  const size = file.size || 0;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const size = bytes.byteLength || Number(file.size) || 0;
   if (purpose === "ft" && size > MAX_FILE_BYTES && !vpsStoreEnabled(env)) {
     return json({ error: "need_filestore", maxMb: MAX_FILE_BYTES / (1024 * 1024) }, 413);
   }
@@ -289,8 +290,7 @@ export async function handleFileUpload(env, request, url) {
   const name = file.name || "upload";
   const meta = form.get("meta");
   const metaStr = typeof meta === "string" ? meta : "{}";
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const backend = vpsStoreEnabled(env) ? "vps" : "d1";
+  const backend = size > MAX_FILE_BYTES && vpsStoreEnabled(env) ? "vps" : "d1";
 
   await db
     .prepare(
