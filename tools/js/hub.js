@@ -56,7 +56,7 @@ const TOOLS = [
   {
     id: "cli",
     title: { zh: "命令行", en: "CLI", ja: "CLI" },
-    sub: { zh: "命令、注册与配额", en: "Commands, register & quotas", ja: "コマンド・登録と割当" },
+        sub: { zh: "终端命令 · 超快传与配额", en: "Commands · Fast Transfer & quotas", ja: "コマンド・超速転送と割当" },
     href: "cli/",
     gradient: "linear-gradient(135deg, #636366 0%, #1c1c1e 100%)",
     icon: `<span class="tool-icon-cli">CLI</span>`,

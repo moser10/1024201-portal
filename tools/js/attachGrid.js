@@ -130,11 +130,11 @@ export async function uploadFile({ file, purpose, slot, userId, meta }) {
   return data.file;
 }
 
-export async function deleteFile({ id, userId }) {
+export async function deleteFile({ id, userId, purpose }) {
   const res = await fetch("/api/portal?action=file_delete", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId, id }),
+    body: JSON.stringify({ user_id: userId, id, purpose: purpose || "" }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "delete_failed");

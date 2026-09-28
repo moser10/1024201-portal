@@ -5,7 +5,7 @@ import path from "node:path";
 const CONFIG_PATH = path.join(os.homedir(), ".config", "1024", "config.json");
 const LEGACY_PATH = path.join(os.homedir(), ".1024", "credentials");
 
-export const VERSION = "1.2.0";
+export const VERSION = "1.3.0";
 export const DEFAULT_API_BASE = "https://1024201.com";
 
 function readJson(file) {

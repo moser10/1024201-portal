@@ -79,6 +79,12 @@ body.ft-tv .ft-form .btn-primary {
 .btn-primary { background: #007aff; color: #fff; }
 .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
 .btn-danger { background: #ff3b30; color: #fff; }
+.ft-del:disabled {
+  background: #c7c7cc;
+  color: #8e8e93;
+  opacity: 1;
+  cursor: not-allowed;
+}
 .ft-form .btn-primary { width: 100%; }
 .ft-label {
   font-size: 12px;

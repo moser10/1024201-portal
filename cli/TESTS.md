@@ -10,7 +10,7 @@
 
 | # | 命令 | 预期 |
 |---|------|------|
-| 0.1 | `1024 --version` | 输出 `1.0.0` |
+| 0.1 | `1024 --version` | 输出 `1.3.0` |
 | 0.2 | `1024 help` | 打印命令列表，退出码 0 |
 | 0.3 | `1024 nope` | 报错 `Unknown command`，退出码非 0 |
 
@@ -129,8 +129,10 @@ CLI 注册码规则：纯 6 位数字；排除豹子号（111111）、顺子（1
 1024 music chart --json | head -c 120
 1024 lyrics quota
 1024 pdf quota
+1024 ft quota
 # 登录后：
 # 1024 auth login --email YOUR_EMAIL --password 'YOUR_PASS'
+# 1024 ft list
 # 1024 syncnote set "smoke-$(date +%s)" --slot 1
 # 1024 syncnote get --slot 1
 ```

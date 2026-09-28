@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v156";
+const CACHE = "1042-pwa-v157";
 const SHELL = [
   "/",
   "/index.html",
@@ -20,6 +20,7 @@ const SHELL = [
   "/js/featurePage.css?v=7",
   "/js/featurePage.css?v=8",
   "/js/featurePage.css?v=9",
+  "/js/featurePage.css?v=10",
   "/js/portalModal.js?v=1",
   "/js/navBack.js?v=1",
   "/js/navBack.js?v=2",

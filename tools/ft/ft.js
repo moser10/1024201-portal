@@ -2,9 +2,10 @@ import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser, setUser, clearUser } from "/game/js/store.js";
 import { loginHref } from "../js/quotaClient.js";
 import { paintToolUser } from "../js/toolPageBoot.js";
-import { uploadFile, deleteFile, downloadFileEntry } from "../js/attachGrid.js";
+import { uploadFile, deleteFile, downloadFileEntry } from "../js/attachGrid.js?v=2";
 import { fetchFileStorage, formatStorageMb } from "../js/storageQuota.js";
 import { hallBackLabel } from "/js/navBack.js?v=3";
+import { showToast } from "/game/js/toast.js";
 
 const TRI_TITLE = "超快传 / Fast Transfer / 超速転送";
 
@@ -23,6 +24,7 @@ const UI = {
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
     apk: (v) => `下载投影仪/电视机 APK ${v}`,
     del: "删除",
+    deleted: "已删除",
     get: "下载",
     install: "安装",
     err: "失败",
@@ -43,6 +45,7 @@ const UI = {
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
     apk: (v) => `Download projector/TV APK ${v}`,
     del: "Delete",
+    deleted: "Deleted",
     get: "Download",
     install: "Install",
     err: "Failed",
@@ -63,6 +66,7 @@ const UI = {
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
     apk: (v) => `プロジェクター/テレビ用APK ${v} をダウンロード`,
     del: "削除",
+    deleted: "削除しました",
     get: "ダウンロード",
     install: "インストール",
     err: "失敗",
@@ -98,6 +102,8 @@ function showErr(msg) {
 const DEFAULT_LIMIT = 20 * 1024 * 1024;
 let quota = { used: 0, limit: DEFAULT_LIMIT };
 let filesCache = [];
+let listGen = 0;
+const deletingIds = new Set();
 
 function paintQuota(used = quota.used, limit = quota.limit) {
   quota = { used: Number(used) || 0, limit: Number(limit) || DEFAULT_LIMIT };
@@ -194,7 +200,7 @@ function paintFiles(files, uid = userIdOf()) {
       return `<li class="ft-row" data-id="${esc(f.id)}">
         <div class="ft-row-name">${esc(f.name)}<span class="ft-row-meta">${formatStorageMb(f.size)}</span></div>
         <button type="button" class="btn-primary ft-get">${esc(action)}</button>
-        <button type="button" class="btn-danger ft-del">${esc(copy.del)}</button>
+        <button type="button" class="btn-danger ft-del"${deletingIds.has(String(f.id)) ? " disabled" : ""}>${esc(copy.del)}</button>
       </li>`;
     })
     .join("");
@@ -207,15 +213,24 @@ function paintFiles(files, uid = userIdOf()) {
   });
   list.querySelectorAll(".ft-del").forEach((btn) => {
     btn.onclick = async () => {
-      const id = btn.closest(".ft-row").dataset.id;
+      if (btn.disabled) return;
+      const id = String(btn.closest(".ft-row").dataset.id || "");
+      if (!id || deletingIds.has(id)) return;
+      deletingIds.add(id);
+      btn.disabled = true;
+      showErr("");
       try {
-        const gone = filesCache.find((f) => f.id === id);
-        await deleteFile({ id, userId: uid });
-        filesCache = filesCache.filter((f) => f.id !== id);
+        const gone = filesCache.find((f) => String(f.id) === id);
+        await deleteFile({ id, userId: uid, purpose: "ft" });
+        filesCache = filesCache.filter((f) => String(f.id) !== id);
+        deletingIds.delete(id);
         paintFiles(filesCache, uid);
         paintQuota(Math.max(0, quota.used - (Number(gone?.size) || 0)), quota.limit);
+        showToast(copy.deleted);
         refreshRemote();
       } catch (e) {
+        deletingIds.delete(id);
+        btn.disabled = false;
         showErr(e.message || copy.err);
       }
     };
@@ -238,6 +253,7 @@ async function takeFile(row, uid) {
 async function refreshRemote() {
   const uid = userIdOf();
   if (!uid) return;
+  const gen = ++listGen;
   const listP = fetch(`/api/portal?action=file_list&purpose=ft&user_id=${encodeURIComponent(uid)}`).then(async (r) => {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || copy.err);
@@ -246,11 +262,20 @@ async function refreshRemote() {
   const storeP = fetchFileStorage(uid, "ft").catch(() => null);
   try {
     const files = await listP;
-    paintFiles(files, uid);
+    if (gen !== listGen) return;
+    const next = files.slice();
+    deletingIds.forEach((id) => {
+      if (next.some((f) => String(f.id) === id)) return;
+      const local = filesCache.find((f) => String(f.id) === id);
+      if (local) next.push(local);
+    });
+    paintFiles(next, uid);
   } catch (e) {
+    if (gen !== listGen) return;
     showErr(e.message || copy.err);
   }
   const storage = await storeP;
+  if (gen !== listGen) return;
   if (storage) paintQuota(storage.used, storage.limit);
 }
 

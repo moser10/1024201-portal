@@ -3,28 +3,28 @@ import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 const COPY = {
   zh: {
     pageTitle: "命令行",
-    pageSub: "在终端调用 1024201 工具 · 与网页共用接口与配额",
+    pageSub: "终端调用 1024201 · 与网页同一套接口和配额",
     backLink: "返回大厅",
-    statusBadge: "命令行 v1.2 已上线",
+    statusBadge: "CLI v1.3",
     introTitle: "概述",
     intro:
-      "命令行是网页工具的终端前端。注册分步校验邮箱与昵称、两次确认密码，邮件 6 位注册码验证后自动登录。快捷入口：cli.1024201.com",
+      "用 1024 命令在终端完成注册、登录，以及歌词、汇率、音乐、文本中转站、超快传等。快捷入口：cli.1024201.com",
     installTitle: "安装",
-    installNote: "v1.2 支持分步注册与修改密码。完整测试见仓库 cli/TESTS.md。",
+    installNote: "需要 git 与 npm。装好后用 1024 --version 确认。",
     sections: {
       auth: {
         title: "鉴权",
-        lead: "注册按步骤进行：① 邮箱是否可用 ② 昵称是否可用（占用则提示推荐）③ 设置密码并再次确认（不一致可重试 5 次）④ 输入邮件 6 位注册码。成功后可用 whoami 查看状态。",
+        lead: "① 检查邮箱 ② 检查昵称 ③ 设置密码并再输一次（不一致最多 5 次）④ 邮件 6 位注册码。登录后可改密、查看身份。",
         cmds: [
-          { cmd: "1024 auth register", desc: "交互式注册（推荐）：逐步提示，含邮箱/昵称校验与两次密码确认" },
+          { cmd: "1024 auth register", desc: "交互式注册：校验邮箱与昵称、两次确认密码、填写注册码" },
           {
             cmd: '1024 auth register <span class="flag">--email</span> <span class="arg">邮箱</span> <span class="flag">--username</span> <span class="arg">昵称</span> <span class="flag">--password</span> <span class="arg">密码</span>',
-            desc: "非交互注册（仍须 verify）",
+            desc: "非交互注册（随后仍须 verify）",
           },
-          { cmd: '1024 auth verify <span class="flag">--email</span> <span class="arg">邮箱</span> <span class="flag">--code</span> <span class="arg">123456</span>', desc: "单独提交注册码（中断后可续）" },
-          { cmd: "1024 auth login", desc: "已有账号登录" },
-          { cmd: "1024 auth passwd", desc: "修改密码：验证当前密码 → 新密码两次确认（须已登录）" },
-          { cmd: "1024 auth whoami", desc: "查看当前 @用户名 与 id" },
+          { cmd: '1024 auth verify <span class="flag">--email</span> <span class="arg">邮箱</span> <span class="flag">--code</span> <span class="arg">123456</span>', desc: "提交注册码" },
+          { cmd: "1024 auth login", desc: "登录已有账号" },
+          { cmd: "1024 auth passwd", desc: "修改密码（须已登录）" },
+          { cmd: "1024 auth whoami", desc: "显示当前用户" },
           { cmd: "1024 auth logout", desc: "退出并清除本地令牌" },
           { cmd: "1024 auth token", desc: "查看令牌（脱敏）" },
         ],
@@ -66,24 +66,30 @@ const COPY = {
       },
       pdf: {
         title: "PDF 转换",
-        lead: "将 Word、Markdown、TXT 转为 PDF。",
+        lead: "配额与网页相同。文件转换在网页浏览器内完成。",
         cmds: [
-          { cmd: "1024 pdf quota", desc: "查看 PDF 转换今日配额" },
-          {
-            cmd: '1024 pdf convert <span class="arg">文件.docx</span> <span class="flag">--out</span> 输出.pdf',
-            desc: "上传并转换（规划中；网页端为浏览器本地转换）",
-          },
+          { cmd: "1024 pdf quota", desc: "查看今日 PDF 转换配额" },
         ],
       },
       syncnote: {
         title: "文本中转站",
         cmds: [
-          { cmd: '1024 syncnote get <span class="flag">--slot</span> 0', desc: "读取指定槽位内容（须登录）" },
+          { cmd: '1024 syncnote get <span class="flag">--slot</span> 0', desc: "读取槽位（须登录）" },
           {
             cmd: '1024 syncnote set <span class="arg">"文本"</span> <span class="flag">--slot</span> 1',
-            desc: "写入指定槽位（须登录）",
+            desc: "写入槽位（须登录）",
           },
-          { cmd: '1024 syncnote clear <span class="flag">--slot</span> 2', desc: "清空指定槽位（须登录）" },
+          { cmd: '1024 syncnote clear <span class="flag">--slot</span> 2', desc: "清空槽位（须登录）" },
+        ],
+      },
+      ft: {
+        title: "超快传",
+        lead: "登录后上传、列出、删除文件。容量默认 20 MB，后台可加额度。",
+        cmds: [
+          { cmd: "1024 ft list", desc: "列出文件" },
+          { cmd: '1024 ft upload <span class="arg">文件</span>', desc: "上传文件" },
+          { cmd: '1024 ft delete <span class="arg">编号</span>', desc: "按编号删除" },
+          { cmd: "1024 ft quota", desc: "查看已用容量" },
         ],
       },
     },
@@ -111,7 +117,6 @@ const COPY = {
     errors: [
       ["401 / 403 须登录", "执行 1024 auth login"],
       ["403 当日配额已满", "今日次数已用完"],
-      ["429（规划）", "每分钟请求过快"],
     ],
     configPaths: ["~/.config/1024/config.json", "~/.1024/credentials"],
     configDesc: "存放接口地址、令牌与用户信息的本地文件路径。",
@@ -120,25 +125,25 @@ const COPY = {
       { tool: "歌词搜索", guest: "1", user: "5", login: "否", api: "lyrics_search", note: "仅搜索计次 · 网页可看广告 +1（命令行暂不支持）" },
       { tool: "歌词详情 / 翻译", guest: "开放", user: "开放", login: "否", api: "lyrics_get, translate", note: "不限次" },
       { tool: "PDF 转换", guest: "1", user: "5", login: "否", api: "pdf_use", note: "Word / Markdown / TXT → PDF；网页本地转换" },
-      { tool: "文本中转站", guest: "—", user: "不限次", login: "是", api: "syncnote_*", note: "须登录，不限次" },
-      { tool: "鉴权 / 注册 / 改密", guest: "—", user: "—", login: "—", api: "check / register / verify_code / cli_change_password", note: "注册分步校验；改密须已登录" },
-      { tool: "全局限流", guest: "60 次/分", user: "120 次/分", login: "否", api: "所有 /api/*", note: "规划中" },
+      { tool: "文本中转站", guest: "—", user: "不限次", login: "是", api: "syncnote_*", note: "须登录" },
+      { tool: "超快传", guest: "—", user: "20 MB", login: "是", api: "file_list / file_upload / file_delete / file_storage", note: "须登录 · 后台可加容量" },
+      { tool: "鉴权 / 注册 / 改密", guest: "—", user: "—", login: "—", api: "check / register / verify_code / cli_change_password", note: "分步注册；改密须已登录" },
     ],
   },
   en: {
     pageTitle: "CLI",
-    pageSub: "Run 1024201 tools from the terminal · same API & quotas as the web",
+    pageSub: "Run 1024201 from the terminal · same APIs and quotas as the web",
     backLink: "Back to lobby",
-    statusBadge: "CLI v1.2 is live",
+    statusBadge: "CLI v1.3",
     introTitle: "Overview",
     intro:
-      "Terminal front-end for the same APIs as the website. Register in the CLI (6-digit code by email), then use tools with a saved token. Shortcut: cli.1024201.com",
+      "The 1024 command signs you in and runs lyrics, FX, music, text relay, and Fast Transfer. Shortcut: cli.1024201.com",
     installTitle: "Install",
-    installNote: "v1.2 adds step-by-step register and passwd. See cli/TESTS.md in the repo.",
+    installNote: "Needs git and npm. Confirm with 1024 --version.",
     sections: {
       auth: {
         title: "Auth",
-        lead: "Step-by-step register: email check → username check → password ×2 (5 retries) → 6-digit mail code. passwd changes password when logged in.",
+        lead: "Email check → username check → password twice (5 retries) → 6-digit mail code. Change password after login.",
         cmds: [
           { cmd: "1024 auth register", desc: "Interactive register (recommended)" },
           { cmd: '1024 auth verify <span class="flag">--email</span> <span class="arg">addr</span> <span class="flag">--code</span> <span class="arg">123456</span>', desc: "Submit code only (resume)" },
@@ -186,24 +191,30 @@ const COPY = {
       },
       pdf: {
         title: "PDF Convert",
-        lead: "Convert Word, Markdown, and TXT to PDF.",
+        lead: "Same daily quota as the website. Conversion runs in the browser.",
         cmds: [
-          { cmd: "1024 pdf quota", desc: "Show PDF convert quota for today" },
-          {
-            cmd: '1024 pdf convert <span class="arg">file.docx</span> <span class="flag">--out</span> out.pdf',
-            desc: "Upload and convert (planned; web uses client-side conversion)",
-          },
+          { cmd: "1024 pdf quota", desc: "Show today's PDF convert quota" },
         ],
       },
       syncnote: {
         title: "Text Relay",
         cmds: [
-          { cmd: '1024 syncnote get <span class="flag">--slot</span> 0', desc: "Read slot content (login required)" },
+          { cmd: '1024 syncnote get <span class="flag">--slot</span> 0', desc: "Read a slot (login required)" },
           {
             cmd: '1024 syncnote set <span class="arg">"text"</span> <span class="flag">--slot</span> 1',
-            desc: "Write slot content (login required)",
+            desc: "Write a slot (login required)",
           },
-          { cmd: '1024 syncnote clear <span class="flag">--slot</span> 2', desc: "Clear slot (login required)" },
+          { cmd: '1024 syncnote clear <span class="flag">--slot</span> 2', desc: "Clear a slot (login required)" },
+        ],
+      },
+      ft: {
+        title: "Fast Transfer",
+        lead: "Upload, list, and delete files after login. Default capacity is 20 MB.",
+        cmds: [
+          { cmd: "1024 ft list", desc: "List files" },
+          { cmd: '1024 ft upload <span class="arg">file</span>', desc: "Upload a file" },
+          { cmd: '1024 ft delete <span class="arg">id</span>', desc: "Delete by id" },
+          { cmd: "1024 ft quota", desc: "Show used storage" },
         ],
       },
     },
@@ -231,7 +242,6 @@ const COPY = {
     errors: [
       ["401 / 403 login_required", "Run 1024 auth login"],
       ["403 daily_limit", "Today's quota used up"],
-      ["429 (planned)", "Per-minute rate limit"],
     ],
     configPaths: ["~/.config/1024/config.json", "~/.1024/credentials"],
     configDesc: "Local paths for API base URL, token, and user info.",
@@ -241,20 +251,20 @@ const COPY = {
       { tool: "lyrics get / translate", guest: "Open", user: "Open", login: "No", api: "lyrics_get, translate", note: "Unlimited" },
       { tool: "PDF convert", guest: "1", user: "5", login: "No", api: "pdf_use", note: "Word / Markdown / TXT → PDF; web is client-side" },
       { tool: "Text Relay", guest: "—", user: "Unlimited", login: "Yes", api: "syncnote_*", note: "Login required" },
+      { tool: "Fast Transfer", guest: "—", user: "20 MB", login: "Yes", api: "file_list / file_upload / file_delete / file_storage", note: "Login required" },
       { tool: "auth / register / passwd", guest: "—", user: "—", login: "—", api: "check / register / verify_code / cli_change_password", note: "Step register; passwd needs login" },
-      { tool: "global rate limit", guest: "60/min", user: "120/min", login: "No", api: "all /api/*", note: "Planned" },
     ],
   },
   ja: {
     pageTitle: "CLI",
-    pageSub: "ターミナルから 1024201 ツール · Web と同じ API・割当",
+    pageSub: "ターミナルから 1024201 · Web と同じ API と割当",
     backLink: "ロビーへ",
-    statusBadge: "CLI v1.2 稼働中",
+    statusBadge: "CLI v1.3",
     introTitle: "概要",
     intro:
-      "Web と同じ API のターミナル版。登録はメール・ニックネーム確認、パスワード二回入力、6 桁コードで完了。ショートカット：cli.1024201.com",
+      "1024 コマンドで登録・ログインし、歌詞・為替・音楽・テキスト中継・超速転送を使います。ショートカット：cli.1024201.com",
     installTitle: "インストール",
-    installNote: "v1.2 で段階的登録と passwd 対応。テストは cli/TESTS.md。",
+    installNote: "git と npm が必要です。1024 --version で確認します。",
     sections: {
       auth: {
         title: "認証",
@@ -306,13 +316,9 @@ const COPY = {
       },
       pdf: {
         title: "PDF 変換",
-        lead: "Word・Markdown・TXT を PDF に変換。",
+        lead: "割当は Web と同じ。変換はブラウザ側で行います。",
         cmds: [
-          { cmd: "1024 pdf quota", desc: "PDF 変換の本日割当" },
-          {
-            cmd: '1024 pdf convert <span class="arg">file.docx</span> <span class="flag">--out</span> out.pdf',
-            desc: "アップロード変換（予定 · Web はブラウザ側）",
-          },
+          { cmd: "1024 pdf quota", desc: "本日の PDF 変換割当" },
         ],
       },
       syncnote: {
@@ -324,6 +330,16 @@ const COPY = {
             desc: "スロットに書き込み（要ログイン）",
           },
           { cmd: '1024 syncnote clear <span class="flag">--slot</span> 2', desc: "スロットをクリア（要ログイン）" },
+        ],
+      },
+      ft: {
+        title: "超速転送",
+        lead: "ログイン後にファイルの一覧・アップロード・削除。容量は既定 20 MB。",
+        cmds: [
+          { cmd: "1024 ft list", desc: "ファイル一覧" },
+          { cmd: '1024 ft upload <span class="arg">ファイル</span>', desc: "アップロード" },
+          { cmd: '1024 ft delete <span class="arg">id</span>', desc: "ID で削除" },
+          { cmd: "1024 ft quota", desc: "使用容量" },
         ],
       },
     },
@@ -351,7 +367,6 @@ const COPY = {
     errors: [
       ["401 / 403 login_required", "1024 auth login を実行"],
       ["403 daily_limit", "本日の割当を使い切り"],
-      ["429（予定）", "短時間にリクエスト過多"],
     ],
     configPaths: ["~/.config/1024/config.json", "~/.1024/credentials"],
     configDesc: "API ベース URL・トークン・ユーザー情報の保存先。",
@@ -361,8 +376,8 @@ const COPY = {
       { tool: "歌詞取得 / 翻訳", guest: "制限なし", user: "制限なし", login: "いいえ", api: "lyrics_get, translate", note: "無制限" },
       { tool: "PDF 変換", guest: "1", user: "5", login: "いいえ", api: "pdf_use", note: "Word / Markdown / TXT → PDF · Web はローカル" },
       { tool: "テキスト中継", guest: "—", user: "無制限", login: "はい", api: "syncnote_*", note: "要ログイン" },
+      { tool: "超速転送", guest: "—", user: "20 MB", login: "はい", api: "file_list / file_upload / file_delete / file_storage", note: "要ログイン" },
       { tool: "認証 / 登録 / passwd", guest: "—", user: "—", login: "—", api: "check / register / verify_code / cli_change_password", note: "段階登録・passwd は要ログイン" },
-      { tool: "全体レート制限", guest: "60/分", user: "120/分", login: "いいえ", api: "すべての /api/*", note: "予定" },
     ],
   },
 };
@@ -374,7 +389,7 @@ const CONFIG_JSON = `{
   "username": "you"
 }`;
 
-const SECTION_ORDER = ["auth", "global", "fx", "music", "lyrics", "pdf", "syncnote"];
+const SECTION_ORDER = ["auth", "global", "fx", "music", "lyrics", "pdf", "syncnote", "ft"];
 
 function renderCmdList(cmds) {
   return `<div class="cli-cmd-list">${cmds

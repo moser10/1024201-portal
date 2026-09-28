@@ -50,6 +50,30 @@ export function portalPost(action, body, query, opts) {
   return apiRequest("/api/portal", { method: "POST", query: { action, ...query }, body, ...opts });
 }
 
+export async function portalForm(action, form, query = {}, { auth = true } = {}) {
+  const cfg = loadConfig();
+  const url = new URL("/api/portal", cfg.api_base);
+  url.searchParams.set("action", action);
+  for (const [k, v] of Object.entries(query)) {
+    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+  }
+  const headers = { Accept: "application/json" };
+  if (auth && cfg.token) headers.Authorization = `Bearer ${cfg.token}`;
+  const res = await fetch(url, { method: "POST", headers, body: form });
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new ApiError(`Invalid JSON (${res.status})`, res.status, text);
+  }
+  if (!res.ok) {
+    const msg = data.error || data.message || `HTTP ${res.status}`;
+    throw new ApiError(msg, res.status, data);
+  }
+  return data;
+}
+
 export function authGet(action, opts) {
   return apiRequest("/api/auth", { query: { action }, ...opts });
 }

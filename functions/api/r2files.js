@@ -369,10 +369,10 @@ export async function handleFileGet(env, request, url) {
 
 export async function handleFileDelete(env, request, url) {
   const db = requireDb(env);
-  await ensureAppSchema(db);
-  await ensureFilesSchema(db);
-
   const body = await request.json().catch(() => ({}));
+  const purposeHint = body.purpose || url.searchParams.get("purpose") || "";
+  await readyFilesDb(db, purposeHint || "syncnote");
+
   const userId = await resolveUserId(request, env, url, body);
   const auth = await requireRegisteredUser(db, userId);
   if (!auth.ok) return json(auth.body, auth.status);

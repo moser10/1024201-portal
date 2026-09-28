@@ -1,6 +1,8 @@
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { ApiError, authGet, authPost, portalGet, portalPost } from "./api.js";
+import fs from "node:fs";
+import path from "node:path";
+import { ApiError, authGet, authPost, portalForm, portalGet, portalPost } from "./api.js";
 import { clearAuth, configPath, loadConfig, saveConfig, VERSION } from "./config.js";
 import {
   promptRegistrationCode,
@@ -185,16 +187,22 @@ async function cmdGeo(asJson) {
 }
 
 async function cmdQuota(flags, asJson) {
-  const [lyrics, pdf] = await Promise.all([
+  const [lyrics, pdf, ft] = await Promise.all([
     portalGet("lyrics_quota", {}, { auth: true }),
     portalGet("pdf_quota", {}, { auth: true }),
+    portalGet("file_storage", { purpose: "ft" }, { auth: true }).catch(() => null),
   ]);
   if (asJson) {
-    print({ lyrics, pdf }, true);
+    print({ lyrics, pdf, ft }, true);
     return;
   }
   printQuota("lyrics", lyrics, false);
   printQuota("pdf", pdf, false);
+  if (ft) {
+    const usedMb = (Number(ft.used) || 0) / (1024 * 1024);
+    const limitMb = (Number(ft.limit) || 0) / (1024 * 1024);
+    console.log(`ft: ${usedMb.toFixed(2)} / ${limitMb.toFixed(1)} MB`);
+  }
 }
 
 async function cmdFx(sub, flags, asJson) {
@@ -292,8 +300,58 @@ async function cmdSyncnote(sub, flags, rest, asJson) {
   throw new Error("Usage: 1024 syncnote get|set|clear [--slot N]");
 }
 
+function formatMb(bytes) {
+  const mb = Number(bytes || 0) / (1024 * 1024);
+  if (mb >= 10) return `${mb.toFixed(1)} MB`;
+  return `${mb.toFixed(2)} MB`;
+}
+
+async function cmdFt(sub, flags, rest, asJson) {
+  if (sub === "quota") {
+    const data = await portalGet("file_storage", { purpose: "ft" }, { auth: true });
+    if (asJson) return print(data, true);
+    console.log(`ft: ${formatMb(data.used)} / ${formatMb(data.limit)}`);
+    return;
+  }
+  if (sub === "list") {
+    const data = await portalGet("file_list", { purpose: "ft" }, { auth: true });
+    if (asJson) return print(data, true);
+    const files = data.files || [];
+    if (!files.length) {
+      console.log("No files.");
+      return;
+    }
+    for (const f of files) {
+      console.log(`${f.id}\t${formatMb(f.size)}\t${f.name}`);
+    }
+    return;
+  }
+  if (sub === "upload") {
+    const filePath = rest[0] || flags.file;
+    if (!filePath) throw new Error("Usage: 1024 ft upload <file>");
+    const abs = path.resolve(filePath);
+    if (!fs.existsSync(abs)) throw new Error(`File not found: ${filePath}`);
+    const buf = fs.readFileSync(abs);
+    const form = new FormData();
+    form.append("file", new Blob([buf]), path.basename(abs));
+    const data = await portalForm("file_upload", form, { purpose: "ft" }, { auth: true });
+    if (asJson) return print(data, true);
+    const f = data.file || {};
+    console.log(`Uploaded ${f.name || path.basename(abs)} (${f.id || ""})`);
+    return;
+  }
+  if (sub === "delete") {
+    const id = rest[0] || flags.id;
+    if (!id) throw new Error("Usage: 1024 ft delete <id>");
+    const data = await portalPost("file_delete", { id, purpose: "ft" }, {}, { auth: true });
+    print(asJson ? data : `Deleted ${id}`, asJson);
+    return;
+  }
+  throw new Error("Usage: 1024 ft list|upload|delete|quota");
+}
+
 function help() {
-  console.log(`1024 v${VERSION} — 1024201 portal CLI
+  console.log(`1024 v${VERSION} — 1024201 CLI
 
 Usage:
   1024 auth register|verify|login|passwd|logout|whoami|token
@@ -305,8 +363,10 @@ Usage:
   1024 lyrics get <id>
   1024 lyrics quota
   1024 pdf quota
-  1024 pdf convert <file> [--out out.pdf]   (browser-only for now)
   1024 syncnote get|set|clear [--slot 0-2]
+  1024 ft list|quota
+  1024 ft upload <file>
+  1024 ft delete <id>
 
 Docs: https://1024201.com/tools/cli/
 `);
@@ -346,6 +406,8 @@ export async function run(argv) {
         return cmdPdf(sub, flags, rest, asJson);
       case "syncnote":
         return cmdSyncnote(sub, flags, rest, asJson);
+      case "ft":
+        return cmdFt(sub, flags, rest, asJson);
       default:
         if (group === "help") {
           help();

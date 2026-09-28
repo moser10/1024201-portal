@@ -32,9 +32,9 @@
       ja: { backLink: "作品展示" },
     },
     cli: {
-      en: { pageTitle: "CLI", pageSub: "Run 1024201 tools from the terminal · same API & quotas as the web", backLink: "Back to lobby" },
-      zh: { pageTitle: "命令行", pageSub: "在终端调用 1024201 工具 · 与网页共用接口与配额", backLink: "返回大厅" },
-      ja: { pageTitle: "CLI", pageSub: "ターミナルから 1024201 ツール · Web と同じ API・割当", backLink: "ロビーへ" },
+      en: { pageTitle: "CLI", pageSub: "Run 1024201 from the terminal · same APIs and quotas as the web", backLink: "Back to lobby" },
+      zh: { pageTitle: "命令行", pageSub: "终端调用 1024201 · 与网页同一套接口和配额", backLink: "返回大厅" },
+      ja: { pageTitle: "CLI", pageSub: "ターミナルから 1024201 · Web と同じ API と割当", backLink: "ロビーへ" },
     },
     address: {
       en: { pageTitle: "Address Lookup", pageSub: "Rental & sale addresses · postal codes · phone prefixes", backLink: "Back to lobby" },
