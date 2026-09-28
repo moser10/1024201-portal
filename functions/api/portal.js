@@ -72,7 +72,7 @@ export async function onRequest(context) {
   if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   if (request.method === "GET" && action === "ping") {
-    return json({ ok: true, t: Date.now() });
+    return json({ ok: true, t: Date.now(), ip: clientIp(request) });
   }
   if (request.method === "GET" && action === "visit_count") {
     return visitCountGet(env);

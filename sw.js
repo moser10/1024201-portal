@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v158";
+const CACHE = "1042-pwa-v159";
 const SHELL = [
   "/",
   "/index.html",
@@ -28,6 +28,7 @@ const SHELL = [
   "/js/navBack.js?v=4",
   "/js/navBack.js?v=5",
   "/js/geoDisplay.js?v=3",
+  "/js/portalGeo.js?v=1",
   "/game/css/userBar.css?v=12",
   "/game/",
   "/game/index.html",

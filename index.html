@@ -500,6 +500,7 @@
 
     <script type="module">
         import { purityClass, shortPlace, formatNetSpeed, speedTone } from '/js/geoDisplay.js?v=3';
+        import { clientIpFromPing, geoNeedsFullLookup, GEO_HEARTBEAT_MS } from '/js/portalGeo.js?v=1';
         const ZONE_MIGRATE = { bj: 'cn', sk: 'us', db: 'jp', jdm: 'se' };
 
         const i18n = {
@@ -705,30 +706,59 @@
             }
         }
 
-        async function loadDeviceLocation() {
+        async function loadDeviceLocation({ silent = false } = {}) {
             const locEl = document.getElementById('deviceLocation');
             const tagsEl = document.getElementById('ipTags');
             const lang = localStorage.getItem('portal_lang') || 'en';
             const t = i18n[lang] || i18n.en;
+            let cached = null;
             try {
-                const cached = sessionStorage.getItem('portal_geo_v2');
-                if (cached) {
-                    renderIpWidget(JSON.parse(cached), t);
-                    return;
-                }
-            } catch (_) {}
-            locEl.classList.add('is-loading');
-            locEl.innerText = t.locating;
-            tagsEl.hidden = true;
+                cached = JSON.parse(sessionStorage.getItem('portal_geo_v2') || 'null');
+            } catch (_) {
+                cached = null;
+            }
+            if (cached?.ip) {
+                shownGeoIp = cached.ip;
+                renderIpWidget(cached, t);
+            } else if (!silent) {
+                locEl.classList.add('is-loading');
+                locEl.innerText = t.locating;
+                tagsEl.hidden = true;
+            }
+            if (geoBusy && silent) return;
+            geoBusy = true;
             try {
-                const res = await fetch('/api/portal?action=geo');
+                const res = await fetch('/api/portal?action=geo', { cache: 'no-store' });
                 const data = await res.json();
                 try { sessionStorage.setItem('portal_geo_v2', JSON.stringify(data)); } catch (_) {}
+                shownGeoIp = data.ip || shownGeoIp;
                 renderIpWidget(data, t);
             } catch (_) {
-                locEl.classList.remove('is-loading');
-                locEl.innerText = t.locUnavailable;
-                tagsEl.hidden = true;
+                if (!cached && !silent) {
+                    locEl.classList.remove('is-loading');
+                    locEl.innerText = t.locUnavailable;
+                    tagsEl.hidden = true;
+                }
+            } finally {
+                geoBusy = false;
+            }
+        }
+
+        let shownGeoIp = '';
+        let geoBusy = false;
+        let lastWhoamiAt = 0;
+
+        async function checkIpHeartbeat() {
+            if (document.hidden || geoBusy) return;
+            const now = Date.now();
+            if (now - lastWhoamiAt < 15_000) return;
+            lastWhoamiAt = now;
+            try {
+                const res = await fetch(`/api/portal?action=ping&n=${Math.random()}`, { cache: 'no-store' });
+                const liveIp = clientIpFromPing(await res.json());
+                if (!geoNeedsFullLookup(shownGeoIp, liveIp)) return;
+                await loadDeviceLocation({ silent: true });
+            } catch (_) {
             }
         }
 
@@ -746,11 +776,19 @@
         idle(() => syncVisits(), { timeout: 800 });
         idle(() => measureSpeed(), { timeout: 1200 });
         idle(() => loadDeviceLocation(), { timeout: 2500 });
+        setInterval(() => {
+            if (!document.hidden) checkIpHeartbeat();
+        }, GEO_HEARTBEAT_MS);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) checkIpHeartbeat();
+        });
+        window.addEventListener('online', () => checkIpHeartbeat());
 
         window.addEventListener('pageshow', () => {
             import('/game/js/userBar.js?v=10').then(({ mountUserBar }) => {
                 mountUserBar(document.getElementById('userBarSlot'), { variant: 'ios', returnPath: '/', menu: 'home' });
             });
+            checkIpHeartbeat();
         });
 
         // Warm lightweight destination shells so portal taps paint immediately.
