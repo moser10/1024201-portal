@@ -1,8 +1,10 @@
 export const FT_BASE_BYTES = 20 * 1024 * 1024;
+export const FT_BASE_MB = 20;
 
 export function ftLimitFromExtraMb(extraMb) {
   const extra = Math.max(0, Number(extraMb) || 0);
-  return FT_BASE_BYTES + extra * 1024 * 1024;
+  const mb = extra > 0 ? extra : FT_BASE_MB;
+  return mb * 1024 * 1024;
 }
 
 export async function readFtExtraMb(db, userId) {

@@ -429,6 +429,24 @@
             <div id="userBarSlot"></div>
             <div id="langSlot"></div>
         </div>
+        <script>
+        (function () {
+            var slot = document.getElementById('userBarSlot');
+            if (!slot) return;
+            slot.className = 'user-bar user-bar--ios user-bar--portal-slot';
+            function esc(s) {
+                return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            }
+            try {
+                var u = JSON.parse(localStorage.getItem('osn_user') || 'null');
+                if (u && u.id && u.username) {
+                    slot.innerHTML = '<div class="user-bar-signed"><button type="button" class="user-bar-name"><span class="user-bar-handle"><span class="user-bar-at">@</span><span class="user-bar-name-text">' + esc(u.username) + '</span></span></button></div>';
+                    return;
+                }
+            } catch (_) {}
+            slot.innerHTML = '<a class="user-bar-guest" href="/game/register/?return=/"><img src="/icons/apps/login.svg" alt=""></a>';
+        })();
+        </script>
     </header>
 
     <main>

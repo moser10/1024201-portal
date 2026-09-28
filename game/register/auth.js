@@ -1,4 +1,4 @@
-import { setUser } from "../js/store.js";
+import { getUser, setUser } from "../js/store.js";
 import { bindNameCheck } from "../onesentence/js/nameCheck.js";
 import { mountAccountChrome } from "/js/accountChrome.js?v=4";
 import { getPortalLang } from "/js/langTabs.js";
@@ -275,6 +275,7 @@ async function submitVerifyCode() {
   }
 }
 
+function bootAuthUi() {
 renderShell();
 syncRegBtn();
 
@@ -410,3 +411,10 @@ document.getElementById("forgotBtn").onclick = async () => {
     alert(e.message);
   }
 };
+}
+
+if (getUser()?.id) {
+  leaveAuthTo(returnTo);
+} else {
+  bootAuthUi();
+}

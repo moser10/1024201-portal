@@ -105,6 +105,12 @@ let filesCache = [];
 let listGen = 0;
 const deletingIds = new Set();
 
+function sizeQuotaBar(bar, space) {
+  if (!bar || !space) return;
+  const n = String(space.textContent || "").replace(/\s/g, "").length;
+  bar.style.setProperty("--ft-hp-w", `${Math.max(3.2, n * 0.36)}em`);
+}
+
 function paintQuota(used = quota.used, limit = quota.limit) {
   quota = { used: Number(used) || 0, limit: Number(limit) || DEFAULT_LIMIT };
   const bar = document.getElementById("hpBar");
@@ -117,6 +123,7 @@ function paintQuota(used = quota.used, limit = quota.limit) {
     if (bar) bar.dataset.level = pct >= 70 ? "ok" : pct >= 40 ? "warn" : pct > 0 ? "low" : "empty";
   }
   if (space) space.textContent = copy.space(quota.used, quota.limit);
+  sizeQuotaBar(bar, space);
 }
 
 let apkMeta = { version: "1.9", file: "ft-tv-debug.apk", download: "ft-tv-1.9.apk" };

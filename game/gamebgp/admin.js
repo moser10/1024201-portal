@@ -1,3 +1,10 @@
+import {
+  dateOnly,
+  dialogFilledValue,
+  displayFtMb,
+  grantExtraFromFilled,
+} from "./quotaGrant.js";
+
 const app = document.getElementById("app");
 const TOKEN_KEY = "gamebgp_token";
 
@@ -100,12 +107,13 @@ function confirmDialog({ title, message, confirmText = "确定", cancelText = "�
 
 function quotaGrantDialog({ username, pdfExtra, lyricsExtra, ftExtra, pdfAllowed, lyricsAllowed }) {
   return new Promise((resolve) => {
+    const grants = { pdfAllowed, lyricsAllowed, ftExtra, pdfExtra, lyricsExtra };
     const backdrop = document.createElement("div");
     backdrop.className = "gbp-modal";
     backdrop.innerHTML = `
-      <div class="gbp-modal-card" role="dialog" aria-modal="true" aria-labelledby="quotaDialogTitle">
+      <form class="gbp-modal-card" role="dialog" aria-modal="true" aria-labelledby="quotaDialogTitle">
         <h2 id="quotaDialogTitle">增加额度 / 扩容</h2>
-        <p class="gbp-modal-msg">用户：${esc(username)}<br>当前：PDF ${pdfAllowed} 次/日 · 歌词 ${lyricsAllowed} 次/日 · 超快传 ${20 + (Number(ftExtra) || 0)} MB</p>
+        <p class="gbp-modal-msg">用户：${esc(username)}<br>当前：PDF ${pdfAllowed} 次/日 · 歌词 ${lyricsAllowed} 次/日 · 超快传 ${displayFtMb(ftExtra)} MB</p>
         <div class="field">
           <label>功能</label>
           <select class="quota-tool">
@@ -115,45 +123,58 @@ function quotaGrantDialog({ username, pdfExtra, lyricsExtra, ftExtra, pdfAllowed
           </select>
         </div>
         <div class="field">
-          <label class="quota-extra-label">额外次数（默认每日 5 次；填 0 清除）</label>
-          <input class="quota-extra" type="number" min="0" max="10000" step="1" value="${pdfExtra}">
+          <label class="quota-extra-label">每日次数（默认 5）</label>
+          <input class="quota-extra" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" value="${dialogFilledValue("pdf", grants)}">
         </div>
         <div class="gbp-modal-actions">
           <button type="button" class="gbp-btn gbp-btn-cancel">取消</button>
-          <button type="button" class="gbp-btn gbp-btn-primary">保存</button>
+          <button type="submit" class="gbp-btn gbp-btn-primary">保存</button>
         </div>
-      </div>`;
+      </form>`;
+    const card = backdrop.querySelector(".gbp-modal-card");
     const tool = backdrop.querySelector(".quota-tool");
     const extra = backdrop.querySelector(".quota-extra");
     const label = backdrop.querySelector(".quota-extra-label");
+    let ignoreBackdropUntil = 0;
     const paintExtra = () => {
       if (tool.value === "ft") {
-        label.textContent = "额外容量 MB（叠在 20MB 基础之上；填 0 清除）";
-        extra.value = Number(ftExtra) || 0;
+        label.textContent = "容量 MB（默认 20）";
       } else {
-        label.textContent = "额外次数（默认每日 5 次；填 0 清除）";
-        extra.value = tool.value === "pdf" ? pdfExtra : lyricsExtra;
+        label.textContent = "每日次数（默认 5）";
       }
+      extra.value = String(dialogFilledValue(tool.value, grants));
       extra.focus();
-      extra.select();
     };
     const close = (value) => {
       backdrop.remove();
       resolve(value);
     };
-    tool.onchange = paintExtra;
-    backdrop.querySelector(".gbp-btn-cancel").onclick = () => close(null);
-    backdrop.querySelector(".gbp-btn-primary").onclick = () => {
-      const n = Number.parseInt(extra.value, 10);
-      if (!Number.isFinite(n) || n < 0 || n > 10000) {
+    const save = () => {
+      const stored = grantExtraFromFilled(tool.value, extra.value);
+      if (stored == null) {
         extra.setCustomValidity("请输入 0–10000 的整数");
         extra.reportValidity();
+        extra.setCustomValidity("");
         return;
       }
-      close({ tool: tool.value, extra: n });
+      close({ tool: tool.value, extra: stored });
     };
-    backdrop.addEventListener("click", (event) => {
-      if (event.target === backdrop) close(null);
+    tool.onchange = paintExtra;
+    card.addEventListener("submit", (event) => {
+      event.preventDefault();
+      save();
+    });
+    card.addEventListener("pointerdown", (event) => event.stopPropagation());
+    card.addEventListener("click", (event) => event.stopPropagation());
+    extra.addEventListener("focus", () => {
+      ignoreBackdropUntil = Date.now() + 800;
+    });
+    extra.addEventListener("keydown", (event) => event.stopPropagation());
+    backdrop.querySelector(".gbp-btn-cancel").onclick = () => close(null);
+    backdrop.addEventListener("pointerdown", (event) => {
+      if (event.target !== backdrop) return;
+      if (Date.now() < ignoreBackdropUntil) return;
+      close(null);
     });
     document.body.appendChild(backdrop);
     paintExtra();
@@ -348,13 +369,13 @@ function userRowHtml(u, i) {
   const pdfAllowed = Number(u.pdf_allowed) || 5;
   const lyricsAllowed = Number(u.lyrics_allowed) || 5;
   const ftExtra = Number(u.ft_extra) || 0;
-  const ftMb = 20 + ftExtra;
+  const ftMb = displayFtMb(ftExtra);
   return `
     <tr data-user-id="${u.id}">
       <td>${i + 1}</td>
       <td>${esc(u.username)}</td>
       <td>${esc(u.email)}</td>
-      <td>${esc(u.created_at || "—")}</td>
+      <td>${esc(dateOnly(u.created_at))}</td>
       <td>${flags.join(" ") || `<span class="badge badge-ok">正常</span>`}</td>
       <td><span class="quota-count">PDF ${pdfAllowed}</span> <span class="quota-count">歌词 ${lyricsAllowed}</span> <span class="quota-count">超快传 ${ftMb}MB</span></td>
       <td>
@@ -405,7 +426,7 @@ function panelUsers() {
   return `
     <div class="card" data-panel="users">
       <h2>注册用户（${state.overview.users ?? state.users.length}）</h2>
-      <p class="panel-hint">可删除用户；「增加额度/扩容」给 PDF/歌词加次数，给超快传加 MB（叠在 20MB 基础之上）。</p>
+      <p class="panel-hint">可删除用户；「增加额度/扩容」填写目标次数或容量（PDF/歌词默认 5 次，超快传默认 20MB）。</p>
       <div class="toolbar">
         <input class="search" id="userSearch" type="search" placeholder="搜索用户名 / 邮箱" value="${esc(state.userQ)}">
         <button type="button" class="btn btn-ghost btn-small" id="userSearchBtn">搜索</button>
@@ -414,7 +435,7 @@ function panelUsers() {
         ${
           state.users.length
             ? `<table>
-          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>状态</th><th>增加额度/扩容</th><th>操作</th></tr></thead>
+          <thead><tr><th>#</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>状态</th><th>当前额度/容量</th><th>操作</th></tr></thead>
           <tbody>${state.users.map((u, i) => userRowHtml(u, i)).join("")}</tbody>
         </table>`
             : `<p class="empty">没有匹配的用户</p>`
@@ -590,8 +611,9 @@ function bindDashboardEvents() {
             extra: selection.extra,
           }),
         });
-        const unit = data.tool === "ft" ? " MB" : " 次";
-        toast(`已为 ${data.username} 设置 ${data.tool} 额外 ${data.extra}${unit}`);
+        const shown =
+          data.tool === "ft" ? `${displayFtMb(data.extra)} MB` : `${5 + Number(data.extra || 0)} 次`;
+        toast(`已为 ${data.username} 设置 ${data.tool} ${shown}`);
         await refreshQuiet();
       } catch (e) {
         btn.disabled = false;

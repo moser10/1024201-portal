@@ -98,15 +98,17 @@ body.ft-tv .ft-form .btn-primary {
   font-size: 16px;
 }
 .ft-quota {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  max-width: 100%;
   margin: 0 0 10px;
 }
 .ft-hp {
-  flex: 0 0 66%;
-  max-width: 66%;
-  height: 12px;
+  flex: 0 1 var(--ft-hp-w, 5.5em);
+  width: var(--ft-hp-w, 5.5em);
+  min-width: 3.2em;
+  height: 10px;
   border-radius: 6px;
   background: #e5e5ea;
   overflow: hidden;
@@ -123,8 +125,8 @@ body.ft-tv .ft-form .btn-primary {
 .ft-hp[data-level="low"] .ft-hp-fill { background: #ff3b30; }
 .ft-hp[data-level="empty"] .ft-hp-fill { background: transparent; width: 0 !important; }
 .ft-space {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
   font-size: 13px;
   color: #8e8e93;
   margin: 0;

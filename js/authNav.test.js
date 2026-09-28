@@ -22,8 +22,9 @@ test("auth page navigates once after login and does not paint a 继续 interstit
   const js = readFileSync(join(dir, "../game/register/auth.js"), "utf8");
   const html = readFileSync(join(dir, "../game/register/index.html"), "utf8");
   assert.match(js, /leaveAuthTo/);
+  assert.match(js, /getUser\(\)\?\.id/);
+  assert.match(js, /bootAuthUi/);
   assert.equal(js.includes("登录成功"), false);
-  assert.equal(js.includes("location.replace"), false);
-  assert.match(html, /location\.assign/);
-  assert.equal(html.includes("location.replace"), false);
+  assert.match(html, /location\.replace/);
+  assert.equal(html.includes("location.assign"), false);
 });

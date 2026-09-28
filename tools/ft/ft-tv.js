@@ -297,6 +297,10 @@
       }
     }
     if (space) space.textContent = formatStorageMb(quota.used) + " / " + formatStorageMb(quota.limit);
+    if (bar && space) {
+      var n = String(space.textContent || "").replace(/\s/g, "").length;
+      bar.style.setProperty("--ft-hp-w", Math.max(3.2, n * 0.36) + "em");
+    }
   }
 
   function paintUser() {

@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v157";
+const CACHE = "1042-pwa-v158";
 const SHELL = [
   "/",
   "/index.html",
@@ -51,6 +51,7 @@ const SHELL = [
   "/game/register/auth.js?v=16",
   "/game/register/auth.js?v=17",
   "/game/register/auth.js?v=18",
+  "/game/register/auth.js?v=19",
   "/game/paddlemaze/",
   "/game/paddlemaze/index.html",
   "/game/paddlemaze/game.css?v=27",
@@ -246,22 +247,26 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => null);
 
-      // HTML navigations: network-first so login/home-screen never paints a stale white shell.
+      // Home-screen / login hops: cache-first so iOS icons paint immediately.
       if (request.mode === "navigate") {
+        if (cached) {
+          networkPromise.catch(() => {});
+          return cached;
+        }
         const fresh = await networkPromise;
-        if (fresh) return fresh;
+        if (fresh && fresh.ok) return fresh;
         if (url.pathname.startsWith("/game/register")) {
-          return cached || (await cache.match("/game/register/index.html")) ||
+          return (await cache.match("/game/register/index.html")) || (await cache.match("/game/register/")) ||
             new Response("Offline", { status: 503 });
         }
-        return cached || (await cache.match("/index.html")) || (await cache.match("/")) ||
-          new Response("", { status: 504, statusText: "Offline" });
+        return (await cache.match("/index.html")) || (await cache.match("/")) ||
+          new Response("Offline", { status: 503 });
       }
 
       if (url.pathname.startsWith("/game/paddlemaze")) {
         const fresh = await networkPromise;
         if (fresh) return fresh;
-        return cached || new Response("", { status: 504, statusText: "Offline" });
+        return cached || new Response("Offline", { status: 503 });
       }
 
       // Instant paint from cache; refresh in background
@@ -272,10 +277,7 @@ self.addEventListener("fetch", (event) => {
 
       const fresh = await networkPromise;
       if (fresh) return fresh;
-      if (request.mode === "navigate") {
-        return (await cache.match("/index.html")) || (await cache.match("/"));
-      }
-      return new Response("", { status: 504, statusText: "Offline" });
+      return new Response("Offline", { status: 503 });
     })()
   );
 });

@@ -7,7 +7,8 @@ test("FT default pool is 20 MB", () => {
   assert.equal(ftLimitFromExtraMb(0), 20 * 1024 * 1024);
 });
 
-test("admin extra is megabytes added to the 20 MB base", () => {
-  assert.equal(ftLimitFromExtraMb(10), 30 * 1024 * 1024);
+test("admin extra is the total capacity in MB", () => {
+  assert.equal(ftLimitFromExtraMb(10), 10 * 1024 * 1024);
+  assert.equal(ftLimitFromExtraMb(74), 74 * 1024 * 1024);
   assert.equal(ftLimitFromExtraMb(-3), 20 * 1024 * 1024);
 });

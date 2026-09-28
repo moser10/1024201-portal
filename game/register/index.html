@@ -35,11 +35,12 @@
         if (dest === "/onesentence" || dest === "/onesentence/") dest = "/game/onesentence/";
         if (dest === "/paddlemaze" || dest === "/paddlemaze/") dest = "/game/paddlemaze/";
         if (dest === "/dua" || dest === "/dua/") dest = "/game/dua/";
-        location.assign(dest);
+        location.replace(dest);
+        document.getElementById("app").textContent = "";
       } catch (_) {}
     })();
   </script>
-  <script type="module" src="auth.js?v=18"></script>
+  <script type="module" src="auth.js?v=19"></script>
   <script src="/pwa.js" defer></script>
 </body>
 </html>

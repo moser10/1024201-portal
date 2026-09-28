@@ -29,9 +29,9 @@ export function leaveAuthTo(raw) {
   const dest = safeAuthDest(raw);
   const url = new URL(dest, location.origin);
   if (url.origin !== location.origin) {
-    location.assign("/");
+    location.replace("/");
     return "/";
   }
-  location.assign(`${url.pathname}${url.search}${url.hash}`);
+  location.replace(`${url.pathname}${url.search}${url.hash}`);
   return `${url.pathname}${url.search}${url.hash}`;
 }
