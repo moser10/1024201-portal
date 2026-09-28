@@ -53,6 +53,7 @@ const SHELL = [
   "/game/register/auth.js?v=17",
   "/game/register/auth.js?v=18",
   "/game/register/auth.js?v=19",
+  "/game/register/auth.js?v=20",
   "/game/paddlemaze/",
   "/game/paddlemaze/index.html",
   "/game/paddlemaze/game.css?v=27",
