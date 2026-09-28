@@ -1,4 +1,4 @@
-const CACHE = "1042-pwa-v163";
+const CACHE = "1042-pwa-v164";
 const SHELL = [
   "/",
   "/index.html",
@@ -181,6 +181,7 @@ const SHELL = [
   "/icons/apps/logo.svg?v=3",
   "/icons/apps/logo.svg?v=4",
   "/icons/apps/logo.svg?v=5",
+  "/icons/apps/logo.svg?v=6",
   "/icons/weapon/pistol.png",
   "/icons/weapon/ak.png",
   "/icons/weapon/rpg.png",
