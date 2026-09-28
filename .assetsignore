@@ -16,3 +16,4 @@ install.sh
 DEPLOY.md
 .assetsignore
 tools/ft/android/**
+tmp/**

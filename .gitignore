@@ -1,3 +1,4 @@
+tmp/
 .wrangler/
 .cursor/
 node_modules/
