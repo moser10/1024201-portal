@@ -1,4 +1,4 @@
-/** Attachment grid — syncnote: up to 3 image thumbnails */
+/** Attachment helpers — syncnote / FT file upload */
 
 export const SYNCNOTE_MAX_ATTACH = 3;
 

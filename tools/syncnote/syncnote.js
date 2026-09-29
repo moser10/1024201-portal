@@ -3,8 +3,6 @@ import { getUser } from "/game/js/store.js";
 import { currentUserId, loginHref } from "../js/quotaClient.js";
 import { paintToolUser } from "../js/toolPageBoot.js";
 import {
-  renderAttachGrid,
-  applyThumbToCell,
   uploadFile,
   deleteFile,
   downloadFileEntry,
@@ -13,7 +11,7 @@ import {
   isMobileIos,
   SYNCNOTE_MAX_ATTACH,
 } from "../js/attachGrid.js";
-import { fetchFileStorage, storageLeftLabel } from "../js/storageQuota.js";
+import { fetchFileStorage, formatStorageMb, storageLeftLabel } from "../js/storageQuota.js";
 import { showSheet } from "/game/js/toast.js";
 import { mountProgress } from "../lyrics/loading.js";
 import {
@@ -41,24 +39,28 @@ const UI = {
     slot: (n) => `Relay ${n}`,
     slotAttach: "Attachments",
     copy: "Copy",
-    addFile: "Add image",
-    downloadAll: "Download all",
+    addFile: "Upload",
+    download: "Download",
+    del: "Delete",
+    emptyFiles: "No files yet",
+    pickFirst: "Select a file first",
+    downloadAll: "Download",
     downloadOk: "OK",
-    downloadEmpty: "No images to download",
+    downloadEmpty: "No files to download",
     downloading: "Downloading…",
     downloadingN: (n, total) => `Downloading ${n}/${total}…`,
     uploading: "Uploading…",
     uploadingN: (n, total) => `Uploading ${n}/${total}…`,
     savedImage: "Image saved",
-    saveHint: "Tap a thumbnail to view full size. Use Download all to save files to your device.",
+    saveHint: "Select files, then download or delete. Tap an image name to preview.",
     previewLoading: "Loading image…",
     downloadDone: (n) =>
-      `${n} image(s) saved to your default Downloads folder.\n\niPhone/iPad: Files → Downloads\nMac: Downloads folder\nAndroid: Download`,
+      `${n} file(s) saved to your default Downloads folder.\n\niPhone/iPad: Files → Downloads\nMac: Downloads folder\nAndroid: Download`,
     downloadShareDone: (n) =>
-      `${n} image(s) opened in the share sheet. Choose Save to Photos or Save to Files.`,
+      `${n} file(s) opened in the share sheet. Choose Save to Photos or Save to Files.`,
     downloadIosDone: (n) =>
-      `${n} image(s) processed. If any are missing, tap each thumbnail to save individually.`,
-    maxImages: "Up to 3 images",
+      `${n} file(s) processed. If any are missing, download them one by one.`,
+    maxImages: "Up to 3 files",
     clear: "Delete all",
     saved: "Saved",
     saving: "Saving…",
@@ -70,7 +72,7 @@ const UI = {
     errLoad: "Failed to load",
     errSave: "Failed to save",
     errUpload: "Upload failed",
-    errUploadImage: "Images only",
+    errUploadImage: "Upload failed",
     errClip: "Clipboard unavailable",
   },
   zh: {
@@ -81,24 +83,28 @@ const UI = {
     slot: (n) => `中转 ${n}`,
     slotAttach: "附件",
     copy: "复制",
-    addFile: "添加图片",
-    downloadAll: "全部下载",
+    addFile: "上传",
+    download: "下载",
+    del: "删除",
+    emptyFiles: "还没有文件",
+    pickFirst: "先选择文件",
+    downloadAll: "下载",
     downloadOk: "知道了",
-    downloadEmpty: "没有可下载的图片",
+    downloadEmpty: "没有可下载的文件",
     downloading: "下载中…",
     downloadingN: (n, total) => `下载中 ${n}/${total}…`,
     uploading: "上传中…",
     uploadingN: (n, total) => `上传中 ${n}/${total}…`,
     savedImage: "图片已保存",
-    saveHint: "点击缩略图查看大图；使用「全部下载」保存到本地。",
+    saveHint: "勾选文件后下载或删除。点图片名可预览。",
     previewLoading: "加载大图…",
     downloadDone: (n) =>
-      `已下载 ${n} 张图片到系统默认「下载」文件夹。\n\niPhone/iPad：文件 App → 下载\nMac：下载文件夹\nAndroid：Download 目录`,
+      `已下载 ${n} 个文件到系统默认「下载」文件夹。\n\niPhone/iPad：文件 App → 下载\nMac：下载文件夹\nAndroid：Download 目录`,
     downloadShareDone: (n) =>
-      `已通过分享面板发送 ${n} 张图片，可选择「存储到照片」或「存储到文件」。`,
+      `已通过分享面板发送 ${n} 个文件，可选择「存储到照片」或「存储到文件」。`,
     downloadIosDone: (n) =>
-      `已处理 ${n} 张图片。如有遗漏，请逐张点击缩略图保存。`,
-    maxImages: "最多 3 张图片",
+      `已处理 ${n} 个文件。如有遗漏，请逐个下载。`,
+    maxImages: "最多 3 个文件",
     clear: "全部删除",
     saved: "已保存",
     saving: "保存中…",
@@ -110,7 +116,7 @@ const UI = {
     errLoad: "加载失败",
     errSave: "保存失败",
     errUpload: "上传失败",
-    errUploadImage: "仅支持图片",
+    errUploadImage: "上传失败",
     errClip: "无法访问剪贴板",
   },
   ja: {
@@ -121,24 +127,28 @@ const UI = {
     slot: (n) => `中継 ${n}`,
     slotAttach: "添付",
     copy: "コピー",
-    addFile: "画像を追加",
-    downloadAll: "すべてダウンロード",
+    addFile: "アップロード",
+    download: "ダウンロード",
+    del: "削除",
+    emptyFiles: "ファイルなし",
+    pickFirst: "先にファイルを選んでください",
+    downloadAll: "ダウンロード",
     downloadOk: "OK",
-    downloadEmpty: "ダウンロードする画像がありません",
+    downloadEmpty: "ダウンロードするファイルがありません",
     downloading: "ダウンロード中…",
     downloadingN: (n, total) => `ダウンロード中 ${n}/${total}…`,
     uploading: "アップロード中…",
     uploadingN: (n, total) => `アップロード中 ${n}/${total}…`,
     savedImage: "画像を保存しました",
-    saveHint: "サムネイルをタップして拡大表示。「すべてダウンロード」で端末に保存できます。",
+    saveHint: "ファイルを選んでダウンロードまたは削除。画像名をタップするとプレビューします。",
     previewLoading: "画像を読み込み中…",
     downloadDone: (n) =>
-      `${n} 枚を既定のダウンロードフォルダに保存しました。\n\niPhone/iPad：ファイル → ダウンロード\nMac：ダウンロード\nAndroid：Download`,
+      `${n} 件を既定のダウンロードフォルダに保存しました。\n\niPhone/iPad：ファイル → ダウンロード\nMac：ダウンロード\nAndroid：Download`,
     downloadShareDone: (n) =>
-      `${n} 枚を共有シートで開きました。「写真に保存」または「ファイルに保存」を選べます。`,
+      `${n} 件を共有シートで開きました。「写真に保存」または「ファイルに保存」を選べます。`,
     downloadIosDone: (n) =>
-      `${n} 枚を処理しました。不足がある場合はサムネイルをタップして個別に保存してください。`,
-    maxImages: "最大 3 枚",
+      `${n} 件を処理しました。不足がある場合は個別にダウンロードしてください。`,
+    maxImages: "最大 3 件",
     clear: "すべて削除",
     saved: "保存済み",
     saving: "保存中…",
@@ -150,7 +160,7 @@ const UI = {
     errLoad: "読み込みに失敗",
     errSave: "保存に失敗",
     errUpload: "アップロード失敗",
-    errUploadImage: "画像のみ対応",
+    errUploadImage: "アップロード失敗",
     errClip: "クリップボードを使用できません",
   },
 };
@@ -172,7 +182,8 @@ const errBox = document.getElementById("errBox");
 const loginPanel = document.getElementById("loginPanel");
 const syncWorkspace = document.getElementById("syncWorkspace");
 const slotEls = [...document.querySelectorAll(".sync-slot")];
-const attachGrid = document.getElementById("attachGrid");
+const attachList = document.getElementById("attachList");
+const attachEmpty = document.getElementById("attachEmpty");
 const attachInput = document.getElementById("attachInput");
 const attachSpace = document.getElementById("attachSpace");
 const attachProgress = document.getElementById("attachProgress");
@@ -239,9 +250,15 @@ function paintAttachHint() {
 function setAttachBusy(on) {
   attachBusy = on;
   const addBtn = attachSlotEl?.querySelector(".sync-add-file");
-  const dlBtn = attachSlotEl?.querySelector(".sync-download-all");
-  if (addBtn) addBtn.disabled = on || !currentUserId() || attachFiles.length >= SYNCNOTE_MAX_ATTACH;
-  if (dlBtn) dlBtn.disabled = on || !currentUserId();
+  const dlBtn = attachSlotEl?.querySelector(".sync-download-sel");
+  const delBtn = attachSlotEl?.querySelector(".sync-delete-sel");
+  const guest = !currentUserId();
+  if (addBtn) addBtn.disabled = on || guest || attachFiles.length >= SYNCNOTE_MAX_ATTACH;
+  if (dlBtn) dlBtn.disabled = on || guest || !attachFiles.length;
+  if (delBtn) delBtn.disabled = on || guest || !attachFiles.length;
+  attachList?.querySelectorAll("button, input").forEach((el) => {
+    el.disabled = on || guest;
+  });
 }
 
 function updateProgressLabel(host, text) {
@@ -353,18 +370,7 @@ function paintFromCache() {
 }
 
 async function hydrateCachedThumbs() {
-  const cells = [...attachGrid.querySelectorAll("[data-file-id]")];
-  await Promise.all(
-    cells.map(async (cell) => {
-      const id = cell.dataset.fileId;
-      if (!id || thumbObjectUrls.has(id)) return;
-      const blob = await getThumbBlob(id);
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      thumbObjectUrls.set(id, url);
-      applyThumbToCell(cell, url);
-    })
-  );
+  /* thumbs stay in IDB for image preview; the list no longer paints cells */
 }
 
 function scheduleThumbPrefetch() {
@@ -387,11 +393,9 @@ async function prefetchMissingThumbs(uid) {
       const thumb = await blobToThumbBlob(full);
       if (!thumb) continue;
       await putThumbBlob(f.id, thumb);
-      const cell = attachGrid.querySelector(`[data-file-id="${f.id}"]`);
-      if (!cell || thumbObjectUrls.has(f.id)) continue;
+      if (thumbObjectUrls.has(f.id)) continue;
       const url = URL.createObjectURL(thumb);
       thumbObjectUrls.set(f.id, url);
-      applyThumbToCell(cell, url);
     } catch {
       /* background */
     }
@@ -402,27 +406,68 @@ async function storeThumbFromFile(fileId, source) {
   const thumb = await fileToThumbBlob(source);
   if (!thumb) return;
   await putThumbBlob(fileId, thumb);
-  const cell = attachGrid.querySelector(`[data-file-id="${fileId}"]`);
-  if (!cell) return;
-  const prev = thumbObjectUrls.get(fileId);
-  if (prev) URL.revokeObjectURL(prev);
-  const url = URL.createObjectURL(thumb);
-  thumbObjectUrls.set(fileId, url);
-  applyThumbToCell(cell, url);
+}
+
+function escHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
+
+function selectedAttachIds() {
+  return [...(attachList?.querySelectorAll(".sync-ft-check:checked") || [])]
+    .map((el) => el.closest(".sync-ft-row")?.dataset.id)
+    .filter(Boolean);
+}
+
+function selectedAttachFiles() {
+  const ids = new Set(selectedAttachIds());
+  return attachFiles.filter((f) => ids.has(f.id));
 }
 
 function paintAttachGrid() {
   const uid = currentUserId();
-  revokeThumbUrls();
-  renderAttachGrid(attachGrid, attachFiles, {
-    readOnly: !uid,
-    userId: uid,
-    onDelete: uid && !attachBusy ? (id) => removeAttach(id) : undefined,
-    onPreview: uid && !attachBusy ? (file) => previewAttach(file) : undefined,
+  if (!attachList || !attachEmpty) return;
+  const kept = new Set(selectedAttachIds());
+  attachEmpty.hidden = attachFiles.length > 0;
+  attachEmpty.textContent = t.emptyFiles;
+  attachList.innerHTML = attachFiles
+    .map((f) => {
+      const checked = kept.has(f.id) ? " checked" : "";
+      return `<li class="sync-ft-row" data-id="${escHtml(f.id)}">
+        <label class="sync-ft-pick"><input type="checkbox" class="sync-ft-check"${checked} /></label>
+        <button type="button" class="sync-ft-name">${escHtml(f.name || "file")}<span class="sync-ft-meta">${escHtml(formatStorageMb(f.size))}</span></button>
+        <button type="button" class="btn-primary sync-ft-get">${escHtml(t.download)}</button>
+        <button type="button" class="btn-danger sync-ft-del">${escHtml(t.del)}</button>
+      </li>`;
+    })
+    .join("");
+  attachList.querySelectorAll(".sync-ft-get").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const row = attachFiles.find((f) => f.id === btn.closest(".sync-ft-row")?.dataset.id);
+      if (row) downloadAttachFiles([row]);
+    };
+  });
+  attachList.querySelectorAll(".sync-ft-del").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const id = btn.closest(".sync-ft-row")?.dataset.id;
+      if (id) removeAttach(id);
+    };
+  });
+  attachList.querySelectorAll(".sync-ft-name").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const row = attachFiles.find((f) => f.id === btn.closest(".sync-ft-row")?.dataset.id);
+      if (!row) return;
+      if (String(row.mime || "").startsWith("image/")) previewAttach(row);
+      else downloadAttachFiles([row]);
+    };
   });
   setAttachBusy(attachBusy);
   paintAttachHint();
-  hydrateCachedThumbs();
 }
 
 async function refreshAttachStorage() {
@@ -457,10 +502,12 @@ function applyI18n() {
     if (isAttachSlot(el)) {
       const label = el.querySelector("[data-slot-label]");
       const addBtn = el.querySelector(".sync-add-file");
-      const dlBtn = el.querySelector(".sync-download-all");
+      const dlBtn = el.querySelector(".sync-download-sel");
+      const delBtn = el.querySelector(".sync-delete-sel");
       if (label) label.textContent = t.slotAttach;
       if (addBtn) addBtn.textContent = t.addFile;
-      if (dlBtn) dlBtn.textContent = t.downloadAll;
+      if (dlBtn) dlBtn.textContent = t.download;
+      if (delBtn) delBtn.textContent = t.del;
       return;
     }
     const label = el.querySelector("[data-slot-label]");
@@ -737,37 +784,37 @@ async function previewAttach(file) {
   }
 }
 
-async function downloadAllAttach() {
+async function downloadAttachFiles(files) {
   const uid = currentUserId();
+  const list = (files || []).filter(Boolean);
   if (!uid || attachBusy) return;
-  const images = attachFiles.filter((f) => String(f.mime || "").startsWith("image/"));
-  if (!images.length) {
+  if (!list.length) {
     await showSheet(t.downloadEmpty, [{ label: t.downloadOk, value: true }]);
     return;
   }
   showError("");
   setAttachBusy(true);
   const ios = isMobileIos();
-  const estMs = images.length * (ios ? 4500 : 1800);
+  const estMs = list.length * (ios ? 4500 : 1800);
   const prog = mountProgress(attachProgress, { label: t.downloading, estimatedMs: estMs });
   try {
     if (ios) {
-      const shared = await shareFileEntries(images, uid);
+      const shared = await shareFileEntries(list, uid);
       if (shared) {
         prog.done();
-        await showSheet(t.downloadShareDone(images.length), [{ label: t.downloadOk, value: true }]);
+        await showSheet(t.downloadShareDone(list.length), [{ label: t.downloadOk, value: true }]);
         return;
       }
     }
-    for (let i = 0; i < images.length; i++) {
-      updateProgressLabel(attachProgress, t.downloadingN(i + 1, images.length));
-      await downloadFileEntry(images[i], uid);
-      if (i < images.length - 1) {
+    for (let i = 0; i < list.length; i++) {
+      updateProgressLabel(attachProgress, t.downloadingN(i + 1, list.length));
+      await downloadFileEntry(list[i], uid);
+      if (i < list.length - 1) {
         await new Promise((r) => setTimeout(r, ios ? 1500 : 350));
       }
     }
     prog.done();
-    const msg = ios ? t.downloadIosDone(images.length) : t.downloadDone(images.length);
+    const msg = ios ? t.downloadIosDone(list.length) : t.downloadDone(list.length);
     await showSheet(msg, [{ label: t.downloadOk, value: true }]);
   } catch (e) {
     prog.fail();
@@ -775,6 +822,22 @@ async function downloadAllAttach() {
     showError(e.message || t.errUpload);
   } finally {
     setAttachBusy(false);
+  }
+}
+
+function downloadSelectedAttach() {
+  const picked = selectedAttachFiles();
+  downloadAttachFiles(picked.length ? picked : attachFiles);
+}
+
+async function deleteSelectedAttach() {
+  const picked = selectedAttachFiles();
+  if (!picked.length) {
+    showError(t.pickFirst);
+    return;
+  }
+  for (const f of picked) {
+    await removeAttach(f.id);
   }
 }
 
@@ -798,13 +861,12 @@ async function handleAttachPick(fileList) {
     for (let i = 0; i < picks.length; i++) {
       const file = picks[i];
       updateProgressLabel(attachProgress, t.uploadingN(i + 1, picks.length));
-      if (!file.type?.startsWith("image/")) throw new Error(t.errUploadImage);
       if (file.size > MAX_FILE_MB * 1024 * 1024) {
         throw new Error(`${file.name}: max ${MAX_FILE_MB}MB`);
       }
       const uploaded = await uploadFile({ file, purpose: "syncnote", slot: ATTACH_SLOT, userId: uid });
       attachFiles.push(uploaded);
-      await storeThumbFromFile(uploaded.id, file);
+      if (file.type?.startsWith("image/")) await storeThumbFromFile(uploaded.id, file);
     }
     attachFiles = attachFiles.slice(0, SYNCNOTE_MAX_ATTACH);
     paintAttachGrid();
@@ -838,10 +900,7 @@ function setGuestMode(on) {
   loginPanel.hidden = !on;
   slotEls.forEach((el) => {
     if (isAttachSlot(el)) {
-      const addBtn = el.querySelector(".sync-add-file");
-      const dlBtn = el.querySelector(".sync-download-all");
-      if (addBtn) addBtn.disabled = on || attachBusy || !currentUserId() || attachFiles.length >= SYNCNOTE_MAX_ATTACH;
-      if (dlBtn) dlBtn.disabled = on || attachBusy || !currentUserId();
+      setAttachBusy(attachBusy);
       return;
     }
     const ta = slotInput(el);
@@ -893,6 +952,7 @@ mountLangTabs(document.getElementById("langSlot"), {
     lang = next;
     t = UI[lang] || UI.en;
     applyI18n();
+    paintAttachGrid();
     refreshAttachStorage();
     baselineStatus.forEach((msg, slot) => {
       if (!flashing.has(slot)) {
@@ -908,9 +968,13 @@ slotEls.forEach((el) => {
   if (isAttachSlot(el)) {
     el.querySelector(".sync-add-file")?.addEventListener("click", () => attachInput.click());
     attachInput.addEventListener("change", () => handleAttachPick([...attachInput.files]));
-    el.querySelector(".sync-download-all")?.addEventListener("click", (e) => {
+    el.querySelector(".sync-download-sel")?.addEventListener("click", (e) => {
       e.preventDefault();
-      downloadAllAttach();
+      downloadSelectedAttach();
+    });
+    el.querySelector(".sync-delete-sel")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      deleteSelectedAttach();
     });
     return;
   }

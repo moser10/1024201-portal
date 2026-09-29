@@ -267,9 +267,6 @@ export async function handleFileUpload(env, request, url) {
   if (purpose === "showcase" && !IMAGE_MIMES.has(mime)) {
     return json({ error: "images_only" }, 400);
   }
-  if (purpose === "syncnote" && slot === 2 && !IMAGE_MIMES.has(mime)) {
-    return json({ error: "images_only" }, 400);
-  }
   if (purpose === "blog" && !IMAGE_MIMES.has(mime)) {
     return json({ error: "images_only" }, 400);
   }
