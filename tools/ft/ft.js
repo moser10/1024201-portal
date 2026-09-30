@@ -2,7 +2,7 @@ import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
 import { getUser, setUser, clearUser } from "/game/js/store.js";
 import { loginHref } from "../js/quotaClient.js";
 import { paintToolUser } from "../js/toolPageBoot.js";
-import { uploadFile, deleteFile, downloadFileEntry } from "../js/attachGrid.js?v=2";
+import { uploadFile, deleteFile, downloadFileEntry } from "../js/attachGrid.js?v=3";
 import { fetchFileStorage, formatStorageMb } from "../js/storageQuota.js";
 import { hallBackLabel } from "/js/navBack.js?v=3";
 import { showToast } from "/game/js/toast.js";
@@ -18,9 +18,13 @@ const UI = {
     password: "密码",
     login: "登录",
     upload: "上传",
-    uploading: "上传中…",
+    uploading: (pct) => `上传中 ${pct}%…`,
+    saving: "上传完成，正在保存…",
     exit: "退出",
     empty: "还没有文件",
+    loadingFiles: "正在加载文件列表…",
+    listFailed: "文件列表加载失败",
+    retry: "重试",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
     apk: (v) => `下载投影仪/电视机 APK ${v}`,
     del: "删除",
@@ -30,6 +34,7 @@ const UI = {
     err: "失败",
     full: "容量不够，删几个或让后台扩容",
     noUser: "登录态不完整，请回门户重新登录",
+    networkError: "网络中断，上传未完成。请检查网络后重试。",
   },
   en: {
     title: "Fast Transfer",
@@ -39,9 +44,13 @@ const UI = {
     password: "Password",
     login: "Sign in",
     upload: "Upload",
-    uploading: "Uploading…",
+    uploading: (pct) => `Uploading ${pct}%…`,
+    saving: "Upload sent; saving…",
     exit: "Exit",
     empty: "No files yet",
+    loadingFiles: "Loading files…",
+    listFailed: "Could not load the file list",
+    retry: "Retry",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
     apk: (v) => `Download projector/TV APK ${v}`,
     del: "Delete",
@@ -51,6 +60,7 @@ const UI = {
     err: "Failed",
     full: "Not enough space. Delete a file or ask admin for more MB.",
     noUser: "Session is incomplete. Sign in again on the portal.",
+    networkError: "Network interrupted; the upload did not finish. Check your connection and retry.",
   },
   ja: {
     title: "超速転送",
@@ -60,9 +70,13 @@ const UI = {
     password: "パスワード",
     login: "ログイン",
     upload: "アップロード",
-    uploading: "送信中…",
+    uploading: (pct) => `送信中 ${pct}%…`,
+    saving: "送信完了、保存中…",
     exit: "戻る",
     empty: "ファイルなし",
+    loadingFiles: "ファイル一覧を読み込み中…",
+    listFailed: "ファイル一覧を読み込めませんでした",
+    retry: "再試行",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
     apk: (v) => `プロジェクター/テレビ用APK ${v} をダウンロード`,
     del: "削除",
@@ -72,6 +86,7 @@ const UI = {
     err: "失敗",
     full: "容量不足です",
     noUser: "ログイン情報が不完全です。ポータルで再ログインしてください",
+    networkError: "通信が中断され、アップロードが完了しませんでした。接続を確認して再試行してください。",
   },
 };
 
@@ -101,6 +116,7 @@ function showErr(msg) {
 
 const DEFAULT_LIMIT = 20 * 1024 * 1024;
 let quota = { used: 0, limit: DEFAULT_LIMIT };
+let quotaLoaded = false;
 let filesCache = [];
 let listGen = 0;
 const deletingIds = new Set();
@@ -165,6 +181,7 @@ function applyChrome() {
   document.getElementById("lblPass").textContent = ui.password;
   document.getElementById("loginBtn").textContent = ui.login;
   document.getElementById("uploadLabText").textContent = ui.upload;
+  document.getElementById("retryList").textContent = ui.retry;
   document.getElementById("exitBtn").textContent = ui.exit;
   document.title = `${tv ? TRI_TITLE : ui.title} | 1024201`;
   document.body.classList.toggle("ft-tv", tv);
@@ -260,6 +277,13 @@ async function takeFile(row, uid) {
 async function refreshRemote() {
   const uid = userIdOf();
   if (!uid) return;
+  const empty = document.getElementById("emptyBox");
+  const retry = document.getElementById("retryList");
+  if (!filesCache.length && empty) {
+    empty.hidden = false;
+    empty.textContent = copy.loadingFiles;
+  }
+  if (retry) retry.hidden = true;
   const gen = ++listGen;
   const listP = fetch(`/api/portal?action=file_list&purpose=ft&user_id=${encodeURIComponent(uid)}`).then(async (r) => {
     const data = await r.json().catch(() => ({}));
@@ -279,11 +303,19 @@ async function refreshRemote() {
     paintFiles(next, uid);
   } catch (e) {
     if (gen !== listGen) return;
+    if (!filesCache.length && empty) {
+      empty.hidden = false;
+      empty.textContent = copy.listFailed;
+      if (retry) retry.hidden = false;
+    }
     showErr(e.message || copy.err);
   }
   const storage = await storeP;
   if (gen !== listGen) return;
-  if (storage) paintQuota(storage.used, storage.limit);
+  if (storage) {
+    quotaLoaded = true;
+    paintQuota(storage.used, storage.limit);
+  }
 }
 
 function esc(s) {
@@ -301,13 +333,6 @@ function paintAuth() {
   paintToolUser();
   if (loggedIn) {
     paintQuota(quota.used, quota.limit);
-    if (!filesCache.length) {
-      const empty = document.getElementById("emptyBox");
-      if (empty) {
-        empty.hidden = false;
-        empty.textContent = copy.empty;
-      }
-    }
     refreshRemote();
   }
 }
@@ -319,11 +344,22 @@ async function runUpload(file) {
     showErr(copy.noUser);
     return;
   }
+  if (quotaLoaded && file.size > Math.max(0, quota.limit - quota.used)) {
+    showErr(copy.full);
+    return;
+  }
   const lab = document.getElementById("uploadLabText");
   showErr("");
-  lab.textContent = copy.uploading;
+  lab.textContent = copy.uploading(0);
   try {
-    const saved = await uploadFile({ file, purpose: "ft", userId: uid });
+    const saved = await uploadFile({
+      file,
+      purpose: "ft",
+      userId: uid,
+      onProgress: (pct) => {
+        lab.textContent = pct >= 100 ? copy.saving : copy.uploading(pct);
+      },
+    });
     const next = /\.apk$/i.test(saved.name || "")
       ? [...filesCache.filter((f) => !/\.apk$/i.test(f.name || "")), saved]
       : [...filesCache.filter((f) => f.id !== saved.id), saved];
@@ -332,7 +368,7 @@ async function runUpload(file) {
     refreshRemote();
   } catch (err) {
     const code = err.message || "";
-    showErr(code === "storage_full" ? copy.full : code || copy.err);
+    showErr(code === "storage_full" ? copy.full : code === "network_error" ? copy.networkError : code || copy.err);
   } finally {
     lab.textContent = copy.upload;
   }
@@ -369,6 +405,7 @@ function boot() {
     document.getElementById("fileIn").value = "";
     await runUpload(file);
   };
+  document.getElementById("retryList").onclick = () => refreshRemote();
   document.getElementById("exitBtn").onclick = () => {
     if (tv) {
       clearUser();

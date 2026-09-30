@@ -9,7 +9,7 @@
   <link rel="modulepreload" href="/js/langTabs.js">
   <link rel="stylesheet" href="/js/langTabs.css?v=4">
   <link rel="stylesheet" href="/js/featurePage.css?v=10">
-  <link rel="stylesheet" href="ft.css?v=17">
+  <link rel="stylesheet" href="ft.css?v=18">
   <script>
     (function () {
       var tv = /(?:\?|&)client=tv(?:&|$)/.test(location.search) || /1024201-FT-TV/i.test(navigator.userAgent || "");
@@ -76,6 +76,7 @@
             </div>
             <ul class="ft-list" id="fileList"></ul>
             <p class="ft-empty" id="emptyBox" hidden></p>
+            <button type="button" class="btn-secondary ft-retry" id="retryList" hidden>Retry</button>
             <div class="ft-update-wrap" id="ftUpdateWrap" hidden>
               <button type="button" class="ft-update-btn is-off" id="ftUpdateBtn" disabled>暂无更新</button>
               <p class="ft-update-sub" id="ftUpdateSub">暂无更新</p>
@@ -104,7 +105,7 @@
         s.src = "ft-tv.js?v=7";
       } else {
         s.type = "module";
-        s.src = "ft.js?v=15";
+        s.src = "ft.js?v=16";
       }
       document.body.appendChild(s);
     })();

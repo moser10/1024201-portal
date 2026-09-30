@@ -117,15 +117,37 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
-export async function uploadFile({ file, purpose, slot, userId, meta }) {
+export async function uploadFile({ file, purpose, slot, userId, meta, onProgress }) {
   const fd = new FormData();
   fd.append("file", file);
   if (meta) fd.append("meta", JSON.stringify(meta));
   const q = new URLSearchParams({ action: "file_upload", purpose, user_id: String(userId) });
   if (slot !== undefined && slot !== null) q.set("slot", String(slot));
-  const res = await fetch(`/api/portal?${q}`, { method: "POST", body: fd });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "upload_failed");
+  const data = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/api/portal?${q}`);
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable && typeof onProgress === "function") {
+        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      let body = {};
+      try {
+        body = JSON.parse(xhr.responseText || "{}");
+      } catch {
+        /* report the generic upload error below */
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(body.error || "upload_failed"));
+        return;
+      }
+      resolve(body);
+    });
+    xhr.addEventListener("error", () => reject(new Error("network_error")));
+    xhr.addEventListener("abort", () => reject(new Error("upload_cancelled")));
+    xhr.send(fd);
+  });
   if (!data.file?.id) throw new Error(data.error || "upload_failed");
   return data.file;
 }

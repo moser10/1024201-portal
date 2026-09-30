@@ -12,7 +12,9 @@ export const SHOWCASE_STORAGE_BYTES = 30 * MAX_FILE_BYTES;
 /** 博客图片总容量上限 */
 export const BLOG_STORAGE_BYTES = 40 * MAX_FILE_BYTES;
 export const BLOG_MAX_IMAGES = 12;
-const CHUNK_BYTES = 48 * 1024;
+// Keep D1 rows comfortably below its 2 MB value limit while avoiding hundreds
+// of tiny writes for ordinary FT uploads.
+const CHUNK_BYTES = 256 * 1024;
 const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
 
 let filesSchemaJob = null;
@@ -125,15 +127,6 @@ export async function listUserFiles(db, userId, purpose, slot = null) {
   return results.map(fileRow);
 }
 
-async function bytesToBase64(u8) {
-  let bin = "";
-  const step = 0x8000;
-  for (let i = 0; i < u8.length; i += step) {
-    bin += String.fromCharCode(...u8.subarray(i, i + step));
-  }
-  return btoa(bin);
-}
-
 function base64ToBytes(b64) {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
@@ -146,9 +139,8 @@ async function writeChunks(db, fileId, bytes) {
   const stmts = [];
   let idx = 0;
   for (let offset = 0; offset < total; offset += CHUNK_BYTES) {
-    const slice = bytes.subarray(offset, Math.min(offset + CHUNK_BYTES, total));
-    const b64 = await bytesToBase64(slice);
-    stmts.push(db.prepare(`INSERT INTO user_file_chunks (file_id, chunk_idx, data) VALUES (?, ?, ?)`).bind(fileId, idx, b64));
+    const slice = bytes.slice(offset, Math.min(offset + CHUNK_BYTES, total));
+    stmts.push(db.prepare(`INSERT INTO user_file_chunks (file_id, chunk_idx, data) VALUES (?, ?, ?)`).bind(fileId, idx, slice));
     idx += 1;
     if (stmts.length >= 25) {
       await db.batch(stmts.splice(0, stmts.length));
@@ -176,6 +168,10 @@ async function readChunks(db, fileId) {
     }
     if (d instanceof Uint8Array) {
       parts.push(d);
+      continue;
+    }
+    if (Array.isArray(d)) {
+      parts.push(Uint8Array.from(d));
       continue;
     }
     if (ArrayBuffer.isView(d)) {
@@ -291,21 +287,29 @@ export async function handleFileUpload(env, request, url) {
   const name = file.name || "upload";
   const meta = form.get("meta");
   const metaStr = typeof meta === "string" ? meta : "{}";
-  const backend = "d1";
-
-  await db
-    .prepare(
-      `INSERT INTO user_files (id, user_id, purpose, slot, name, mime, size, meta, backend)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(id, userId, purpose, slot, name.slice(0, 200), mime, size, metaStr, backend)
-    .run();
-
-  const row = { id, user_id: userId, mime };
+  const backend = vpsStoreEnabled(env) ? "vps" : "d1";
+  const row = {
+    id,
+    user_id: userId,
+    purpose,
+    slot,
+    name: name.slice(0, 200),
+    mime,
+    size,
+    meta: metaStr,
+    backend,
+  };
   try {
     await writeFileBody(env, db, row, bytes);
+    await db
+      .prepare(
+        `INSERT INTO user_files (id, user_id, purpose, slot, name, mime, size, meta, backend)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(id, userId, purpose, slot, row.name, mime, size, metaStr, backend)
+      .run();
   } catch {
-    await db.prepare("DELETE FROM user_files WHERE id = ?").bind(id).run();
+    await deleteFileBody(env, db, row).catch(() => {});
     return json({ error: "storage_failed" }, 500);
   }
 
