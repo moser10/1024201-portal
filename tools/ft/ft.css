@@ -199,6 +199,13 @@ body.ft-tv .ft-row-hit {
   min-height: 56px;
   text-align: left;
   white-space: normal;
+  background: #f2f2f7;
+  color: #1c1c1e;
+}
+body.ft-tv .ft-row-hit:focus {
+  background: #007aff;
+  color: #fff;
+  outline: none;
 }
 .ft-update-wrap {
   display: none;
