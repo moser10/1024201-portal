@@ -170,7 +170,7 @@ body.ft-tv .ft-form .btn-primary {
   font-size: 14px;
   margin: 8px 0 0;
 }
-.ft-retry { margin-top: 8px; }
+.ft-retry { margin-left: auto; }
 .login-panel {
   display: flex;
   flex-direction: column;
