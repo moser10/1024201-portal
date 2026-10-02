@@ -92,7 +92,7 @@ public class MainActivity extends Activity {
     settings.setDatabaseEnabled(true);
     settings.setAllowFileAccess(false);
     settings.setAllowContentAccess(false);
-    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/1.9");
+    settings.setUserAgentString(settings.getUserAgentString() + " 1024201-FT-TV/2.0");
     CookieManager cookies = CookieManager.getInstance();
     cookies.setAcceptCookie(true);
     cookies.setAcceptThirdPartyCookies(web, true);

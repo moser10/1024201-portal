@@ -1,4 +1,7 @@
 plugins { id "com.android.application" }
+// Persistent signing key: tools/ft/android/ft-release.keystore (git-ignored, back it up!)
+// Password defaults to "1024201ft"; override with env FT_KEYSTORE_PASSWORD.
+def ftKeystorePassword = System.getenv("FT_KEYSTORE_PASSWORD") ?: "1024201ft"
 android {
   namespace "com.p1024201.ft"
   compileSdk 33
@@ -7,9 +10,20 @@ android {
     applicationId "com.p1024201.ft"
     minSdk 21
     targetSdk 28
-    versionCode 10
-    versionName "1.9"
+    versionCode 11
+    versionName "2.0"
   }
-  buildTypes { release { minifyEnabled false } }
+  signingConfigs {
+    ft {
+      storeFile file("ft-release.keystore")
+      storePassword ftKeystorePassword
+      keyAlias "ft"
+      keyPassword ftKeystorePassword
+    }
+  }
+  buildTypes {
+    debug { signingConfig signingConfigs.ft }
+    release { minifyEnabled false; signingConfig signingConfigs.ft }
+  }
 }
 dependencies { implementation "androidx.appcompat:appcompat:1.6.1" }

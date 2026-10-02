@@ -142,7 +142,7 @@ function paintQuota(used = quota.used, limit = quota.limit) {
   sizeQuotaBar(bar, space);
 }
 
-let apkMeta = { version: "1.9", file: "ft-tv-debug.apk", download: "ft-tv-1.9.apk" };
+let apkMeta = { version: "2.0", file: "ft-tv-debug.apk", download: "ft-tv-2.0.apk" };
 
 async function loadApkMeta() {
   try {

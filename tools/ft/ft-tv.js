@@ -6,7 +6,7 @@
   var DEFAULT_LIMIT = 20 * 1024 * 1024;
   var filesCache = [];
   var quota = { used: 0, limit: DEFAULT_LIMIT };
-  var apkMeta = { versionCode: 10, file: "ft-tv-debug.apk", download: "ft-tv.apk", notes: "" };
+  var apkMeta = { versionCode: 11, file: "ft-tv-debug.apk", download: "ft-tv.apk", notes: "" };
   var updateOpen = false;
   var pickIndex = -1;
   var editing = false;
