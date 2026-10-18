@@ -77,6 +77,14 @@ const TOOLS = [
     gradient: "linear-gradient(135deg, #ff9f0a 0%, #ff375f 100%)",
     icon: `<span class="tool-icon-block">FT</span>`,
   },
+  {
+    id: "bayes",
+    title: { zh: "贝叶斯公式", en: "Bayes Formula", ja: "ベイズ公式" },
+    sub: { zh: "这单会不会被赖账", en: "Will they default on this deal?", ja: "貸し倒れ判定" },
+    href: "bayes/",
+    gradient: "linear-gradient(135deg, #2563eb 0%, #0f766e 100%)",
+    icon: `<span class="tool-icon-block">BAYES</span>`,
+  },
 ];
 
 const HUB_I18N = {

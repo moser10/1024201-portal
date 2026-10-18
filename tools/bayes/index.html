@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>贝叶斯公式 · 这单会不会被赖账 | 1024201 工具箱</title>
+<style>
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;max-width:680px;margin:36px auto;padding:0 18px;color:#1a1a1a;background:#fafafa;line-height:1.65}
+  h1{font-size:23px;margin-bottom:4px} h2{font-size:17px;margin-top:34px}
+  .card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:18px 20px;margin:14px 0}
+  label{font-weight:700;display:block;margin-bottom:8px}
+  input[type=number]{font-size:20px;padding:10px 12px;width:200px;border:2px solid #2563eb;border-radius:8px}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .btns button{font-size:16px;padding:9px 0;width:56px;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer}
+  .btns button.on{background:#2563eb;color:#fff;border-color:#2563eb;font-weight:700}
+  .btns button.d.on{background:#0f766e;border-color:#0f766e}
+  .big{font-size:30px;font-weight:800;color:#b91c1c}
+  .big2{font-size:26px;font-weight:800}
+  .neg{color:#b91c1c}.pos{color:#15803d}
+  .hint{color:#666;font-size:13px}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  td,th{border-bottom:1px solid #eee;padding:7px 6px;text-align:right}
+  td:first-child,th:first-child{text-align:left}
+  tr.on td{background:#eff6ff;font-weight:700}
+  code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:13px}
+</style>
+</head>
+<body>
+<h1>贝叶斯公式</h1>
+<p style="font-size:17px;margin-top:0">这单会不会被赖账？能收回多少钱？</p>
+<p class="hint">两步：①填交易价格 ②点你估计的赖账可能性。视频例子里的两条线索（已付三成定金、不还价还催货）已按视频原数算在里面。</p>
+
+<div class="card">
+  <label>① 交易价格（元）</label>
+  <input type="number" id="price" value="100000" min="0" step="any" oninput="calc()">
+  <div style="height:14px"></div>
+  <label>② 你估计：这类客户有几成收不回来？（同行打听来的「几成」就选几成）</label>
+  <div class="btns" id="btns"></div>
+  <div class="hint">0% = 肯定不是老赖 · 100% = 肯定赖账 · 视频的例子选的是 10%（一成）</div>
+  <div style="height:14px"></div>
+  <label>③ 定金比例（只影响没收回来的那部分钱）</label>
+  <div class="btns" id="depBtns">
+    <button class="d on" data-d="0.3" style="width:76px">30%</button>
+    <button class="d" data-d="0.5" style="width:76px">50%</button>
+  </div>
+  <div class="hint">视频后半段的招：拿不准就把定金加到五成，没收的钱从 70% 缩到 50%，期望损失跟着缩。</div>
+</div>
+
+<div class="card">
+  <div>被赖账的几率（两条线索修正后）</div>
+  <div class="big" id="pdOut">—</div>
+  <div>按这个几率，这单期望能收回</div>
+  <div class="big2 pos" id="incOut">—</div>
+  <div class="hint" id="detail">—</div>
+  <div id="profitRow" style="margin-top:10px"></div>
+</div>
+
+<div class="card">
+  <label>（可选）你的成本（元）——填了才判得到底赚还是赔</label>
+  <input type="number" id="cost" placeholder="例：视频那单卖 10 万、毛利 2 万，成本就是 8 万" min="0" step="any" oninput="calc()">
+  <div class="hint">毛利不用你算：毛利 = 交易价格 − 成本。判法还是视频那条：毛利盖得住期望损失才值得做。期望利润 = 期望能收回 − 成本，可以是负数。</div>
+</div>
+
+<h2>全部档位速查（跟着上面的价格和定金变）</h2>
+<div class="card"><table id="tbl"></table></div>
+
+<h2>依据（视频原数，逐帧复核过）</h2>
+<div class="card" style="font-size:14px">
+<p><b>1. 先猜。</b>你选的百分比是先验。视频例子：同行说一成收不回来，即好客户 : 坏客户 = 9 : 1。</p>
+<p><b>2. 线索一：主动付三成定金（好信号）。</b>好客户 10 个有 8 个肯付，赖账的 10 个只有 2 个肯付，似然比 0.8÷0.2 = 4，赔率 9×4 = 36 : 1。</p>
+<p><b>3. 线索二：不还价还催货（坏信号）。</b>好客户 10 个只有 2 个这样，赖账的 10 个有 6 个这样，似然比 0.2÷0.6 ≈ 1/3，赔率 36×1/3 = 12 : 1。所以最终坏客户概率 = 1/13 ≈ 7.7%（这一步就是 1/13 的来历）。</p>
+<p><b>4. 几率变钱。</b>期望损失 = 赖账几率 × 没收回来的钱。视频里有两种算法且特意强调不能混用：口播简化版按全额粗算（约 8% × 10 万 ≈ 8,000 元，拿去和毛利 2 万比）；精确版按未收的 7 万算（7 万 × 1/13 ≈ 5,385 元）。本计算器主数用精确版。</p>
+<p><b>5. 通用写法。</b>选择其他先验时：修正后赔率（坏:好）= 先验赔率 × 0.75（= 定金线索 0.25 × 催货线索 3），再换成概率。</p>
+<p><b>6. 成本的作用。</b>成本不影响赖账几率（几率只跟先验和线索有关），只影响赚赔判断：期望利润 = 期望能收回 − 成本，和毛利 − 期望损失是同一个数。盈亏线 = 毛利 ÷ 没收的钱，赖账几率一旦超过这条线，这单期望上就赔。</p>
+</div>
+
+<script>
+var prior = 0.10, dep = 0.3;
+var btnBox = document.getElementById('btns');
+for (var i=0;i<=100;i+=10){
+  var b=document.createElement('button');
+  b.textContent=i+'%'; b.dataset.v=i;
+  if(i===10) b.className='on';
+  b.onclick=function(){ prior=this.dataset.v/100; var bs=btnBox.children; for(var j=0;j<bs.length;j++) bs[j].className=(bs[j]===this?'on':''); calc(); };
+  btnBox.appendChild(b);
+}
+var depBox=document.getElementById('depBtns');
+for (var k=0;k<depBox.children.length;k++){
+  depBox.children[k].onclick=function(){ dep=parseFloat(this.dataset.d); var bs=depBox.children; for(var j=0;j<bs.length;j++) bs[j].className='d'+(bs[j]===this?' on':''); calc(); };
+}
+function post(p){ if(p>=1) return 1; if(p<=0) return 0; var o=p/(1-p)*0.75; return o/(1+o); }
+function fmt(n){ return '¥'+Math.round(n).toLocaleString('zh-CN'); }
+function calc(){
+  var price=parseFloat(document.getElementById('price').value)||0;
+  var unpaid=price*(1-dep);
+  var pd=post(prior), el=pd*unpaid, inc=price-el;
+  document.getElementById('pdOut').textContent=(pd*100).toFixed(2)+'%'+(pd>0&&pd<1?'（约 '+(1/pd).toFixed(1)+' 单里赖 1 单）':'');
+  document.getElementById('incOut').textContent=fmt(inc);
+  document.getElementById('detail').innerHTML='已收定金 '+fmt(price*dep)+' 丢不了 · 没收的 '+fmt(unpaid)+' × 赖账几率 '+(pd*100).toFixed(2)+'% = 期望损失 '+fmt(el);
+  var cRaw=document.getElementById('cost').value, pr=document.getElementById('profitRow');
+  if(cRaw!=='' && !isNaN(parseFloat(cRaw))){
+    var cost=parseFloat(cRaw), margin=price-cost, profit=inc-cost;
+    var beTxt = margin<0 ? '这单毛利已经是负的，对方不赖账你也赔。' : ('盈亏线：赖账几率超过 '+(unpaid>0?(margin/unpaid*100).toFixed(2):'0')+'% 这单就开始期望亏损。');
+    pr.innerHTML='毛利 = '+fmt(margin)+'（价格 − 成本）<br>期望利润（期望能收回 − 成本）：<span class="'+(profit>=0?'pos':'neg')+'" style="font-size:20px;font-weight:800">'+fmt(profit)+'</span> '+(profit>=0?'（期望上是赚的，值得做）':'（期望上要赔：别做，或者把定金加到 50% 再看）')+'<br><span class="hint">'+beTxt+'</span>';
+  } else pr.innerHTML='';
+  var html='<tr><th>你估计的赖账可能</th><th>修正后几率</th><th>期望损失</th><th>期望能收回</th></tr>';
+  for(var v=0;v<=100;v+=10){
+    var p2=v/100, d2=post(p2), e2=d2*unpaid;
+    html+='<tr'+(v===Math.round(prior*100)?' class="on"':'')+'><td>'+v+'%</td><td>'+(d2*100).toFixed(2)+'%</td><td>'+fmt(e2)+'</td><td>'+fmt(price-e2)+'</td></tr>';
+  }
+  document.getElementById('tbl').innerHTML=html;
+}
+calc();
+</script>
+</body>
+</html>
