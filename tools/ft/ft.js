@@ -142,11 +142,11 @@ function paintQuota(used = quota.used, limit = quota.limit) {
   sizeQuotaBar(bar, space);
 }
 
-let apkMeta = { version: "2.0", file: "ft-tv-debug.apk", download: "ft-tv-2.0.apk" };
+let apkMeta = { version: "1.0.1", file: "mhl-debug.apk", download: "MHL-1.0.1-debug.apk" };
 
 async function loadApkMeta() {
   try {
-    const data = await fetch(`/tools/ft/dist/ft-tv.json?v=${Date.now()}`, { cache: "no-store" }).then((r) => r.json());
+    const data = await fetch(`/tools/ft/dist/mhl.json?v=${Date.now()}`, { cache: "no-store" }).then((r) => r.json());
     if (data?.version) apkMeta = data;
   } catch {
     /* keep last */
