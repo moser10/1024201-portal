@@ -26,7 +26,7 @@ const UI = {
     listFailed: "文件列表加载失败",
     retry: "重新加载",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
-    apk: (v) => `下载投影仪/电视机 APK ${v}`,
+    apk: (v) => `下载 MHL ${v}`,
     del: "删除",
     deleted: "已删除",
     get: "下载",
@@ -52,7 +52,7 @@ const UI = {
     listFailed: "Could not load the file list",
     retry: "Reload",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
-    apk: (v) => `Download projector/TV APK ${v}`,
+    apk: (v) => `Download MHL ${v}`,
     del: "Delete",
     deleted: "Deleted",
     get: "Download",
@@ -78,7 +78,7 @@ const UI = {
     listFailed: "ファイル一覧を読み込めませんでした",
     retry: "再読み込み",
     space: (used, limit) => `${formatStorageMb(used)} / ${formatStorageMb(limit)}`,
-    apk: (v) => `プロジェクター/テレビ用APK ${v} をダウンロード`,
+    apk: (v) => `MHL ${v} をダウンロード`,
     del: "削除",
     deleted: "削除しました",
     get: "ダウンロード",
@@ -187,9 +187,8 @@ function applyChrome() {
   document.body.classList.toggle("ft-tv", tv);
   if (tv) {
     const back = document.getElementById("backLink");
-    const apk = document.getElementById("apkLink");
     if (back) back.remove();
-    if (apk) apk.remove();
+    // keep #apkLink — MHL default install
   }
   paintToolUser();
 }

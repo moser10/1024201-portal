@@ -27,9 +27,8 @@
         var form = document.getElementById("tvLoginForm");
         if (form) form.setAttribute("hidden", "");
         var top = document.getElementById("ftTop");
-        var apk = document.getElementById("apkLink");
         if (top) top.remove();
-        if (apk) apk.remove();
+        // keep #apkLink on TV — default MHL install button
       });
     })();
   </script>
@@ -103,10 +102,10 @@
       }
       var s = document.createElement("script");
       if (tv) {
-        s.src = "ft-tv.js?v=7";
+        s.src = "ft-tv.js?v=8";
       } else {
         s.type = "module";
-        s.src = "ft.js?v=17";
+        s.src = "ft.js?v=18";
       }
       document.body.appendChild(s);
     })();
