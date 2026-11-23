@@ -1,0 +1,51 @@
+{
+  "netease394756": {
+    "kind": "real-excerpt",
+    "source": "netease",
+    "songId": 394756,
+    "title": "无法逃脱",
+    "artist": "指南针",
+    "album": "无法逃脱",
+    "url": "https://music.163.com/api/song/lyric?id=394756&lv=1&kv=1&tv=-1",
+    "captured": "2026-11-23",
+    "note": "Verbatim lines from the live lyric. Opening through the first chorus entry, then the tail credits. Middle verses are omitted; this is not the full lyric and not a synthetic stand-in.",
+    "containsExact": "[00:38.0]",
+    "text": "[00:00.00] 作词 : 刘峥嵘\n[00:01.00] 作曲 : 刘峥嵘\n[00:02.00] 编曲 : 指南针\n[00:15.65]你眼中怎么　还有一团火\n[00:23.25]叫我不知道　该如何\n[00:31.61]我试着想从你眼中逃脱\n[00:35.42]可心里还想把你挽留\n[00:38.0]不知不觉　不知不觉\n[00:42.73]已被你看透\n[00:46.50]\n[00:47.37]你问我 这些日子 是怎么过\n[05:46.38]主唱:刘峥嵘\n[05:51.24]吉他:周笛\n[05:54.84]贝司:岳浩崑\n[05:58.44]鼓:郑朝晖\n[06:01.44]键盘:郭亮\n[06:05.45]萨克斯:苑丁\n[06:10.52]"
+  },
+  "netease155897": {
+    "kind": "real-excerpt",
+    "source": "netease",
+    "songId": 155897,
+    "title": "再见青春",
+    "artist": "汪峰",
+    "album": "信仰在空中飘扬",
+    "url": "https://music.163.com/api/song/lyric?id=155897&lv=1&kv=1&tv=-1",
+    "captured": "2026-11-23",
+    "note": "Verbatim opening credits, the first sung line, the first '再见 青春' chorus line and the next line, plus the tail performer credits. Verses between them are omitted.",
+    "text": "[00:00.00] 作词 : 汪峰\n[00:01.00] 作曲 : 汪峰\n[00:02.00] 编曲 : 贾轶男\n[00:04.51]\n[00:21.63]我将在深秋的黎明出发\n[00:29.32]伴着铁皮车厢的摇晃\n[00:37.58]伴着野菊花开的芬芳\n[00:45.58]在梦碎的黎明出发\n[00:50.85]\n[00:52.42]再见 青春\n[00:55.32]再见美丽的疼痛\n[07:01.06] 贝斯 : 贾轶男\n[07:02.06] 吉他 : 贾轶男\n[07:03.06] 键盘 : 贾轶男\n[07:04.06] 编程 : 贾轶男\n[07:05.06] 鼓 : 关菲"
+  },
+  "netease5274986": {
+    "kind": "real-excerpt",
+    "source": "netease",
+    "songId": 5274986,
+    "title": "无法逃脱",
+    "artist": "指南针",
+    "album": "京文时态零号",
+    "url": "https://music.163.com/api/song/lyric?id=5274986&lv=1&kv=1&tv=-1",
+    "captured": "2026-11-23",
+    "note": "Three verbatim lines only: a 3-decimal credit timestamp, the one-decimal [02:02.0] lyric line, and the next lyric line. Not the user's [00:38.0] sample.",
+    "text": "[00:00.000] 作词 : 刘峥嵘\n[02:02.0]我真的没有你想象好\n[02:05.660]想让你和我不一样"
+  },
+  "lrclib16665": {
+    "kind": "real-excerpt",
+    "source": "lrclib",
+    "songId": 16665,
+    "title": "再见青春",
+    "artist": "汪峰",
+    "album": "信仰在空中飘扬",
+    "url": "https://lrclib.net/api/get/16665",
+    "captured": "2026-11-23",
+    "note": "Selected verbatim plainLyrics lines, not a contiguous slice and not the full lyric: the leading banner, the blank under it, the first two verse lines, then the first chorus pair. Middle verse lines were left out.",
+    "text": "汪峰 - 再见青春\n\n我将在深秋的黎明出发\n伴着铁皮车厢的摇晃\n再见 青春\n再见美丽的疼痛"
+  }
+}

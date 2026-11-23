@@ -220,6 +220,7 @@
   html.feature-page body {
     height: auto !important;
     overflow: visible !important;
+    background: #fff !important;
   }
   .feature-shell {
     padding: 0 !important;
@@ -243,14 +244,21 @@
     padding: 0;
   }
   .view-title-row {
-    margin: 0 0 2mm;
+    display: block;
+    margin: 0;
+    padding: 0;
+    text-align: center;
     page-break-after: avoid;
   }
   .view-title-row h1 {
+    display: block;
+    width: 100%;
+    flex: none;
     font-size: 12pt;
     font-weight: 700;
     line-height: 1.15;
-    margin: 0;
+    text-align: center;
+    margin: 0 0 1.15em;
   }
   .view-lyrics {
     font-size: 11pt;
