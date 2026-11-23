@@ -1,4 +1,5 @@
 import { getPortalLang, mountLangTabs } from "/js/langTabs.js";
+import { cleanLyricsText } from "/js/lyricsClean.js";
 import { deferWork } from "../js/toolPageBoot.js";
 
 const UI = {
@@ -78,18 +79,13 @@ async function translateText(text, target) {
   return data.text || text;
 }
 
-function normalizeLyrics(text) {
-  return String(text || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/\n+$/, "")
-    .trim();
+function normalizeLyrics(text, title, artist) {
+  return cleanLyricsText(text, { title, artist });
 }
 
 function applyLyricsData(data) {
   songTitle = data.title || "";
-  originalLyrics = normalizeLyrics(data.lyrics);
+  originalLyrics = normalizeLyrics(data.lyrics, data.title, data.artist);
   titleEl.textContent = songTitle;
   document.title = songTitle ? `${songTitle} | 1024201` : "Lyrics | 1024201";
   contentEl.hidden = false;

@@ -1,5 +1,5 @@
 import { corsHeaders, json, requireDb, ensureAppSchema, ensureSyncNoteSchema, resolveUserId } from "./_shared.js";
-import { cleanLyricsText } from "./lyricsClean.js";
+import { cleanLyricsText, stripLrcTimestamps } from "./lyricsClean.js";
 import {
   handleFileUpload,
   handleFileGet,
@@ -555,8 +555,8 @@ async function fetchNetease(path) {
   }
 }
 
-function stripLrcTags(lrc) {
-  return cleanLyricsText(lrc);
+function stripLrcTags(lrc, context) {
+  return cleanLyricsText(lrc, context);
 }
 
 async function fetchNeteaseLyricsRaw(songId) {
@@ -609,11 +609,13 @@ async function getNeteaseLyricsRow(ncmId) {
     fetchNeteaseLyricsRaw(songId),
   ]);
   const s = detail?.songs?.[0];
-  const lyrics = stripLrcTags(rawLrc);
+  const title = s?.name || "";
+  const artist = (s?.ar || []).map((a) => a.name).join("/") || "";
+  const lyrics = stripLrcTags(rawLrc, { title, artist });
   return {
     id: `ncm-${songId}`,
-    title: s?.name || "",
-    artist: (s?.ar || []).map((a) => a.name).join("/") || "",
+    title,
+    artist,
     album: s?.al?.name || "",
     year: s?.al?.publishTime ? new Date(s.al.publishTime).toISOString().slice(0, 4) : "",
     lyrics,
@@ -678,7 +680,10 @@ function mapResultRow(r) {
     album: r.albumName || r.album || "",
     year: (r.releaseDate || "").slice(0, 4),
     duration: r.duration || null,
-    lyrics: cleanLyricsText(r.plainLyrics || stripSynced(r.syncedLyrics) || ""),
+    lyrics: cleanLyricsText(r.plainLyrics || stripSynced(r.syncedLyrics) || "", {
+      title: r.trackName || r.name || "",
+      artist: r.artistName || r.artist || "",
+    }),
     source: String(id).startsWith("dz-") ? "deezer" : String(id).startsWith("ncm-") ? "netease" : "lrclib",
   };
 }
@@ -753,7 +758,7 @@ async function fetchLyricsForRow(row, timeoutMs = 4000) {
 
     if (row.id?.startsWith("ncm-")) {
       const raw = await fetchNeteaseLyricsRaw(row.id.slice(4));
-      return stripLrcTags(raw);
+      return stripLrcTags(raw, { title: row.title || "", artist: row.artist || "" });
     }
 
     if (row.id?.startsWith("dz-")) {
@@ -866,20 +871,22 @@ async function fetchLyricsHit(title, artist) {
 }
 
 function formatLyricsRow(row) {
+  const title = row.trackName || row.name || "";
+  const artist = row.artistName || row.artist || "";
   const raw = row.plainLyrics || stripSynced(row.syncedLyrics) || "";
   return {
     id: row.id,
-    title: row.trackName || row.name || "",
-    artist: row.artistName || row.artist || "",
+    title,
+    artist,
     album: row.albumName || row.album || "",
     year: row.releaseDate?.slice(0, 4) || "",
-    lyrics: cleanLyricsText(raw),
+    lyrics: cleanLyricsText(raw, { title, artist }),
   };
 }
 
 function stripSynced(synced) {
   if (!synced) return "";
-  return synced.replace(/\[\d{2}:\d{2}\.\d{2,3}\]/g, "").trim();
+  return stripLrcTimestamps(synced).trim();
 }
 
 async function translateText(text, target) {
