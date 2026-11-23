@@ -65,7 +65,7 @@ Jev MCP 在这台环境里不存在（没有 `~/.cursor/jev.json`，也没有 `j
 
 覆盖：394756 的 `[00:38.0]` 和头尾署名、155897 的副歌保留、5274986 的三位小数和另一处一位小数、LRCLIB 16665 的片头、用户样例 `[00:38.0]`、同一行多时间戳和夹在字中间（synthetic）、重复标题加作者、词/曲标签、无污染、真实首句等于歌名、空行、`我抱着吉他` 保留而 `吉他：张三` 删除、原来的 predeploy 样例。
 
-`node scripts/predeploy-check.mjs`：通过。没有跑 `wrangler deploy`。
+`node scripts/predeploy-check.mjs`：通过。合并前没有部署。合并后的发布尝试记在「上线状态」。
 
 ## 打印实测
 
@@ -92,6 +92,55 @@ Jev MCP 在这台环境里不存在（没有 `~/.cursor/jev.json`，也没有 `j
 - 英文整行如果长得像 `Guitar: John Smith`，会删。普通句子 `Cover me`、`Open your eyes` 会留。
 - `scripts/standalone/` 里的旧副本没有接这套清洗。线上门户走 `functions/api/portal.js`。
 - 副歌、主歌这类标记只在括号里删。单独成行的不删。
+
+## 上线状态（2026-11-23）
+
+PR https://github.com/moser10/1024201-portal/pull/8 已合并进 `main`。
+
+| 项 | 值 |
+| --- | --- |
+| 合并时间 | 2026-11-23 14:07:37 UTC |
+| 合并提交 | `7efb4f334b61d98bed34ffc3a99f1d5fc8c595a4` |
+| 功能提交 | `d387a13568971dc5df3a043aeec8bbf7d2b40c4b` |
+| 评审 | 无评论、无 review |
+| CI | 仓库没有 `.github` workflow。该提交的 check runs 为 0。合并前 `mergeable_state` 是 `clean`，`main` 没有超前。 |
+
+发布目标按 `DEPLOY.md` 和 `wrangler.toml`：Worker 名 `1024201-portal`，域名 `1024201.com` 与 `www.1024201.com`（`lyrics.1024201.com` 也挂在同一个 Worker）。命令是仓库里的 `npm run deploy`（predeploy → `wrangler deploy` → `record-deploy` → `post-deploy`）。`production` 分支停在 2026-06-23 的 `f58a841`，不是这次的发布线。
+
+2026-11-23 14:07:59 UTC 在合并后的 `main` 上执行了 `npm run deploy`。predeploy 通过。`wrangler deploy`（本仓库 wrangler 4.107.1）失败，原文：
+
+```
+In a non-interactive environment, it's necessary to set a CLOUDFLARE_API_TOKEN environment variable for wrangler to work.
+```
+
+这台环境没有 `CLOUDFLARE_API_TOKEN`，`npx wrangler whoami` 是未登录。没有使用 `--temporary`，没有改账号，没有 force push。`record-deploy` 和 `post-deploy` 因此没有跑。
+
+同一分钟核对线上，仍是旧构建，修复还没上去：
+
+- `https://1024201.com/api/health` → `"worker":"1024201-portal"`，`"ok":true`
+- `https://1024201.com/tools/lyrics/view.js?v=11` 仍是旧文件，没有 `lyricsClean.js`
+- `https://1024201.com/tools/lyrics/lyrics.css?v=13` 打印边距仍是 `margin: 0 0 2mm`
+- `https://1024201.com/js/lyricsClean.js` 返回 404
+
+所以上面的标题居中、再见青春、`[00:38.0]` 三项还不能在线上复验。本地测试和 `scripts/lyrics-print-preview/` 仍是合并前的证据。
+
+要上线，在已经配好 Cloudflare 登录的 Mac 上，对这份仓库执行（`DEPLOY.md` 的现有流程）：
+
+```bash
+git pull origin main
+npm run deploy
+```
+
+成功后强刷 `https://www.1024201.com`，并确认：
+
+```bash
+curl -s https://1024201.com/api/health
+curl -sI https://1024201.com/js/lyricsClean.js
+```
+
+`/api/health` 里 `worker` 应为 `1024201-portal`。`/js/lyricsClean.js` 不应再是 404。打印页标题居中并空一行；汪峰《再见青春》片头 `汪峰 - 再见青春` 去掉、副歌 `再见 青春` 还在；指南针《无法逃脱》正文不再出现 `[00:38.0]`，`主唱:` / `吉他:` 这类署名去掉，`我抱着吉他` 这种唱词留着。
+
+如果要让 Cloud Agent 自己部署，按 `docs/a计划.md` 把 `CLOUDFLARE_API_TOKEN` 加进当前 Agent 环境后再跑同一次 `npm run deploy`。不要新开一套托管。
 
 ## 接着改的话从这里看
 
